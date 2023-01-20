@@ -32,9 +32,15 @@ def distance_array_itertools(e):
     e_pairs = combinations(e,2)
     return np.array(list(starmap(partial(energy_distance, mu=eF), e_pairs)))
 
+def pair_inds_itertools(n,N):
+    zero_inds = set(accumulate())
+
 @nijt
 def pair_inds(n,N):
-    pass
+    zero_inds = np.array([sum(range(k) for k in range(1,N))])
+    i_ind = np.max((zero_inds <= n[:,None]).nonzero()[0])
+    
+    return i_ind, int(n - i_ind)
     
 
 def percolate(e, pos, M, dmin=0, dstep=1e-3):
@@ -43,8 +49,12 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3):
     percolated = False
     d = dmin
     adj_mat = np.zeros((N,N))
-    while not percolated:
-        pass
+    while not percolated:                                                                                                                                                  
+        d += dstep
+        connected_inds = (darr < d).nonzero()
+
+        
+
 
     
 
