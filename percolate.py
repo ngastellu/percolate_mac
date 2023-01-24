@@ -37,8 +37,8 @@ def distance_array_itertools(e):
 @njit
 def pair_inds(n,N):
     zero_k_inds = np.array([np.sum(np.arange(k)) for k in range(1,N)])
-    i_inds = (n[:,None] >= zero_k_inds).sum(axis=1) - 1
-    return np.vstack(i_inds, (n - i_inds)).T
+    i_inds = np.array([np.sum(nn >= zero_k_inds) for nn in n])
+    return np.vstack((i_inds, (n - i_inds))).T
     
 def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1):
     darr = distance_array(energies)
