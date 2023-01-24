@@ -5,6 +5,8 @@ from functools import partial
 import numpy as np
 from scipy.spatial import cKDTree
 from numba import njit
+import qcnico.qchemMAC as qcm
+from qcnico.graph_tools import components
 
 @njit
 def energy_distance(ei, ej, mu):
@@ -32,41 +34,60 @@ def distance_array_itertools(e):
     e_pairs = combinations(e,2)
     return np.array(list(starmap(partial(energy_distance, mu=eF), e_pairs)))
 
-def pair_inds_itertools(n,N):
-    zero_inds = set(accumulate())
-
-@nijt
+@njit
 def pair_inds(n,N):
-    zero_inds = np.array([sum(range(k) for k in range(1,N))])
-    i_ind = np.max((zero_inds <= n[:,None]).nonzero()[0])
+    zero_k_inds = np.array([np.sum(np.arange(k)) for k in range(1,N)])
+    i_inds = (n[:,None] >= zero_k_inds).sum(axis=1) - 1
+    return np.vstack(i_inds, (n - i_inds)).T
     
-    return i_ind, int(n - i_ind)
-    
-
-def percolate(e, pos, M, dmin=0, dstep=1e-3):
+def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1):
     darr = distance_array(energies)
     N = e.size
     percolated = False
     d = dmin
     adj_mat = np.zeros((N,N))
+    agaL, agaR = qcm.AO_gammas(pos,gamma)
+    gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
+    L = set((gamLs > gamma_tol).nonzero()[0])
+    R = set((gamRs > gamma_tol).nonzero()[0])
+    spanning_clusters = []
     while not percolated:                                                                                                                                                  
-        d += dstep
-        connected_inds = (darr < d).nonzero()
-
+        print(d)
+        connected_inds = (darr < d).nonzero()[0]
+        ij = pair_inds(connected_inds,N)
+        adj_mat[ij] = 1
+        adj_mat  = (adj_mat + adj_mat.T) // 2
+        relevant_MOs = set(np.unique(ij))
+        coupledL = not L.isdisjoint(relevant_MOs)
+        coupledR = not R.isdisjoint(relevant_MOs)
+        if np.any(coupledL) and np.any(coupledR) > gamma_tol:
+            clusters = components(adj_mat)
+            for c in clusters:
+                if (not c.disjoint(L)) and (not c.disjoint(R)):
+                    spanning_clusters.append(c)
+                    percolated = True
         
-
-
+        d += dstep
     
-
-
+    return spanning_clusters, d
 
 if __name__ == '__main__':
     from os import path
     from time import perf_counter
     from qcnico.qcffpi_io import read_energies, read_MO_file
 
-    datadir = path.expanduser('~/Desktop/simulation_outputs/qcffpi_data/MO_dynamics/300K_initplanar_norotate/orbital_energies')
-    datafile = 'orb_energy_frame-80000.dat'
-    datapath = path.join(datadir,datafile)
+    datadir = path.expanduser('~/Desktop/simulation_outputs/qcffpi_data/MO_dynamics/300K_initplanar_norotate/')
+    energy_dir = 'orbital_energies'
+    mo_dir = 'MO_coefs'
 
-    energies = read_energies(datapath)
+    frame_nb = 80000
+    mo_file = f'MOs_frame-{frame_nb}.dat'
+    energy_file = f'orb_energy_frame-{frame_nb}.dat'
+    
+    mo_path = path.join(datadir,mo_dir,mo_file)
+    energy_path = path.join(datadir,energy_dir,energy_file)
+
+    energies = read_energies(energy_path)
+    pos, M = read_MO_file(mo_path)
+
+    clusters, d = percolate(energies,pos,M)
