@@ -36,9 +36,9 @@ def distance_array_itertools(e):
 
 @njit
 def pair_inds(n,N):
-    zero_k_inds = np.array([np.sum(np.arange(k)) for k in range(1,N)])
+    zero_k_inds = np.array([k*(k-1)//2 for k in range(1,N)])
     i_inds = np.array([np.sum(nn >= zero_k_inds) for nn in n])
-    return np.vstack((i_inds, (n - i_inds))).T
+    return i_inds, (n - zero_k_inds[i_inds-1])
     
 def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1):
     darr = distance_array(energies)
@@ -50,6 +50,8 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1):
     gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
     L = set((gamLs > gamma_tol).nonzero()[0])
     R = set((gamRs > gamma_tol).nonzero()[0])
+    print(len(L))
+    print(len(R))
     spanning_clusters = []
     while not percolated:                                                                                                                                                  
         print(d)
@@ -61,7 +63,9 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1):
         coupledL = not L.isdisjoint(relevant_MOs)
         coupledR = not R.isdisjoint(relevant_MOs)
         if np.any(coupledL) and np.any(coupledR) > gamma_tol:
+            print('Getting clusters...')
             clusters = components(adj_mat)
+            print('Done!')
             for c in clusters:
                 if (not c.disjoint(L)) and (not c.disjoint(R)):
                     spanning_clusters.append(c)
