@@ -9,11 +9,12 @@ import qcnico.qchemMAC as qcm
 from qcnico.graph_tools import components
 
 @njit
-def energy_distance(ei, ej, mu):
-    return np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)
+def energy_distance(ei, ej, mu, T):
+    kB = 8.617e-5
+    return np.exp( (np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T) )
 
 @njit
-def distance_array(e):
+def distance_array(e, T):
     N = e.size
     eF = 0.5 * (e[N//2 - 1] + e[N//2])
     darr = np.zeros(N*(N-1)//2)
@@ -21,18 +22,18 @@ def distance_array(e):
 
     for i in range(1,N):
         for j in range(i):
-            darr[k] = energy_distance(e[i], e[j], eF)
+            darr[k] = energy_distance(e[i], e[j], eF, T)
             k += 1
     
     return darr
 
-def distance_array_itertools(e):
+def distance_array_itertools(e, T):
     N = e.size
     print(N)
     eF = 0.5 * (e[N//2 - 1] + e[N//2])
     
     e_pairs = combinations(e,2)
-    return np.array(list(starmap(partial(energy_distance, mu=eF), e_pairs)))
+    return np.array(list(starmap(partial(energy_distance, mu=eF, T=T), e_pairs)))
 
 @njit
 def pair_inds(n,N):
@@ -40,8 +41,8 @@ def pair_inds(n,N):
     i_inds = np.array([np.sum(nn >= zero_k_inds) for nn in n])
     return i_inds, (n - zero_k_inds[i_inds-1])
     
-def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1):
-    darr = distance_array(energies)
+def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300):
+    darr = distance_array(e,T)
     N = e.size
     percolated = False
     d = dmin
@@ -65,11 +66,13 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1):
         if np.any(coupledL) and np.any(coupledR) > gamma_tol:
             print('Getting clusters...')
             clusters = components(adj_mat)
-            print('Done!')
+            print('Done! Now looping over clusters...')
             for c in clusters:
-                if (not c.disjoint(L)) and (not c.disjoint(R)):
+                print('Size of cluster: ', len(c))
+                if (not c.isdisjoint(L)) and (not c.isdisjoint(R)):
                     spanning_clusters.append(c)
                     percolated = True
+            print('Done with clusters loop!')
         
         d += dstep
     
