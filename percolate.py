@@ -2,6 +2,7 @@
 
 from itertools import combinations, starmap
 from functools import partial
+import pickle
 import numpy as np
 from scipy.spatial import cKDTree
 from numba import njit
@@ -43,6 +44,7 @@ def pair_inds(n,N):
     
 def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300):
     darr = distance_array(e,T)
+    np.save('darr.npy', darr)
     N = e.size
     percolated = False
     d = dmin
@@ -51,15 +53,14 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300):
     gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
     L = set((gamLs > gamma_tol).nonzero()[0])
     R = set((gamRs > gamma_tol).nonzero()[0])
-    print(len(L))
-    print(len(R))
     spanning_clusters = []
-    while not percolated:                                                                                                                                                  
-        print(d)
+    while not percolated:                                                                                                                                              
+        print(d)            
         connected_inds = (darr < d).nonzero()[0]
+        print(len(connected_inds))
         ij = pair_inds(connected_inds,N)
         adj_mat[ij] = 1
-        adj_mat  = (adj_mat + adj_mat.T) // 2
+        adj_mat  += adj_mat.T
         relevant_MOs = set(np.unique(ij))
         coupledL = not L.isdisjoint(relevant_MOs)
         coupledR = not R.isdisjoint(relevant_MOs)
@@ -67,8 +68,10 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300):
             print('Getting clusters...')
             clusters = components(adj_mat)
             print('Done! Now looping over clusters...')
+            print(f'Nb. of clusters with more MO = {np.sum(np.array([len(c) for c in clusters])>1)}')
             for c in clusters:
-                print('Size of cluster: ', len(c))
+                #print('Size of cluster: ', len(c))
+                #print('Cluster: ', c)
                 if (not c.isdisjoint(L)) and (not c.isdisjoint(R)):
                     spanning_clusters.append(c)
                     percolated = True
