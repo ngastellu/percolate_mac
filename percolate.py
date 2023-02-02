@@ -2,9 +2,9 @@
 
 from itertools import combinations, starmap
 from functools import partial
-import pickle
 import numpy as np
-from scipy.spatial import cKDTree
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
 from numba import njit
 import qcnico.qchemMAC as qcm
 from qcnico.graph_tools import components
@@ -41,8 +41,10 @@ def pair_inds(n,N):
     zero_k_inds = np.array([k*(k-1)//2 for k in range(1,N)])
     i_inds = np.array([np.sum(nn >= zero_k_inds) for nn in n])
     return i_inds, (n - zero_k_inds[i_inds-1])
+
+def k_ind(i,j): return int(i*(i-1)/2 + j)
     
-def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300):
+def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300, return_adjmat=False):
     darr = distance_array(e,T)
     np.save('darr.npy', darr)
     N = e.size
@@ -79,7 +81,38 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300):
         
         d += dstep
     
-    return spanning_clusters, d
+    if return_adjmat:
+        return spanning_clusters, d, adj_mat
+    else:
+        return spanning_clusters, d
+
+
+def plot_cluster(c,pos, M, adjmat, cmap='inferno',show_densities=False, usetex=True):
+    if isinstance(c,set): c = list(c)
+    centers = qcm.MO_com(pos,M,c)
+
+    fig, ax = plt.subplots()
+
+    if show_densities:
+        rho = np.sum(M[:,c]**2,axis=1)
+        ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=dotsize, cmap='plasma')
+
+    else:
+        ye = ax.scatter(pos.T[0], pos.T[1], c='k', s=dotsize)
+
+    ax.scatter(*centers.T, marker='*', c='r', s = 1.2*dotsize)
+    seen = set()
+    for n in c:
+        if n not in seen:
+            neighbours = adjmat[n,:].nonzero()[0]
+            seen.update(neighbours)
+            for m in neighbours:
+                ax.plot()
+
+
+
+
+
 
 if __name__ == '__main__':
     from os import path
