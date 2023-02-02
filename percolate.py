@@ -8,6 +8,7 @@ from matplotlib import rcParams
 from numba import njit
 import qcnico.qchemMAC as qcm
 from qcnico.graph_tools import components
+from qcnico import plt_utils
 
 @njit
 def energy_distance(ei, ej, mu, T):
@@ -15,7 +16,12 @@ def energy_distance(ei, ej, mu, T):
     return np.exp( (np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T) )
 
 @njit
-def distance_array(e, T):
+def miller_abrahams_distance(ei, ej, ri, rj, mu, T, a0):
+    kB = 8.617e-5 #eV/K
+    return np.exp( ((np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T)) + 2*np.linalg.norm(ri - rj)/a0 )
+
+@njit
+def dArray_energy(e, T):
     N = e.size
     eF = 0.5 * (e[N//2 - 1] + e[N//2])
     darr = np.zeros(N*(N-1)//2)
@@ -27,6 +33,19 @@ def distance_array(e, T):
             k += 1
     
     return darr
+
+@njit
+def dArray_MA(e, coms, T, a0=1):
+    N = e.size
+    eF = 0.5 * (e[N//2 - 1] + e[N//2])
+    darr = np.zeros(N*(N-1)//2)
+    k = 0
+
+    for i in range(1,N):
+        for j in range(i):
+            darr[k] = miller_abrahams_distance(e[i], e[j], coms[i], coms[j], eF, T, a0)
+            k += 1
+    
 
 def distance_array_itertools(e, T):
     N = e.size
@@ -44,8 +63,13 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
     
-def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300, return_adjmat=False):
-    darr = distance_array(e,T)
+def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300, distance='miller_abrahams', return_adjmat=False):
+    assert distance in ['energy', 'miller_abrahams'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
+    if distance == 'energy':
+        darr = dArray_energy(e,T)
+    else:
+        MO_coms = qcm.MO_com(pos, M)
+        darr = dArray_MA(e, MO_coms, T)
     np.save('darr.npy', darr)
     N = e.size
     percolated = False
@@ -57,9 +81,9 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300, r
     R = set((gamRs > gamma_tol).nonzero()[0])
     spanning_clusters = []
     while not percolated:                                                                                                                                              
-        print(d)            
+        print('d = ', d)            
         connected_inds = (darr < d).nonzero()[0]
-        print(len(connected_inds))
+        print('Nb. of connected pairs = ', len(connected_inds))
         ij = pair_inds(connected_inds,N)
         adj_mat[ij] = 1
         adj_mat  += adj_mat.T
@@ -85,29 +109,42 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300, r
         return spanning_clusters, d, adj_mat
     else:
         return spanning_clusters, d
+    
 
-
-def plot_cluster(c,pos, M, adjmat, cmap='inferno',show_densities=False, usetex=True):
-    if isinstance(c,set): c = list(c)
+def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True, show=True):
+    pos = pos[:,:2]
+    c = np.sort(list(c))
     centers = qcm.MO_com(pos,M,c)
 
     fig, ax = plt.subplots()
 
+    if usetex:
+        plt_utils.setup_tex()
+
     if show_densities:
         rho = np.sum(M[:,c]**2,axis=1)
-        ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=dotsize, cmap='plasma')
+        ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=dotsize, cmap='plasma',zorder=1)
+        cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
 
     else:
-        ye = ax.scatter(pos.T[0], pos.T[1], c='k', s=dotsize)
+        ax.scatter(pos.T[0], pos.T[1], c='k', s=dotsize)
 
-    ax.scatter(*centers.T, marker='*', c='r', s = 1.2*dotsize)
+    ax.scatter(*centers.T, marker='*', c='r', s = 1.2*dotsize,zorder=2)
     seen = set()
-    for n in c:
-        if n not in seen:
-            neighbours = adjmat[n,:].nonzero()[0]
+    for i in c:
+        if i not in seen:
+            n = np.sum(i > c)
+            r1 = centers[n]
+            neighbours = adjmat[i,:].nonzero()[0]
             seen.update(neighbours)
-            for m in neighbours:
-                ax.plot()
+            for j in neighbours:
+                m = np.sum(j > c)
+                r2 = centers[m]
+                pts = np.vstack((r1,r2)).T
+                ax.plot(*pts, 'r-', lw=0.7)
+    
+    if show:
+        plt.show()
 
 
 
