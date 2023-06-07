@@ -21,6 +21,11 @@ def miller_abrahams_distance(ei, ej, ri, rj, mu, T, a0):
     return np.exp( ((np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T)) + 2*np.linalg.norm(ri - rj)/a0 )
 
 @njit
+def log_miller_abrahams_distance(ei, ej, ri, rj, mu, T, a0):
+    kB = 8.617e-5 #eV/K
+    return ((np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T)) + 2*np.linalg.norm(ri - rj)/a0
+
+@njit
 def dArray_energy(e, T):
     N = e.size
     eF = 0.5 * (e[N//2 - 1] + e[N//2])
@@ -45,7 +50,22 @@ def dArray_MA(e, coms, T, a0=1):
         for j in range(i):
             darr[k] = miller_abrahams_distance(e[i], e[j], coms[i], coms[j], eF, T, a0)
             k += 1
-    
+
+    return darr
+
+@njit
+def dArray_logMA(e, coms, T, a0=1):
+    N = e.size
+    eF = 0.5 * (e[N//2 - 1] + e[N//2])
+    darr = np.zeros(N*(N-1)//2)
+    k = 0
+
+    for i in range(1,N):
+        for j in range(i):
+            darr[k] = log_miller_abrahams_distance(e[i], e[j], coms[i], coms[j], eF, T, a0)
+            k += 1
+
+    return darr
 
 def distance_array_itertools(e, T):
     N = e.size
@@ -63,13 +83,16 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
     
-def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300, distance='miller_abrahams', return_adjmat=False):
-    assert distance in ['energy', 'miller_abrahams'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
+def percolate(e, pos, M, dmin=0, dstep=1e-3, gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, T=300, distance='miller_abrahams', return_adjmat=False):
+    assert distance in ['energy', 'miller_abrahams', 'logMA'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
     if distance == 'energy':
         darr = dArray_energy(e,T)
-    else:
+    elif distance == 'miller_abrahams':
         MO_coms = qcm.MO_com(pos, M)
         darr = dArray_MA(e, MO_coms, T)
+    else:
+        MO_coms = qcm.MO_com(pos,M)
+        darr = dArray_logMA(e, MO_coms, T)
     np.save('darr.npy', darr)
     N = e.size
     percolated = False
@@ -77,8 +100,8 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamma_tol=0.07, gamma=0.1, T=300, d
     adj_mat = np.zeros((N,N))
     agaL, agaR = qcm.AO_gammas(pos,gamma)
     gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-    L = set((gamLs > gamma_tol).nonzero()[0])
-    R = set((gamRs > gamma_tol).nonzero()[0])
+    L = set((gamLs > gamL_tol).nonzero()[0])
+    R = set((gamRs > gamR_tol).nonzero()[0])
     spanning_clusters = []
     while not percolated:                                                                                                                                              
         print('d = ', d)            
@@ -153,21 +176,37 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True,
 
 if __name__ == '__main__':
     from os import path
-    from time import perf_counter
+    import sys
+    import pickle
     from qcnico.qcffpi_io import read_energies, read_MO_file
 
-    datadir = path.expanduser('~/Desktop/simulation_outputs/qcffpi_data/MO_dynamics/300K_initplanar_norotate/')
-    energy_dir = 'orbital_energies'
-    mo_dir = 'MO_coefs'
-
-    frame_nb = 80000
-    mo_file = f'MOs_frame-{frame_nb}.dat'
-    energy_file = f'orb_energy_frame-{frame_nb}.dat'
+    qcffpidir = path.expanduser('~/scratch/MO_airebo_dynamics/qcffpi')
+    mo_file = 'MO_coefs.dat'
+    energy_file = 'orb_energy.dat'
     
-    mo_path = path.join(datadir,mo_dir,mo_file)
-    energy_path = path.join(datadir,energy_dir,energy_file)
+    n1 = int(sys.argv[1])
+    n2 = int(sys.argv[2])
+    step = int(sys.argv[3])
 
-    energies = read_energies(energy_path)
-    pos, M = read_MO_file(mo_path)
+    frames = np.arange(n1,n2,step)
+    nframes = frames.size
 
-    clusters, d = percolate(energies,pos,M)
+    cluster_list = [None] * nframes
+    ds = np.zeros((nframes,2))
+    for k, i in range(frames):
+        framedir= f'300K_initplanar_norotate/frame-{i}'
+        mo_path = path.join(qcffpidir,framedir,mo_file)
+        energy_path = path.join(qcffpidir,framedir,energy_file)
+
+        energies = read_energies(energy_path)
+        pos, M = read_MO_file(mo_path)
+
+        clusters, d = percolate(energies,pos,M)
+
+        cluster_list[k] = clusters
+        ds[k] = i, d
+    
+    np.save(ds, f'ds_frames_{n1}-{n2}-{step}.npy')
+    with open('clusters_frames_{n1}-{n2}-{step}.pkl', 'wb') as fo:
+        pickle.dump(cluster_list, fo)
+    
