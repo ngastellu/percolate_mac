@@ -34,7 +34,7 @@ def diff_arrs(e, coms, a0, eF=None):
     for i in range(N):
         for j in range(i):
             edarr[k] = np.abs(e[i]-eF) + np.abs(e[j]) + np.abs(e[i] - e[j])
-            ddarr[k] = np.linalg.norm(coms[i]-coms[j])
+            ddarr[k] = 2*np.linalg.norm(coms[i]-coms[j])/a0
             k += 1
     return edarr, ddarr
 
@@ -101,7 +101,7 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
     
-def percolate(e, pos, M, T=300, a0=1,
+def percolate(e, pos, M, T=300, a0=1, eF=None,
                 dmin=0, dstep=1e-3, dArrs=None, 
                 gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
                 distance='miller_abrahams', 
@@ -109,18 +109,17 @@ def percolate(e, pos, M, T=300, a0=1,
     
     assert distance in ['energy', 'miller_abrahams', 'logMA'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
     if distance == 'energy':
-        darr = dArray_energy(e,T)
+        darr = dArray_energy(e,T, eF)
     elif distance == 'miller_abrahams':
-        MO_coms = qcm.MO_com(pos, M, a0)
-        darr = dArray_MA(e, MO_coms, T)
-    elif darr == 'logMA' and dArrs is None:
-        MO_coms = qcm.MO_com(pos,M, a0)
-        darr = dArray_logMA(e, MO_coms, T)
+        MO_coms = qcm.MO_com(pos, M)
+        darr = dArray_MA(e, MO_coms, T, a0, eF)
+    elif distance == 'logMA' and dArrs is None:
+        MO_coms = qcm.MO_com(pos,M)
+        darr = dArray_logMA(e, MO_coms, T, a0, eF)
     else:
         kB = 8.617e-5
         edarr, ddarr = dArrs
-        edarr /= (2*kB*T)
-        darr = (2*ddarr / a0) + (edarr / (2*kB*T))
+        darr = ddarr  + (edarr / (kB*T))
     # np.save('darr.npy', darr)
     N = e.size
     percolated = False

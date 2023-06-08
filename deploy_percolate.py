@@ -48,7 +48,7 @@ energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
 
 mo_path = path.join(datadir,Mdir,mo_file)
 energy_path = path.join(datadir,edir,energy_file)
-pos_path = path.join(datadir,posdir,'bigMAC-{sample_index}_relaxed.xsf')
+pos_path = path.join(datadir,posdir,f'bigMAC-{sample_index}_relaxed.xsf')
 
 energies = np.load(energy_path)
 M =  np.load(mo_path)
@@ -88,3 +88,6 @@ for T in Ts:
 
     with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
         pickle.dump((conduction_clusters,dcrit,A), fo)
+
+    c = conduction_clusters[0]
+    plot_cluster(c, pos, M, A, usetex=True, show_densities=True)
