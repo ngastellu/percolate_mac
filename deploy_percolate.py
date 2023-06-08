@@ -56,17 +56,20 @@ pos, _ = read_xsf(pos_path)
 
 
 # ******* 2: Get gammas *******
-ga = 0.1 #edge atome-lead coupling in eV
-print("Computing AO gammas...")
-agaL, agaR = qcm.AO_gammas(pos,ga)
-print("Computing MO gammas...")
-gamL, gamR = qcm.MO_gammas(M,agaL, agaR, return_diag=True)
-np.save(f'gamL_40x40-{sample_index}.npy',gamL)
-np.save(f'gamR_40x40-{sample_index}.npy',gamR)
+# ga = 0.1 #edge atome-lead coupling in eV
+# print("Computing AO gammas...")
+# agaL, agaR = qcm.AO_gammas(pos,ga)
+# print("Computing MO gammas...")
+# gamL, gamR = qcm.MO_gammas(M,agaL, agaR, return_diag=True)
+# np.save(f'gamL_40x40-{sample_index}.npy',gamL)
+# np.save(f'gamR_40x40-{sample_index}.npy',gamR)
+
+gamL = np.load(f'gamL_40x40-{sample_index}.npy')
+gamR = np.load(f'gamR_40x40-{sample_index}.npy')
 
 
 # ******* 3: Define strongly-coupled MOs *******
-tolscal = 1.0
+tolscal = 3.0
 gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
 gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
 

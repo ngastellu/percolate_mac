@@ -133,15 +133,17 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
     N = e.size
 
     percolated = False
-    first_try=True # this will remain True if a percolating cluster is obtained with the first value of d (suggests an overestimate of the critical distance)
-    d = max([np.min(darr), np.mean(darr)-1.5*np.std(darr)]) # distribution is approx. log-normal is P(mu - 1.5sigma) is already v small
+    #first_try=True # this will remain True if a percolating cluster is obtained with the first value of d (suggests an overestimate of the critical distance)
+    #d = max([np.min(darr), np.mean(darr)-2.0*np.std(darr)]) # distribution is approx. log-normal is P(mu - 1.5sigma) is already v small
     darr_sorted = np.sort(darr)
-    d_ind = np.sum(d > darr_sorted)
+    #d_ind = np.sum(d > darr_sorted)
     adj_mat = np.zeros((N,N),dtype=bool)
     spanning_clusters = []
-    while not percolated:                                                                                                                                              
-        print('d = ', d)            
-        connected_inds = (darr <= d).nonzero()[0] #darr is 1D array
+    d_ind = 0
+    while not percolated:
+        d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
+        print('d = ', d)       
+        connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
         print('Nb. of connected pairs = ', len(connected_inds))
         ij = pair_inds(connected_inds,N)
         print(ij)
@@ -163,13 +165,13 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
                 if (not c.isdisjoint(L)) and (not c.isdisjoint(R)):
                     spanning_clusters.append(c)
                     percolated = True
-                    if first_try:
-                        print('First try!')
+                    # if first_try:
+                    #     print('First try!')
             print('Done with clusters loop!')
         
         d_ind += 1
-        d = darr_sorted[d_ind]
-        first_try = False
+        # d = darr_sorted[d_ind]
+        # first_try = False
     
     if return_adjmat:
         return spanning_clusters, d, adj_mat
