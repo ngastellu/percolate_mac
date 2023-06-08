@@ -26,9 +26,25 @@ def log_miller_abrahams_distance(ei, ej, ri, rj, mu, T, a0):
     return ((np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T)) + 2*np.linalg.norm(ri - rj)/a0
 
 @njit
-def dArray_energy(e, T):
+def diff_arrs(e, coms, a0, eF=None):
+    N = e.shape[0]
+    ddarr = np.zeros(int(N*(N-1)/2))
+    edarr = np.zeros(int(N*(N-1)/2))
+    k = 0
+    for i in range(N):
+        for j in range(i):
+            edarr[k] = np.abs(e[i]-eF) + np.abs(e[j]) + np.abs(e[i] - e[j])
+            ddarr[k] = np.linalg.norm(coms[i]-coms[j])
+            k += 1
+    return edarr, ddarr
+
+
+
+@njit
+def dArray_energy(e, T, eF=None):
     N = e.size
-    eF = 0.5 * (e[N//2 - 1] + e[N//2])
+    if eF is None:
+        eF = 0.5 * (e[N//2 - 1] + e[N//2])
     darr = np.zeros(N*(N-1)//2)
     k = 0
 
@@ -40,9 +56,10 @@ def dArray_energy(e, T):
     return darr
 
 @njit
-def dArray_MA(e, coms, T, a0=1):
+def dArray_MA(e, coms, T, a0=1, eF=None):
     N = e.size
-    eF = 0.5 * (e[N//2 - 1] + e[N//2])
+    if eF is None:
+        eF = 0.5 * (e[N//2 - 1] + e[N//2])
     darr = np.zeros(N*(N-1)//2)
     k = 0
 
@@ -54,9 +71,10 @@ def dArray_MA(e, coms, T, a0=1):
     return darr
 
 @njit
-def dArray_logMA(e, coms, T, a0=1):
+def dArray_logMA(e, coms, T, a0=1, eF=None):
     N = e.size
-    eF = 0.5 * (e[N//2 - 1] + e[N//2])
+    if eF is None:
+        eF = 0.5 * (e[N//2 - 1] + e[N//2])
     darr = np.zeros(N*(N-1)//2)
     k = 0
 
@@ -83,17 +101,27 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
     
-def percolate(e, pos, M, dmin=0, dstep=1e-3, gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, T=300, distance='miller_abrahams', return_adjmat=False, MOgams=None):
+def percolate(e, pos, M, T=300, a0=1,
+                dmin=0, dstep=1e-3, dArrs=None, 
+                gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
+                distance='miller_abrahams', 
+                return_adjmat=False):
+    
     assert distance in ['energy', 'miller_abrahams', 'logMA'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
     if distance == 'energy':
         darr = dArray_energy(e,T)
     elif distance == 'miller_abrahams':
-        MO_coms = qcm.MO_com(pos, M)
+        MO_coms = qcm.MO_com(pos, M, a0)
         darr = dArray_MA(e, MO_coms, T)
-    else:
-        MO_coms = qcm.MO_com(pos,M)
+    elif darr == 'logMA' and dArrs is None:
+        MO_coms = qcm.MO_com(pos,M, a0)
         darr = dArray_logMA(e, MO_coms, T)
-    np.save('darr.npy', darr)
+    else:
+        kB = 8.617e-5
+        edarr, ddarr = dArrs
+        edarr /= (2*kB*T)
+        darr = (2*ddarr / a0) + (edarr / (2*kB*T))
+    # np.save('darr.npy', darr)
     N = e.size
     percolated = False
     d = dmin
@@ -103,8 +131,11 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamL_tol=0.07,gamR_tol=0.07,gamma=0
         gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
     else:
         gamLs, gamRs = MOgams
-    L = set((gamLs > gamL_tol).nonzero()[0])
-    R = set((gamRs > gamR_tol).nonzero()[0])
+    if coupled_MO_sets is None:
+        L = set((gamLs > gamL_tol).nonzero()[0])
+        R = set((gamRs > gamR_tol).nonzero()[0])
+    else:
+        L, R = coupled_MO_sets
     spanning_clusters = []
     while not percolated:                                                                                                                                              
         print('d = ', d)            
@@ -182,9 +213,6 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True,
     
     if show:
         plt.show()
-
-
-
 
 
 
