@@ -101,8 +101,7 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
     
-def percolate(e, pos, M, T=300, a0=1, eF=None,
-                dmin=0, dstep=1e-3, dArrs=None, 
+def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None, 
                 gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
                 distance='miller_abrahams', 
                 return_adjmat=False):
@@ -121,10 +120,6 @@ def percolate(e, pos, M, T=300, a0=1, eF=None,
         edarr, ddarr = dArrs
         darr = ddarr  + (edarr / (kB*T))
     # np.save('darr.npy', darr)
-    N = e.size
-    percolated = False
-    d = dmin
-    adj_mat = np.zeros((N,N),dtype=bool)
     if MOgams is None:
         agaL, agaR = qcm.AO_gammas(pos,gamma)
         gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
@@ -135,10 +130,20 @@ def percolate(e, pos, M, T=300, a0=1, eF=None,
         R = set((gamRs > gamR_tol).nonzero()[0])
     else:
         L, R = coupled_MO_sets
+    N = e.size
+
+    percolated = False
+    #first_try=True # this will remain True if a percolating cluster is obtained with the first value of d (suggests an overestimate of the critical distance)
+    #d = max([np.min(darr), np.mean(darr)-2.0*np.std(darr)]) # distribution is approx. log-normal is P(mu - 1.5sigma) is already v small
+    darr_sorted = np.sort(darr)
+    #d_ind = np.sum(d > darr_sorted)
+    adj_mat = np.zeros((N,N),dtype=bool)
     spanning_clusters = []
-    while not percolated:                                                                                                                                              
-        print('d = ', d)            
-        connected_inds = (darr < d).nonzero()[0] #darr is 1D array
+    d_ind = 0
+    while not percolated:
+        d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
+        print('d = ', d)       
+        connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
         print('Nb. of connected pairs = ', len(connected_inds))
         ij = pair_inds(connected_inds,N)
         print(ij)
@@ -160,9 +165,13 @@ def percolate(e, pos, M, T=300, a0=1, eF=None,
                 if (not c.isdisjoint(L)) and (not c.isdisjoint(R)):
                     spanning_clusters.append(c)
                     percolated = True
+                    # if first_try:
+                    #     print('First try!')
             print('Done with clusters loop!')
         
-        d += dstep
+        d_ind += 1
+        # d = darr_sorted[d_ind]
+        # first_try = False
     
     if return_adjmat:
         return spanning_clusters, d, adj_mat

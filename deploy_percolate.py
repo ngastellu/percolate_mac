@@ -56,15 +56,20 @@ pos, _ = read_xsf(pos_path)
 
 
 # ******* 2: Get gammas *******
-ga = 0.1 #edge atome-lead coupling in eV
-print("Computing AO gammas...")
-agaL, agaR = qcm.AO_gammas(pos,ga)
-print("Computing MO gammas...")
-gamL, gamR = qcm.MO_gammas(M,agaL, agaR, return_diag=True)
+# ga = 0.1 #edge atome-lead coupling in eV
+# print("Computing AO gammas...")
+# agaL, agaR = qcm.AO_gammas(pos,ga)
+# print("Computing MO gammas...")
+# gamL, gamR = qcm.MO_gammas(M,agaL, agaR, return_diag=True)
+# np.save(f'gamL_40x40-{sample_index}.npy',gamL)
+# np.save(f'gamR_40x40-{sample_index}.npy',gamR)
+
+gamL = np.load(f'gamL_40x40-{sample_index}.npy')
+gamR = np.load(f'gamR_40x40-{sample_index}.npy')
 
 
 # ******* 3: Define strongly-coupled MOs *******
-tolscal = 1.0
+tolscal = 3.0
 gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
 gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
 
@@ -77,14 +82,8 @@ coms = qcm.MO_com(pos, M)
 
 for T in Ts:
     edArr, rdArr = diff_arrs(energies, coms, a0=1, eF=0)
-    distMA = (edArr/2*kB*T)
-
-    # pick initial guess of critical distance
-    d0 = min([np.min(distMA), np.mean(distMA) - 1.5*np.std(distMA)]) # distribution is approx. log-normal is P(mu - 1.5sigma) is already v small
-
-
     # ******* 5: Get spanning cluster *******
-    conduction_clusters, dcrit, A = percolate(energies, pos, M, gamL_tol=gamL_tol,gamR_tol=gamR_tol, dmin=d0, dstep=0.1, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR))
+    conduction_clusters, dcrit, A = percolate(energies, pos, M, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr))
 
     with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
         pickle.dump((conduction_clusters,dcrit,A), fo)
