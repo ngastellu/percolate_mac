@@ -83,7 +83,7 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
     
-def percolate(e, pos, M, dmin=0, dstep=1e-3, gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, T=300, distance='miller_abrahams', return_adjmat=False):
+def percolate(e, pos, M, dmin=0, dstep=1e-3, gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, T=300, distance='miller_abrahams', return_adjmat=False, MOgams=None):
     assert distance in ['energy', 'miller_abrahams', 'logMA'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
     if distance == 'energy':
         darr = dArray_energy(e,T)
@@ -97,27 +97,33 @@ def percolate(e, pos, M, dmin=0, dstep=1e-3, gamL_tol=0.07,gamR_tol=0.07,gamma=0
     N = e.size
     percolated = False
     d = dmin
-    adj_mat = np.zeros((N,N))
-    agaL, agaR = qcm.AO_gammas(pos,gamma)
-    gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
+    adj_mat = np.zeros((N,N),dtype=bool)
+    if MOgams is None:
+        agaL, agaR = qcm.AO_gammas(pos,gamma)
+        gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
+    else:
+        gamLs, gamRs = MOgams
     L = set((gamLs > gamL_tol).nonzero()[0])
     R = set((gamRs > gamR_tol).nonzero()[0])
     spanning_clusters = []
     while not percolated:                                                                                                                                              
         print('d = ', d)            
-        connected_inds = (darr < d).nonzero()[0]
+        connected_inds = (darr < d).nonzero()[0] #darr is 1D array
         print('Nb. of connected pairs = ', len(connected_inds))
         ij = pair_inds(connected_inds,N)
-        adj_mat[ij] = 1
+        print(ij)
+        adj_mat[ij] = True
         adj_mat  += adj_mat.T
+        print(adj_mat.astype(int))
+        print('\n')
         relevant_MOs = set(np.unique(ij))
         coupledL = not L.isdisjoint(relevant_MOs)
         coupledR = not R.isdisjoint(relevant_MOs)
-        if np.any(coupledL) and np.any(coupledR) > gamma_tol:
+        if coupledL and coupledR:
             print('Getting clusters...')
             clusters = components(adj_mat)
             print('Done! Now looping over clusters...')
-            print(f'Nb. of clusters with more MO = {np.sum(np.array([len(c) for c in clusters])>1)}')
+            print(f'Nb. of clusters with more than 1 MO = {np.sum(np.array([len(c) for c in clusters])>1)}')
             for c in clusters:
                 #print('Size of cluster: ', len(c))
                 #print('Cluster: ', c)
@@ -156,7 +162,7 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True,
     seen = set()
     for i in c:
         if i not in seen:
-            n = np.sum(i > c)
+            n = np.sum(i > c) #gets relative index of i (i=global MO index; n=index of MO i in centers array)
             r1 = centers[n]
             neighbours = adjmat[i,:].nonzero()[0]
             seen.update(neighbours)
@@ -165,6 +171,14 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True,
                 r2 = centers[m]
                 pts = np.vstack((r1,r2)).T
                 ax.plot(*pts, 'r-', lw=0.7)
+                nn = adjmat[j,:].nonzero()[0]
+                seen.update(nn)
+                for n in nn:
+                    m = np.sum(n > c)
+                    r3 = centers[m]
+                    pts = np.vstack((r3,r2)).T
+                    ax.plot(*pts, 'r-', lw=0.7)
+
     
     if show:
         plt.show()
