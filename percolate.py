@@ -141,7 +141,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
     spanning_clusters = []
     while not percolated:                                                                                                                                              
         print('d = ', d)            
-        connected_inds = (darr < d).nonzero()[0] #darr is 1D array
+        connected_inds = (darr <= d).nonzero()[0] #darr is 1D array
         print('Nb. of connected pairs = ', len(connected_inds))
         ij = pair_inds(connected_inds,N)
         print(ij)
