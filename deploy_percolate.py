@@ -4,14 +4,28 @@ import sys
 import pickle
 from os import path
 import numpy as np
+from mpi4py import MPI
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from percolate import dArray_MA, percolate, plot_cluster
 
 
-
 sample_index = int(sys.argv[1])
-T = 300
+
+
+
+# ******* 0: Partition tasks over different cores *******
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+nprocs = comm.Get_size()
+
+all_Ts = np.arange(0,1050,50)
+ops_per_rank = all_Ts.shape[0] // nprocs
+if rank == nprocs -1:
+    Ts = all_Ts[rank*ops_per_rank:]
+else:
+    Ts = all_Ts[rank*ops_per_rank:(rank+1)*ops_per_rank]
+
 
 # ******* 1: Load data *******
 arpackdir = path.expanduser('~/scratch/ArpackMAC/40x40')
@@ -49,14 +63,16 @@ biggaR_inds = (gamR > gamR_tol).nonzero()[0]
 
 # ******* 4: Get a sense of the distance distribution *******
 coms = qcm.MO_com(pos, M)
-distMA = dArray_MA(energies,coms,T, a0=30)
 
-# pick initial guess of critical distance
-d0 = min([np.min(distMA), np.mean(distMA) - 1.5*np.std(distMA)]) # distribution is approx. log-normal is P(mu - 1.5sigma) is already v small
+for T in Ts:
+    distMA = dArray_MA(energies,coms,T, a0=30)
+
+    # pick initial guess of critical distance
+    d0 = min([np.min(distMA), np.mean(distMA) - 1.5*np.std(distMA)]) # distribution is approx. log-normal is P(mu - 1.5sigma) is already v small
 
 
-# ******* 5: Get spanning cluster *******
-conduction_clusters, dcrit, A = percolate(energies, pos, M, gamL_tol=gamL_tol,gamR_tol=gamR_tol, dmin=d0, dstep=0.1, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR))
+    # ******* 5: Get spanning cluster *******
+    conduction_clusters, dcrit, A = percolate(energies, pos, M, gamL_tol=gamL_tol,gamR_tol=gamR_tol, dmin=d0, dstep=0.1, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR))
 
-with open('out_percolate.pkl', 'wb') as fo:
-    pickle.dump((conduction_clusters,dcrit,A), fo)
+    with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
+        pickle.dump((conduction_clusters,dcrit,A), fo)
