@@ -140,7 +140,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
     adj_mat = np.zeros((N,N),dtype=bool)
     spanning_clusters = []
     d_ind = 0
-    while not percolated:
+    while not percolated and d_ind < N:
         d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
         print('d = ', d)       
         connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
@@ -172,6 +172,10 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
         d_ind += 1
         # d = darr_sorted[d_ind]
         # first_try = False
+    
+    if d_ind == N:
+        print(f'No spanning clusters found at T = {T}K.')
+        spanning_clusters = []
     
     if return_adjmat:
         return spanning_clusters, d, adj_mat

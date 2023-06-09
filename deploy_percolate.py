@@ -26,7 +26,7 @@ sample_index = 2 #int(sys.argv[1])
 # else:
 #     Ts = all_Ts[rank*ops_per_rank:(rank+1)*ops_per_rank]
 
-Ts = [40,100,300]
+Ts = [10,100,300]
 kB = 8.617e-5
 
 # ******* 1: Load data *******

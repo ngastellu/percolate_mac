@@ -72,7 +72,7 @@ biggaR_inds = (gamR > gamR_tol).nonzero()[0]
 coms = qcm.MO_com(pos, M)
 
 for T in Ts:
-    edArr, rdArr = diff_arrs(energies, coms, a0=1, eF=0)
+    edArr, rdArr = diff_arrs(energies, coms, a0=30, eF=0)
     # ******* 5: Get spanning cluster *******
     conduction_clusters, dcrit, A = percolate(energies, pos, M, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr))
 
