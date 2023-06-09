@@ -26,7 +26,7 @@ sample_index = 2 #int(sys.argv[1])
 # else:
 #     Ts = all_Ts[rank*ops_per_rank:(rank+1)*ops_per_rank]
 
-Ts = [10,100,300]
+Ts = [300,300]
 kB = 8.617e-5
 
 # ******* 1: Load data *******
@@ -76,17 +76,20 @@ gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
 biggaL_inds = (gamL > gamL_tol).nonzero()[0]
 biggaR_inds = (gamR > gamR_tol).nonzero()[0]
 
+print(f'{biggaL_inds.shape[0]} MOs strongly coupled to left lead.')
+print(f'{biggaR_inds.shape[0]} MOs strongly coupled to right lead.')
+
 
 # ******* 4: Get a sense of the distance distribution *******
 coms = qcm.MO_com(pos, M)
 
 for T in Ts:
-    edArr, rdArr = diff_arrs(energies, coms, a0=1, eF=0)
+    edArr, rdArr = diff_arrs(energies, coms, a0=30, eF=0)
     # ******* 5: Get spanning cluster *******
-    conduction_clusters, dcrit, A = percolate(energies, pos, M, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr))
+    conduction_clusters, dcrit, A = percolate(energies, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr))
 
     with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
         pickle.dump((conduction_clusters,dcrit,A), fo)
 
     c = conduction_clusters[0]
-    plot_cluster(c, pos, M, A, usetex=True, show_densities=True)
+    plot_cluster(c, pos, M, A, usetex=True, show_densities=True, dotsize=1)
