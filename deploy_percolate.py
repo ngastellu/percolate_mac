@@ -7,7 +7,7 @@ import numpy as np
 #from mpi4py import MPI
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
-from percolate import diff_arrs, percolate, plot_cluster
+from percolate import diff_arrs, percolate, plot_cluster, get_MO_loc_centers
 
 
 sample_index = 2 #int(sys.argv[1])
@@ -81,15 +81,35 @@ print(f'{biggaR_inds.shape[0]} MOs strongly coupled to right lead.')
 
 
 # ******* 4: Get a sense of the distance distribution *******
-coms = qcm.MO_com(pos, M)
+# centres = np.zeros(2)
+# ee = []
+# for n in range(len(energies)):
+#     cc =get_MO_loc_centers(pos,M,n)
+#     print(len(cc))
+#     centres = np.vstack([centres,cc])
+#     ee.extend([energies[n]]*cc.shape[0])
+# ee = np.array(ee)
+# centres = centres[1:,:]
+# np.save('cc.npy',centres)
+# np.save('ee.npy',ee)
+
+
+ee = np.load('ee.npy')
+centres = np.load('cc.npy')
+
+ii = (ee[:,None] == energies).nonzero()[1]
+print(ii)
+print(centres)
+
 
 for T in Ts:
-    edArr, rdArr = diff_arrs(energies, coms, a0=30, eF=0)
+    edArr, rdArr = diff_arrs(ee, centres, a0=5, eF=0)
     # ******* 5: Get spanning cluster *******
-    conduction_clusters, dcrit, A = percolate(energies, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr))
+    conduction_clusters, dcrit, A = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr))
 
     with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
         pickle.dump((conduction_clusters,dcrit,A), fo)
 
     c = conduction_clusters[0]
-    plot_cluster(c, pos, M, A, usetex=True, show_densities=True, dotsize=1)
+    plot_cluster(c, pos, M, A, usetex=True, show_densities=True, dotsize=1,centers=centres,inds=ii)
+    print(conduction_clusters, dcrit)

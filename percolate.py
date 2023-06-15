@@ -5,6 +5,7 @@ from functools import partial
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from scipy.signal import find_peaks
 from numba import njit
 import qcnico.qchemMAC as qcm
 from qcnico.graph_tools import components
@@ -100,6 +101,44 @@ def pair_inds(n,N):
     return i_inds, (n - zero_k_inds[i_inds-1])
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
+
+def bin_centers(peak_inds,xedges,yedges):
+    centers = np.zeros((len(peak_inds),2))
+    for k, ij in enumerate(peak_inds):
+        i,j = ij
+        x = 0.5*(xedges[j]+xedges[j+1])
+        y = 0.5*(yedges[i]+yedges[i+1])
+        centers[k,:] = [x,y]
+    return centers 
+
+def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60):
+    rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins)
+
+    all_peaks = {}
+    for i in range(nbins):
+        data = rho[i,:]
+        peak_inds, _ = find_peaks(data)
+        for j in peak_inds:
+            peak_val = data[j]
+            if peak_val > 1e-4: all_peaks[(i,j)] = peak_val
+
+    threshold = max(all_peaks.values())*threshold_ratio
+    peaks = {key:val for key,val in all_peaks.items() if val >= threshold}
+
+    pk_inds = set(peaks.keys())
+    shift = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
+
+
+    while pk_inds:
+        ij = pk_inds.pop()
+        nns = set(tuple(nm) for nm in ij + shift)
+        intersect = nns & pk_inds
+        for nm in intersect:
+            peaks[nm] = 0
+
+    peak_inds = [key for key in peaks.keys() if peaks[key] > 0]
+
+    return bin_centers(peak_inds,xedges,yedges)
     
 def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None, 
                 gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
@@ -181,12 +220,22 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
         return spanning_clusters, d, adj_mat
     else:
         return spanning_clusters, d
-    
 
-def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True, show=True):
+    
+def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True, show=True, centers=None, inds=None):
     pos = pos[:,:2]
+
     c = np.sort(list(c))
-    centers = qcm.MO_com(pos,M,c)
+    if centers is None:
+        centers = qcm.MO_com(pos,M,c)
+        inds = c
+    else:
+        assert inds is not None, "[percolate.plot_cluster] If `centers` is passed, so must `ee`!"
+        centers = centers[c,:]
+        print(centers)
+        
+        
+    
 
     fig, ax = plt.subplots()
 
@@ -194,7 +243,7 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True,
         plt_utils.setup_tex()
 
     if show_densities:
-        rho = np.sum(M[:,c]**2,axis=1)
+        rho = np.sum(M[:,np.unique(inds)]**2,axis=1)
         ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=dotsize, cmap='plasma',zorder=1)
         cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
 
@@ -208,6 +257,7 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False, dotsize=20, usetex=True,
             n = np.sum(i > c) #gets relative index of i (i=global MO index; n=index of MO i in centers array)
             r1 = centers[n]
             neighbours = adjmat[i,:].nonzero()[0]
+            print(neighbours)
             seen.update(neighbours)
             for j in neighbours:
                 m = np.sum(j > c)
