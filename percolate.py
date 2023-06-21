@@ -27,14 +27,14 @@ def log_miller_abrahams_distance(ei, ej, ri, rj, mu, T, a0):
     return ((np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T)) + 2*np.linalg.norm(ri - rj)/a0
 
 @njit
-def diff_arrs(e, coms, a0, eF=None):
+def diff_arrs(e, coms, a0, eF=0):
     N = e.shape[0]
     ddarr = np.zeros(int(N*(N-1)/2))
     edarr = np.zeros(int(N*(N-1)/2))
     k = 0
     for i in range(N):
         for j in range(i):
-            edarr[k] = np.abs(e[i]-eF) + np.abs(e[j]) + np.abs(e[i] - e[j])
+            edarr[k] = np.abs(e[i]-eF) + np.abs(e[j]-eF) + np.abs(e[i] - e[j])
             ddarr[k] = 2*np.linalg.norm(coms[i]-coms[j])/a0
             k += 1
     return edarr, ddarr
@@ -183,10 +183,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
     N = e.size
 
     percolated = False
-    #first_try=True # this will remain True if a percolating cluster is obtained with the first value of d (suggests an overestimate of the critical distance)
-    #d = max([np.min(darr), np.mean(darr)-2.0*np.std(darr)]) # distribution is approx. log-normal is P(mu - 1.5sigma) is already v small
     darr_sorted = np.sort(darr)
-    #d_ind = np.sum(d > darr_sorted)
     adj_mat = np.zeros((N,N),dtype=bool)
     spanning_clusters = []
     d_ind = 0
@@ -223,9 +220,9 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
         # d = darr_sorted[d_ind]
         # first_try = False
     
-    if d_ind == N:
+    if d_ind == (N*(N-1)//2)-1:
         print(f'No spanning clusters found at T = {T}K.')
-        spanning_clusters = []
+        return clusters, d, adj_mat
     
     if return_adjmat:
         return spanning_clusters, d, adj_mat
