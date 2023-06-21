@@ -149,7 +149,7 @@ def generate_site_list(pos,M,energies,nbins=20, threshold_ratio=0.60):
         centres = np.vstack([centres,cc])
         ee.extend([energies[n]]*cc.shape[0])
         inds.extend([n]*cc.shape[0]) #this will help us keep track of which centers belong to which MOs
-    return centres[1:,:], ee, inds #get rid of initial [0,0] entry in centres
+    return centres[1:,:], np.array(ee), np.array(inds) #get rid of initial [0,0] entry in centres
     
 def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None, 
                 gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
@@ -233,7 +233,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
         return spanning_clusters, d
 
     
-def plot_cluster(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, show=True, centers=None, inds=None, plt_objs=None):
+def plot_cluster(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, show=True, centers=None, rel_center_size=2.0, inds=None, plt_objs=None):
     pos = pos[:,:2]
 
     c = np.sort(list(c))
@@ -263,7 +263,7 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, 
     else:
         ax.scatter(pos.T[0], pos.T[1], c='k', s=dotsize)
 
-    ax.scatter(*centers.T, marker='*', c='r', s = 2*dotsize,zorder=2)
+    ax.scatter(*centers.T, marker='*', c='r', s = rel_center_size*dotsize,zorder=2)
     seen = set()
     for i in c:
         if i not in seen:

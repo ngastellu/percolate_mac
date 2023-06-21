@@ -6,12 +6,10 @@ from os import path
 import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
-from percolate import diff_arrs, percolate, get_MO_loc_centers
+from percolate import diff_arrs, percolate, generate_site_list
 
 
 sample_index = int(sys.argv[1])
-
-
 
 
 all_Ts = np.arange(40,440,10)
@@ -51,22 +49,18 @@ biggaR_inds = (gamR > gamR_tol).nonzero()[0]
 
 
 # ******* 4: Pre-compute distances *******
-centres = np.zeros(2)
-ee = []
-for n in range(len(energies)):
-    cc =get_MO_loc_centers(pos,M,n)
-    print(len(cc))
-    centres = np.vstack([centres,cc])
-    ee.extend([energies[n]]*cc.shape[0])
-ee = np.array(ee)
-centres = centres[1:,:]
+centres, ee, ii = generate_site_list(pos,M,energies)
 np.save('cc.npy',centres)
 np.save('ee.npy',ee)
+np.save('ii.npy', ii)
 edArr, rdArr = diff_arrs(ee, centres, a0=30, eF=0)
+
+cgamL = gamL[ii]
+cgamR = gamR[ii]
 
 for T in all_Ts:
     # ******* 5: Get spanning cluster *******
-    conduction_clusters, dcrit, A = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr))
+    conduction_clusters, dcrit, A = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr))
 
     with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
         pickle.dump((conduction_clusters,dcrit,A), fo)

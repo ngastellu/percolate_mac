@@ -7,7 +7,7 @@ import numpy as np
 #from mpi4py import MPI
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
-from percolate import diff_arrs, percolate, plot_cluster, get_MO_loc_centers
+from percolate import diff_arrs, percolate, plot_cluster, generate_site_list
 
 
 sample_index = 2 #int(sys.argv[1])
@@ -26,7 +26,7 @@ sample_index = 2 #int(sys.argv[1])
 # else:
 #     Ts = all_Ts[rank*ops_per_rank:(rank+1)*ops_per_rank]
 
-Ts = [300,300]
+Ts = [430]
 kB = 8.617e-5
 
 # ******* 1: Load data *******
@@ -64,8 +64,8 @@ pos, _ = read_xsf(pos_path)
 # np.save(f'gamL_40x40-{sample_index}.npy',gamL)
 # np.save(f'gamR_40x40-{sample_index}.npy',gamR)
 
-gamL = np.load(f'gamL_40x40-{sample_index}.npy')
-gamR = np.load(f'gamR_40x40-{sample_index}.npy')
+gamL = np.load(f'gamL_40x40-{sample_index}_2.npy')
+gamR = np.load(f'gamR_40x40-{sample_index}_2.npy')
 
 
 # ******* 3: Define strongly-coupled MOs *******
@@ -81,31 +81,21 @@ print(f'{biggaR_inds.shape[0]} MOs strongly coupled to right lead.')
 
 
 # ******* 4: Get a sense of the distance distribution *******
-# centres = np.zeros(2)
-# ee = []
-# for n in range(len(energies)):
-#     cc =get_MO_loc_centers(pos,M,n)
-#     print(len(cc))
-#     centres = np.vstack([centres,cc])
-#     ee.extend([energies[n]]*cc.shape[0])
-# ee = np.array(ee)
-# centres = centres[1:,:]
-# np.save('cc.npy',centres)
-# np.save('ee.npy',ee)
+#centres, ee, ii = generate_site_list(pos,M,energies)
 
-
-ee = np.load('ee.npy')
 centres = np.load('cc.npy')
+ee = np.load('ee.npy')
+ii = np.load('ii.npy')
 
-ii = (ee[:,None] == energies).nonzero()[1]
 print(ii)
-print(centres)
 
+cgamL = gamL[ii]
+cgamR = gamR[ii]
 
 for T in Ts:
-    edArr, rdArr = diff_arrs(ee, centres, a0=5, eF=0)
+    edArr, rdArr = diff_arrs(ee, centres, a0=30, eF=0)
     # ******* 5: Get spanning cluster *******
-    conduction_clusters, dcrit, A = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr))
+    conduction_clusters, dcrit, A = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr))
 
     with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
         pickle.dump((conduction_clusters,dcrit,A), fo)
