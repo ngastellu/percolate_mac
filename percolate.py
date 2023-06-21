@@ -110,12 +110,27 @@ def bin_centers(peak_inds,xedges,yedges):
         y = 0.5*(yedges[i]+yedges[i+1])
         centers[k,:] = [x,y]
     return centers 
+    
+def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True):
+    rho, xedges, yedges = gridifyMO(pos, M, n, nbins,True)
+    if padded_rho:
+        dx = np.diff(xedges)[0] #all dxs should be the same since xedges is created using np.linspace
+        dy = np.diff(yedges)[0] #idem for dys
+        xedges_padded = np.zeros(xedges.shape[0]+2)
+        yedges_padded = np.zeros(yedges.shape[0]+2)
+        xedges_padded[0] = xedges[0] - dx
+        xedges_padded[-1] = xedges[0] + dx
+        yedges_padded[0] = yedges[0] - dy
+        yedges_padded[-1] = yedges[0] + dy
+        xedges_padded[1:-1] = xedges
+        yedges_padded[1:-1] = yedges
 
-def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60):
-    rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins)
-
+        xedges_padded = xedges
+        yedges_padded = yedges
+        nbins = nbins+2
+    
     all_peaks = {}
-    for i in range(nbins):
+    for i in range(1,nbins-1):
         data = rho[i,:]
         peak_inds, _ = find_peaks(data)
         for j in peak_inds:
@@ -124,21 +139,30 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60):
 
     threshold = max(all_peaks.values())*threshold_ratio
     peaks = {key:val for key,val in all_peaks.items() if val >= threshold}
+    for ij, pkval in peaks.items():
+        print(ij, pkval)
 
+    # Some peaks still occupy several neighbouring pixels; keep only the most prominent pixel
+    # so that we have 1 peak <---> 1 pixel.
     pk_inds = set(peaks.keys())
     shift = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
-
-
+    
     while pk_inds:
         ij = pk_inds.pop()
+        print(f"******* {ij} *******")
         nns = set(tuple(nm) for nm in ij + shift)
         intersect = nns & pk_inds
         for nm in intersect:
-            peaks[nm] = 0
+            if peaks[nm] <= peaks[ij]:
+                print(nm, peaks[nm])
+                peaks[nm] = 0
 
-    peak_inds = [key for key in peaks.keys() if peaks[key] > 0]
-
-    return bin_centers(peak_inds,xedges,yedges)
+    #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
+    peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
+    if return_realspace:
+        return bin_centers(peak_inds,xedges,yedges)
+    else:
+        return peak_inds
 
 def generate_site_list(pos,M,energies,nbins=20, threshold_ratio=0.60):
     centres = np.zeros(2) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
