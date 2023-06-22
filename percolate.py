@@ -113,7 +113,6 @@ def bin_centers(peak_inds,xedges,yedges):
 
 def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True):
     rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins,True)
-    print(xedges.shape, yedges.shape)
     if padded_rho:
         nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
@@ -127,8 +126,6 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
 
     threshold = max(all_peaks.values())*threshold_ratio
     peaks = {key:val for key,val in all_peaks.items() if val >= threshold}
-    for ij, pkval in peaks.items():
-        print(ij, pkval)
 
     # Some peaks still occupy several neighbouring pixels; keep only the most prominent pixel
     # so that we have 1 peak <---> 1 pixel.
@@ -137,7 +134,6 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
     
     while pk_inds:
         ij = pk_inds.pop()
-        print(f"* {ij} *")
         nns = set(tuple(nm) for nm in ij + shift)
         intersect = nns & pk_inds
         for nm in intersect:

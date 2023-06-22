@@ -10,7 +10,7 @@ from qcnico.coords_io import read_xsf
 from percolate import diff_arrs, percolate, plot_cluster, generate_site_list
 
 
-sample_index = 2 #int(sys.argv[1])
+sample_index = 99 #int(sys.argv[1])
 
 
 
@@ -26,7 +26,7 @@ sample_index = 2 #int(sys.argv[1])
 # else:
 #     Ts = all_Ts[rank*ops_per_rank:(rank+1)*ops_per_rank]
 
-Ts = [430]
+Ts = [40, 430]
 kB = 8.617e-5
 
 # ******* 1: Load data *******
@@ -64,8 +64,8 @@ pos, _ = read_xsf(pos_path)
 # np.save(f'gamL_40x40-{sample_index}.npy',gamL)
 # np.save(f'gamR_40x40-{sample_index}.npy',gamR)
 
-gamL = np.load(f'gamL_40x40-{sample_index}_2.npy')
-gamR = np.load(f'gamR_40x40-{sample_index}_2.npy')
+gamL = np.load(f'gamL_40x40-{sample_index}.npy')
+gamR = np.load(f'gamR_40x40-{sample_index}.npy')
 
 
 # ******* 3: Define strongly-coupled MOs *******
@@ -81,7 +81,7 @@ print(f'{biggaR_inds.shape[0]} MOs strongly coupled to right lead.')
 
 
 # ******* 4: Get a sense of the distance distribution *******
-#centres, ee, ii = generate_site_list(pos,M,energies)
+centres, ee, ii = generate_site_list(pos,M,energies)
 
 centres = np.load('cc.npy')
 ee = np.load('ee.npy')
