@@ -106,28 +106,16 @@ def bin_centers(peak_inds,xedges,yedges):
     centers = np.zeros((len(peak_inds),2))
     for k, ij in enumerate(peak_inds):
         i,j = ij
-        x = 0.5*(xedges[j]+xedges[j+1])
-        y = 0.5*(yedges[i]+yedges[i+1])
+        x = 0.5*(xedges[i]+xedges[i+1])
+        y = 0.5*(yedges[j]+yedges[j+1])
         centers[k,:] = [x,y]
-    return centers 
-    
-def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True):
-    rho, xedges, yedges = gridifyMO(pos, M, n, nbins,True)
-    if padded_rho:
-        dx = np.diff(xedges)[0] #all dxs should be the same since xedges is created using np.linspace
-        dy = np.diff(yedges)[0] #idem for dys
-        xedges_padded = np.zeros(xedges.shape[0]+2)
-        yedges_padded = np.zeros(yedges.shape[0]+2)
-        xedges_padded[0] = xedges[0] - dx
-        xedges_padded[-1] = xedges[0] + dx
-        yedges_padded[0] = yedges[0] - dy
-        yedges_padded[-1] = yedges[0] + dy
-        xedges_padded[1:-1] = xedges
-        yedges_padded[1:-1] = yedges
+    return centers
 
-        xedges_padded = xedges
-        yedges_padded = yedges
-        nbins = nbins+2
+def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True):
+    rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins,True)
+    print(xedges.shape, yedges.shape)
+    if padded_rho:
+        nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
     all_peaks = {}
     for i in range(1,nbins-1):
@@ -149,16 +137,19 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
     
     while pk_inds:
         ij = pk_inds.pop()
-        print(f"******* {ij} *******")
+        print(f"* {ij} *")
         nns = set(tuple(nm) for nm in ij + shift)
         intersect = nns & pk_inds
         for nm in intersect:
             if peaks[nm] <= peaks[ij]:
-                print(nm, peaks[nm])
+                #print(nm, peaks[nm])
                 peaks[nm] = 0
+            else:
+                peaks[ij] = 0
 
     #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
     peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
+    #peak_inds = np.array([key for key in peaks.keys() if peaks[key] > 0])
     if return_realspace:
         return bin_centers(peak_inds,xedges,yedges)
     else:
