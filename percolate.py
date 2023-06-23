@@ -111,8 +111,9 @@ def bin_centers(peak_inds,xedges,yedges):
         centers[k,:] = [x,y]
     return centers
 
-def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True):
-    rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins,True)
+
+def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True,return_gridify=False):
+    rho, xedges, yedges = gridifyMO(pos, M, n, nbins,True)
     if padded_rho:
         nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
@@ -146,21 +147,64 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
     #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
     peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
     #peak_inds = np.array([key for key in peaks.keys() if peaks[key] > 0])
-    if return_realspace:
+    if return_realspace and return_gridify:
+        return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges
+    elif return_realspace and (not return_gridify):
         return bin_centers(peak_inds,xedges,yedges)
+    elif return_gridify and (not return_realspace):
+        return peak_inds, rho, xedges, yedges
     else:
         return peak_inds
+    
 
-def generate_site_list(pos,M,energies,nbins=20, threshold_ratio=0.60):
+def correct_peaks(sites, pos, rho, xedges, yedges, side):
+    x = pos[:,0]
+    length = np.max(x) - np.min(x)
+    midx = length/2
+
+    if side == 'L':
+        goodbools = sites[:,0] < midx
+    else: # <==> side == 'R'
+        goodbools = sites[:,0] > midx
+    
+    # First, remove bad sites
+    sites = sites[goodbools]
+
+    # Check if any sites are left, if not, add peak on the right edge, at the pixel with the highest density
+    if not np.any(goodbools):
+        print('!!! Generating new peaks !!!')
+        if side == 'L':
+            edge_ind = 1
+        else: # <==> side == 'R' 
+            edge_ind = -3
+        peak_ind = np.argmax(rho[:,edge_ind]) -1 
+
+        sites = bin_centers([(edge_ind,peak_ind)],xedges,yedges)
+        print(sites)
+    
+    return sites
+
+def generate_site_list(pos,M,ii,L,R,energies,nbins=20,threshold_ratio=0.60):
     centres = np.zeros(2) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     ee = []
     inds = []
-    for n in range(M.shape[1]):
-        cc = get_MO_loc_centers(pos,M,n,nbins,threshold_ratio)
+    #for n in range(M.shape[1]):
+    for n in ii:
+        cc, rho, xedges, yedges = get_MO_loc_centers_pynb(pos,M,n,nbins,threshold_ratio,return_gridify=True)
+        if n in L:
+            print(n)
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'L')
+        
+        elif n in R:
+            print(n)
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'R')
+        
+
         centres = np.vstack([centres,cc])
         ee.extend([energies[n]]*cc.shape[0])
         inds.extend([n]*cc.shape[0]) #this will help us keep track of which centers belong to which MOs
     return centres[1:,:], np.array(ee), np.array(inds) #get rid of initial [0,0] entry in centres
+
     
 def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None, 
                 gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
@@ -296,6 +340,20 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, 
     
     if show:
         plt.show()
+
+
+def plot_loc_centers(rho, xedges, yedges, centers, colours='r', show=True, plt_objs=None):
+
+    if plt_objs is None:
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = plt_objs
+    
+    ax.imshow(rho, origin='lower',extent=[*xedges[[0,-1]], *yedges[[0,-1]]])
+    ax.scatter(*centers.T,c=colours,marker='*',s=5.0)
+    if show:
+        plt.show()
+
 
 
 
