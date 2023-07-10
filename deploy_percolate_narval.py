@@ -44,12 +44,12 @@ tolscal = 3.0
 gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
 gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
 
-biggaL_inds = (gamL > gamL_tol).nonzero()[0]
-biggaR_inds = (gamR > gamR_tol).nonzero()[0]
+L = set((gamL > gamL_tol).nonzero()[0])
+R = set((gamR > gamR_tol).nonzero()[0])
 
 
 # ******* 4: Pre-compute distances *******
-centres, ee, ii = generate_site_list(pos,M,energies)
+centres, ee, ii = generate_site_list(pos,M,L,R,energies)
 np.save('cc.npy',centres)
 np.save('ee.npy',ee)
 np.save('ii.npy', ii)

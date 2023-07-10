@@ -113,7 +113,7 @@ def bin_centers(peak_inds,xedges,yedges):
 
 
 def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True,return_gridify=False):
-    rho, xedges, yedges = gridifyMO(pos, M, n, nbins,True)
+    rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins,True)
     if padded_rho:
         nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
@@ -184,13 +184,12 @@ def correct_peaks(sites, pos, rho, xedges, yedges, side):
     
     return sites
 
-def generate_site_list(pos,M,ii,L,R,energies,nbins=20,threshold_ratio=0.60):
+def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60):
     centres = np.zeros(2) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     ee = []
     inds = []
-    #for n in range(M.shape[1]):
-    for n in ii:
-        cc, rho, xedges, yedges = get_MO_loc_centers_pynb(pos,M,n,nbins,threshold_ratio,return_gridify=True)
+    for n in range(M.shape[1]):
+        cc, rho, xedges, yedges = get_MO_loc_centers(pos,M,n,nbins,threshold_ratio,return_gridify=True)
         if n in L:
             print(n)
             cc = correct_peaks(cc, pos, rho, xedges, yedges,'L')
@@ -337,6 +336,56 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, 
                     pts = np.vstack((r3,r2)).T
                     ax.plot(*pts, 'r-', lw=0.7)
 
+    
+    if show:
+        plt.show()
+
+
+def plot_cluster_brute_force(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, show=True, centers=None, rel_center_size=2.0, inds=None, plt_objs=None):
+    pos = pos[:,:2]
+
+    c = np.sort(list(c))
+    if centers is None:
+        centers = qcm.MO_com(pos,M,c)
+        inds = c
+    else:
+        assert inds is not None, "[percolate.plot_cluster] If `centers` is passed, so must `inds`!"
+        centers = centers[c,:]
+        print(centers)
+        
+    if plt_objs is None:
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = plt_objs
+
+    if usetex:
+        plt_utils.setup_tex()
+
+    if show_densities:
+        rho = np.sum(M[:,np.unique(inds)]**2,axis=1)
+        ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=dotsize, cmap='plasma',zorder=1)
+        cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
+
+    else:
+        ax.scatter(pos.T[0], pos.T[1], c='k', s=dotsize)
+
+    # Draw sites
+    ax.scatter(*centers.T, marker='*', c='r', s = rel_center_size*dotsize,zorder=2)
+    ax.set_aspect('equal')
+    ax.set_xlabel("$x$ [\AA]")
+    ax.set_ylabel("$y$ [\AA]")
+
+    # Draw edges between each site and its neighbours
+    for i in c:
+        n = np.sum(i > c) #gets relative index of i (i=global MO index; n=index of MO i in centers array)
+        r1 = centers[n]
+        neighbours = adjmat[i,:].nonzero()[0] 
+        for j in neighbours:
+            m = np.sum(j>c)
+            r2 = centers[m]
+            pts = np.vstack((r1,r2)).T
+            # ax.plot(*pts, 'r-', lw=0.7)
+            ax.plot(*pts, 'r-', lw=1.0)
     
     if show:
         plt.show()
