@@ -102,6 +102,26 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
 
+def LR_sites(pos, M, gamma, site_inds, tolscal=3.0):
+    
+    # Get MO couplings
+    agaL, agaR = qcm.AO_gammas(pos, gamma)
+    gamL, gamR = qcm.MO_gammas(M,agaL, agaR, return_diag=True)
+
+    # Define high-coupling threshold
+    gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
+    gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
+
+    # 'Transform' from MO labeling to site labeling
+    sgamL = gamL[site_inds]
+    sgamR = gamR[site_inds]
+
+    # Get strongly coupled sites
+    L = set(sgamL >= gamL_tol)
+    R = set(sgamR >= gamR_tol)
+
+    return L, R
+
 def bin_centers(peak_inds,xedges,yedges):
     centers = np.zeros((len(peak_inds),2))
     for k, ij in enumerate(peak_inds):

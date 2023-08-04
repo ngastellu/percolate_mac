@@ -2,3 +2,4 @@ __pycache__
 .DS_Store
 *.npy
 *.pkl
+dump2VDOS.py
