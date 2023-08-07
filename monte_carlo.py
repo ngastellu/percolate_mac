@@ -29,14 +29,32 @@ class MACHopSites:
         
         # Get energy and position distances
         self.dE = diff_array(self.e_sites)
-        self.dR = self.pos[:,None,:] - self.pos[None,:,:]
+        self.dR = self.sites[:,None,:] - self.sites[None,:,:]
     
-    def MCpercolate(self, T, E=1.0, e_reorg=0.1,):
-        vdos = get_vdos(T)
-        Js = MO_couplings(self.M, self.dE, self.dR, vdos)
-        rates = kMarcus(self.dE, self.dR, E, e_reorg)
+    def MO_couplings(self, vdos, T, A=1.0):
+            ediffs = self.dE
+            nsites = self.dE.shape[0]
+            N = self.M.shape[0]
+            S = np.abs(((self.M).T) @ self.M)
+            
+            #translate overlap matrix from MO indices to site indices
+            S_sites = np.zeros((nsites,nsites))
+            for n, i in enumerate(self.inds):
+                S_sites[n,:] = S[i,:]
+            print('vdos', vdos)
+            if isinstance(vdos, np.ndarray):
+                D = np.interp(ediffs, *vdos)
+            else:
+                D = vdos
+            print(ediffs.shape)
+            print(S.shape)
+            return (A**2) * (S**2) * (bose_einstein(ediffs, T) + 1) * D / ediffs
+
+    def MCpercolate(self, T, vdos, E=np.array([1.0,0,0]), e_reorg=0.1):
+        Js = self.MO_couplings(vdos, T)
+        rates = kMarcus(self.dE, self.dR, Js, T, E, e_reorg)
         rng = default_rng()
-        return t_percolate(self.sites, self.L, self.R,rng)
+        return t_percolate(self.sites, self.L, self.R, rates, rng)
 
 def diff_array(arr):
     return arr[:,None] - arr[None,:]
@@ -48,7 +66,7 @@ def hop_step(i,rates,sites):
     return np.argmin(hop_times)
 
 #@njit
-def kMarcus(ediffs,rdiffs,Js,T,E=1.0,e_reorg=0.1):
+def kMarcus(ediffs,rdiffs,Js,T,E=np.array([1.0,0,0]),e_reorg=0.1):
     kB = 8.617e-5
     hbar = 6.582e-16
     A = 4 * e_reorg * kB * T
@@ -72,10 +90,6 @@ def bose_einstein(e,T):
     return 1.0/(np.exp(e/(kB*T)) - 1)
 
 
-def MO_couplings(M, ediffs, vdos, T, A=1.0):
-    S = np.abs((M.T) @ M)
-    D = np.interp(ediffs, *vdos)
-    return (A**2) * (S**2) * (bose_einstein(ediffs) + 1) * D / ediffs
 
 #@njit
 def t_percolate(sites, L, R, rates, rng):
