@@ -34,14 +34,14 @@ class MACHopSites:
     
 
     def MCpercolate(self, T, vdos, E=np.array([1.0,0]), e_reorg=0.1, return_traj=False):
-        Js = dipole_coupling(self.M,self.pos,self.inds)
-        print(Js)
+        Js = vdos_couplings(self.M,self.pos,self.inds)
+        #print(Js)
         rates = kMarcus_gu(self.e_sites, self.sites, e_reorg, Js, T, E)
         if return_traj:
            t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj) 
            return t, traj
         else:
-            print("yii")
+            #print("yii")
             t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj)
             return t
 
@@ -64,7 +64,7 @@ def hop_step(i,rates,sites):
 
     #remove ith entry from hopping times to avoid remaining on the same site forever
     if i > 0 and i < N-1: #this condition prevents trying to take argmin of empty array (eg. hop_times[:0])
-        print("Case 1\n")
+        #print("Case 1\n")
         hop_times1 = x[:i]/rates[i,:i]
         hop_times2 = x[i+1:]/rates[i,i+1:]
         j1 = np.argmin(hop_times1)
@@ -74,11 +74,11 @@ def hop_step(i,rates,sites):
         else:
             return i+1+j2
     elif i == 0:
-        print("Case 2\n")
+        #print("Case 2\n")
         hop_times = x[1:] / rates[0,1:]
         return np.argmin(hop_times) + 1
     else: # i = N-1
-        print("Case 3\n")
+        #print("Case 3\n")
         hop_times = x[:N] / rates[N,:N]
         return np.argmin(hop_times)
 
@@ -161,7 +161,7 @@ def t_percolate(sites, L, R, rates, return_traj=False):
     
     
     while site not in R:
-        print(f"t = {t}; site = {site}")
+        #print(f"t = {t}; site = {site}")
         if return_traj:
             if t < nbuffer:
                 traj[t] = site
@@ -183,5 +183,5 @@ def t_percolate(sites, L, R, rates, return_traj=False):
             traj[t] = site
         return t, traj[traj >= 0]
     else:
-        print("yo")
+        #print("yo")
         return t, np.zeros(1,'int') #return np.zeros(1) to get the return types to match (otherwise Numba freaks out)
