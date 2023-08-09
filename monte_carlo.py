@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 
 import numpy as np
-from numpy.random import default_rng
-from percolate import generate_site_list, LR_sites
-from qcnico.vdos import vdos
-#from numba import njit, vectorize, guvectorize
+from percolate import generate_site_list, LR_sites_from_MOgams, LR_sites_from_scratch
+from numba import njit, guvectorize, float64, int64
 
 
 class MACHopSites:
 
-    def __init__(self, pos, M, energies, sites_data=None, edge_sites=None):
+    def __init__(self, pos, M, energies, sites_data=None, MOgams=None):
         # Read in data
         self.M = M
         self.pos = pos
@@ -22,59 +20,121 @@ class MACHopSites:
             self.sites, self.e_sites, self.inds = sites_data
         
         # Define sites that are strongly coupled to the leads
-        if edge_sites is None:
-            self.L, self.R = LR_sites(pos,self.inds)
+        if MOgams is None:
+            self.L, self.R = LR_sites_from_scratch(pos,self.inds,return_ndarray=True)
         else:
-            self.L, self.R = edge_sites
+            gamL, gamR = MOgams
+            self.L, self.R = LR_sites_from_MOgams(gamL, gamR, self.inds,return_ndarray=True)
+        
         
         # Get energy and position distances
         self.dE = diff_array(self.e_sites)
-        self.dR = self.sites[:,None,:] - self.sites[None,:,:]
+        print(np.min(np.abs(self.dE)[np.abs(self.dE) > 0]))
+        self.dR = (self.sites[:,None,:] - self.sites[None,:,:])
     
-    def MO_couplings(self, vdos, T, A=1.0):
-            ediffs = self.dE
-            nsites = self.dE.shape[0]
-            N = self.M.shape[0]
-            S = np.abs(((self.M).T) @ self.M)
-            
-            #translate overlap matrix from MO indices to site indices
-            S_sites = np.zeros((nsites,nsites))
-            for n, i in enumerate(self.inds):
-                S_sites[n,:] = S[i,:]
-            print('vdos', vdos)
-            if isinstance(vdos, np.ndarray):
-                D = np.interp(ediffs, *vdos)
-            else:
-                D = vdos
-            print(ediffs.shape)
-            print(S.shape)
-            return (A**2) * (S**2) * (bose_einstein(ediffs, T) + 1) * D / ediffs
 
-    def MCpercolate(self, T, vdos, E=np.array([1.0,0,0]), e_reorg=0.1):
-        Js = self.MO_couplings(vdos, T)
-        rates = kMarcus(self.dE, self.dR, Js, T, E, e_reorg)
-        rng = default_rng()
-        return t_percolate(self.sites, self.L, self.R, rates, rng)
+    def MCpercolate(self, T, vdos, E=np.array([1.0,0]), e_reorg=0.1, return_traj=False):
+        Js = dipole_coupling(self.M,self.pos,self.inds)
+        print(Js)
+        rates = kMarcus_gu(self.e_sites, self.sites, e_reorg, Js, T, E)
+        if return_traj:
+           t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj) 
+           return t, traj
+        else:
+            print("yii")
+            t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj)
+            return t
+
+    def MCpercolate_dipoles(self, Jdipoles, T, E=np.array([1.0,0]), e_reorg=0.1, return_traj=False):
+        rates = kMarcus_gu(self.e_sites, self.sites, e_reorg, Jdipoles, T, E)
+        if return_traj:
+           t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj) 
+           return t, traj
+        else:
+            t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj)
+            return t
 
 def diff_array(arr):
     return arr[:,None] - arr[None,:]
 
-#@njit
+@njit
 def hop_step(i,rates,sites):
     N = sites.shape[0]
-    hop_times = -np.log(1 - np.random.rand(N))/rates[i,:]
-    return np.argmin(hop_times)
+    x = - np.log(1 - np.random.rand(N))
+
+    #remove ith entry from hopping times to avoid remaining on the same site forever
+    if i > 0 and i < N-1: #this condition prevents trying to take argmin of empty array (eg. hop_times[:0])
+        print("Case 1\n")
+        hop_times1 = x[:i]/rates[i,:i]
+        hop_times2 = x[i+1:]/rates[i,i+1:]
+        j1 = np.argmin(hop_times1)
+        j2 = np.argmin(hop_times2)
+        if hop_times1[j1] < hop_times2[j2]:
+            return j1
+        else:
+            return i+1+j2
+    elif i == 0:
+        print("Case 2\n")
+        hop_times = x[1:] / rates[0,1:]
+        return np.argmin(hop_times) + 1
+    else: # i = N-1
+        print("Case 3\n")
+        hop_times = x[:N] / rates[N,:N]
+        return np.argmin(hop_times)
 
 #@njit
-def kMarcus(ediffs,rdiffs,Js,T,E=np.array([1.0,0,0]),e_reorg=0.1):
+def kMarcus(ediffs,rdiffs,Js,T,E=np.array([1.0,0]),e_reorg=0.1):
     kB = 8.617e-5
     hbar = 6.582e-16
     A = 4 * e_reorg * kB * T
     e = 1.602e-19
-    return 2 * np.pi * Js * np.exp(-((e_reorg - ediffs + e * np.dot(rdiffs,E))**2)/A) / (hbar * np.sqrt(np.pi * A))
+    return 2 * np.pi * (Js**2) * np.exp(-((e_reorg - ediffs + e * np.dot(rdiffs,E))**2)/A) / (hbar * np.sqrt(np.pi * A))
 
-#@guvectorize([(float64[:], float64[:], float64, float64[:,:], float64, float64, float64[:,:])], '(n),(n),(),(n,n),(),() -> (n,n)', nopython=True)
-def kMarcus_gu(energies,xpos,e_reorg,Js,T,E, out):
+
+@guvectorize([(float64[:,:], int64[:], float64[:,:])], '(N,n), (m) -> (m,m)', nopython=True)
+def get_site_overlap(M, sites2MOs, S_sites):     
+        nsites = sites2MOs.shape[0] #sites2MOs[i] = MO index corresponding to site i
+        S = np.abs(M).T @ np.abs(M)
+        #translate overlap matrix from MO indices to site indices 
+        for i in range(nsites):
+            for j in range(nsites):
+                S_sites[i,j] = S[sites2MOs[i],sites2MOs[j]]
+                #print(S_sites[i,j])
+
+@guvectorize([(float64[:,:], float64[:,:], int64[:], float64[:,:])], '(N,n), (N,p), (m) -> (m,m)', nopython=True)
+def dipole_coupling(M, pos, sites2MOs, J):
+    N = M.shape[0] #nb of atoms
+    n = M.shape[1] #nb of MOs
+    d = pos.shape[1] # nb of spatial dimensions (2 or 3) 
+    m = sites2MOs.shape[0]
+    J_MOs = np.zeros((n,n),dtype='float')
+    e = 1.602e-19
+    #Mcol_prod = (M.T)[:,:,None] * M # Mcol_prod[j] = {jth column of M} * M (column-wise) != M[:,j] * M (<--- row-wise multiplication)
+    
+    # Doing triple for loop to avoid storing a huge array of shape (n,n,N,2)
+    print("Entering triple for-loop...")
+    for i in range(n):
+        for j in range(n):
+            tmp = np.zeros(d)
+            for k in range(N):
+                tmp += M[k,i] * M[k,j] * pos[k,:] 
+            J_MOs[i,j] = np.linalg.norm(tmp) * e
+    print("Done!")
+    
+    for i in range(m):
+        for j in range(m):
+            J[i,j] = J_MOs[sites2MOs[i], sites2MOs[j]]
+
+def vdos_couplings(S_sites, dE_sites, vdos, T, A=1.0):
+        if vdos.ndim > 1:
+            D = np.interp(dE_sites, vdos[0], vdos[1])
+        else:
+            D = vdos[0] #vdos is ndarray with a single element
+
+        return (A**2) * (S_sites**2) * (bose_einstein(dE_sites, T) + 1) * D / dE_sites
+
+@guvectorize([(float64[:], float64[:,:], float64, float64[:,:], float64, float64[:], float64[:,:])], '(n),(n,p),(),(n,n),(),(p) -> (n,n)', nopython=True)
+def kMarcus_gu(energies, pos, e_reorg, Js, T, E, out):
     kB = 8.617e-5
     hbar = 6.582e-16
     A = 4 * e_reorg * kB * T
@@ -82,7 +142,7 @@ def kMarcus_gu(energies,xpos,e_reorg,Js,T,E, out):
     N = energies.shape[0]
     for i in range(N):
         for j in range(N):
-            out[i,j] = 2 * np.pi * Js[i,j] * np.exp(-(e_reorg + energies[j] - energies[i] - e * E * (xpos[j] - xpos[i]))**2/A) / (hbar * np.sqrt(np.pi * A))
+            out[i,j] = 2 * np.pi * Js[i,j]* Js[i,j] * np.exp(-(e_reorg + energies[j] - energies[i] - e * np.dot(E,(pos[j] - pos[i])))**2/A) / (hbar * np.sqrt(np.pi * A))
 
 #@vectorize([float64(float64,float64)], nopython=True)
 def bose_einstein(e,T):
@@ -91,11 +151,37 @@ def bose_einstein(e,T):
 
 
 
-#@njit
-def t_percolate(sites, L, R, rates, rng):
-    site = rng.choice(L)
+@njit
+def t_percolate(sites, L, R, rates, return_traj=False):
+    site = np.random.choice(L)
     t = 0
+    if return_traj:
+        nbuffer = 10000
+        traj = np.ones(nbuffer,'int') * -1
+    
+    
     while site not in R:
+        print(f"t = {t}; site = {site}")
+        if return_traj:
+            if t < nbuffer:
+                traj[t] = site
+            else:
+                nbuffer += 10000
+                tmp = traj.copy()
+                traj = np.ones(nbuffer,'int') * -1
+                traj[:t] = tmp
+                traj[t] = site
         site = hop_step(site, rates, sites)
         t+=1
-    return t
+    if return_traj:
+        if t < nbuffer:
+            traj[t] = site
+        else:
+            tmp = traj.copy()
+            traj = np.ones(nbuffer+1,'int') * -1
+            traj[:t] = tmp
+            traj[t] = site
+        return t, traj[traj >= 0]
+    else:
+        print("yo")
+        return t, np.zeros(1,'int') #return np.zeros(1) to get the return types to match (otherwise Numba freaks out)
