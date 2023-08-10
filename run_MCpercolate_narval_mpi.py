@@ -3,10 +3,16 @@
 import sys
 from os import path
 import numpy as np
+import matplotlib.pyplot as plt
 from monte_carlo import MACHopSites, dipole_coupling
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
+from mpi4py import MPI
 
+
+comm = MPI.COMM_WORLD
+nprocs = comm.Get_size()
+rank = comm.Get_rank()
 
 nsample = int(sys.argv[1])
 
@@ -37,19 +43,22 @@ E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accros
 
 hopsys = MACHopSites(pos,M,eMOs, sites_data, MO_gams)
 
-Jfile = f"Jdip-{nsample}.npy"
-
-if path.exists(Jfile):
-    Js = np.load(Jfile)
-else:
-    Js = dipole_coupling(M,pos,site_inds)
-    np.save(Jfile, Js)
+Js = dipole_coupling(M,pos,site_inds)
+np.save(f"Jdip-{nsample}.npy", Js)
 
 #Js = np.load(f"/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/dipole_couplings/Jdip-{nsample}.npy")
 
 
-temps = np.arange(70,510,5,dtype=np.float64)
+all_temps = np.arange(70,510,5,dtype=np.float64)
 
+temps_per_proc = all_temps.shape[0] // nprocs 
+
+if rank < nprocs-1:
+      temps = all_temps[rank*temps_per_proc: (rank+1)*temps_per_proc]
+else:
+      temps = all_temps[rank*temps_per_proc:]
+
+print(f"Process nb. {rank}: working on temps {temps[0]} K --> {temps[-1]} K ({temps.shape[0]} points).")
 ts = np.zeros_like(temps) 
 nloops = 10
 
@@ -60,4 +69,4 @@ for k, T in enumerate(temps):
         ts[k] += hopsys.MCpercolate_dipoles(Js,T,E)/nloops
     print('\n\n')
 
-np.save(f'dipole_perc_times-{nsample}.npy', ts)
+np.save(f'dipole_perc_times-{nsample}-{rank}.npy', ts)
