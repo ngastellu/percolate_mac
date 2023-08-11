@@ -48,16 +48,19 @@ else:
 #Js = np.load(f"/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/dipole_couplings/Jdip-{nsample}.npy")
 
 
-temps = np.arange(70,510,5,dtype=np.float64)
+temps = np.arange(70,505,5,dtype=np.float64)
 
 ts = np.zeros_like(temps) 
-nloops = 10
+nloops = 10000
 
 for k, T in enumerate(temps):
     print(f"* * * * * * * * * * {T} * * * * * * * * * *")
     for n in range(nloops):
         print(n)
-        ts[k] += hopsys.MCpercolate_dipoles(Js,T,E)/nloops
+        t, traj = hopsys.MCpercolate_dipoles(Js,T,E, e_reorg=0.01, return_traj=True)/nloops
+        ts[k] += t
+        if n % 100 == 0:
+            np.save(f'traj-{nsample}-{n}.npy', traj)
     print('\n\n')
 
 np.save(f'dipole_perc_times-{nsample}.npy', ts)

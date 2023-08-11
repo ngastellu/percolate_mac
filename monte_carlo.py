@@ -3,8 +3,9 @@
 import numpy as np
 from percolate import generate_site_list, LR_sites_from_MOgams, LR_sites_from_scratch
 from numba import njit, guvectorize, float64, int64
+#from numba.experimental import jitclass
 
-
+#@jitclass
 class MACHopSites:
 
     def __init__(self, pos, M, energies, sites_data=None, MOgams=None):
@@ -29,7 +30,7 @@ class MACHopSites:
         
         # Get energy and position distances
         self.dE = diff_array(self.e_sites)
-        print(np.min(np.abs(self.dE)[np.abs(self.dE) > 0]))
+        print(np.max(np.abs(self.dE)[np.abs(self.dE) > 0]))
         self.dR = (self.sites[:,None,:] - self.sites[None,:,:])
     
 
@@ -70,24 +71,25 @@ def hop_step(i,rates,sites):
         j1 = np.argmin(hop_times1)
         j2 = np.argmin(hop_times2)
         if hop_times1[j1] < hop_times2[j2]:
-            return j1
+            return j1, hop_times1[j1]
         else:
-            return i+1+j2
+            return i+1+j2, hop_times2[j2]
     elif i == 0:
         #print("Case 2\n")
         hop_times = x[1:] / rates[0,1:]
-        return np.argmin(hop_times) + 1
+        return np.argmin(hop_times) + 1, np.min(hop_times)
     else: # i = N-1
         #print("Case 3\n")
         hop_times = x[:N] / rates[N,:N]
-        return np.argmin(hop_times)
+        return np.argmin(hop_times), np.min(hop_times)
 
 #@njit
 def kMarcus(ediffs,rdiffs,Js,T,E=np.array([1.0,0]),e_reorg=0.1):
     kB = 8.617e-5
-    hbar = 6.582e-16
+    hbar = 6.582e-1 # in eV * fs
     A = 4 * e_reorg * kB * T
-    e = 1.602e-19
+    e = 1.00
+    # e = 1.602e-19 #C
     return 2 * np.pi * (Js**2) * np.exp(-((e_reorg - ediffs + e * np.dot(rdiffs,E))**2)/A) / (hbar * np.sqrt(np.pi * A))
 
 
@@ -108,7 +110,8 @@ def dipole_coupling(M, pos, sites2MOs, J):
     d = pos.shape[1] # nb of spatial dimensions (2 or 3) 
     m = sites2MOs.shape[0]
     J_MOs = np.zeros((n,n),dtype='float')
-    e = 1.602e-19
+    # e = 1.602e-19
+    e = 1.00
     #Mcol_prod = (M.T)[:,:,None] * M # Mcol_prod[j] = {jth column of M} * M (column-wise) != M[:,j] * M (<--- row-wise multiplication)
     
     # Doing triple for loop to avoid storing a huge array of shape (n,n,N,2)
@@ -136,9 +139,10 @@ def vdos_couplings(S_sites, dE_sites, vdos, T, A=1.0):
 @guvectorize([(float64[:], float64[:,:], float64, float64[:,:], float64, float64[:], float64[:,:])], '(n),(n,p),(),(n,n),(),(p) -> (n,n)', nopython=True)
 def kMarcus_gu(energies, pos, e_reorg, Js, T, E, out):
     kB = 8.617e-5
-    hbar = 6.582e-16
+    hbar = 6.582e-1 # eV * fs
     A = 4 * e_reorg * kB * T
-    e = 1.602e-19
+    # e = 1.602e-19
+    e = 1.00
     N = energies.shape[0]
     for i in range(N):
         for j in range(N):
@@ -171,8 +175,8 @@ def t_percolate(sites, L, R, rates, return_traj=False):
                 traj = np.ones(nbuffer,'int') * -1
                 traj[:t] = tmp
                 traj[t] = site
-        site = hop_step(site, rates, sites)
-        t+=1
+        site, hop_time = hop_step(site, rates, sites)
+        t+=hop_time
     if return_traj:
         if t < nbuffer:
             traj[t] = site

@@ -17,7 +17,8 @@ def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams,nsample, temps):
 
     ts = np.zeros_like(temps) 
     for k, T in enumerate(temps):
-        ts[k] += hopsys.MCpercolate_dipoles(Js,T)
+        t =  hopsys.MCpercolate_dipoles(Js,T)
+        ts[k] = t
         print(ts[k])
 
     return ts

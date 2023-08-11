@@ -10,7 +10,7 @@ from matplotlib import rcParams
 plt_utils.setup_tex()
 rcParams['font.size'] = 22
 
-datadir = path.expanduser("~/Desktop/simulation_outputs/percolation/40x40/monte_carlo/percolation_times_dipole/")
+datadir = path.expanduser("~/Desktop/simulation_outputs/percolation/40x40/monte_carlo/percolation_times_dipole/MC_100/")
 
 datfiles = glob(datadir + "dip*.npy")
 nfiles = len(datfiles)
