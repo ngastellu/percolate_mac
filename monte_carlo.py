@@ -138,10 +138,10 @@ def vdos_couplings(S_sites, dE_sites, vdos, T, A=1.0):
 
 @guvectorize([(float64[:], float64[:,:], float64, float64[:,:], float64, float64[:], float64[:,:])], '(n),(n,p),(),(n,n),(),(p) -> (n,n)', nopython=True)
 def kMarcus_gu(energies, pos, e_reorg, Js, T, E, out):
-    kB = 8.617e-5
+    kB = 8.617e-5 # eV * K
     hbar = 6.582e-1 # eV * fs
     A = 4 * e_reorg * kB * T
-    # e = 1.602e-19
+    #e = 1.602e-19
     e = 1.00
     N = energies.shape[0]
     for i in range(N):
@@ -159,32 +159,34 @@ def bose_einstein(e,T):
 def t_percolate(sites, L, R, rates, return_traj=False):
     site = np.random.choice(L)
     t = 0
+    nstep = 0
     if return_traj:
         nbuffer = 10000
         traj = np.ones(nbuffer,'int') * -1
     
     
     while site not in R:
-        #print(f"t = {t}; site = {site}")
+        print(f"t = {nstep}; site = {site}")
         if return_traj:
-            if t < nbuffer:
-                traj[t] = site
+            if nstep < nbuffer:
+                traj[nstep] = site
             else:
                 nbuffer += 10000
                 tmp = traj.copy()
                 traj = np.ones(nbuffer,'int') * -1
-                traj[:t] = tmp
-                traj[t] = site
+                traj[:nstep] = tmp
+                traj[nstep] = site
         site, hop_time = hop_step(site, rates, sites)
         t+=hop_time
+        nstep += 1
     if return_traj:
-        if t < nbuffer:
-            traj[t] = site
+        if nstep < nbuffer:
+            traj[nstep] = site
         else:
             tmp = traj.copy()
             traj = np.ones(nbuffer+1,'int') * -1
-            traj[:t] = tmp
-            traj[t] = site
+            traj[:nstep] = tmp
+            traj[nstep] = site
         return t, traj[traj >= 0]
     else:
         #print("yo")

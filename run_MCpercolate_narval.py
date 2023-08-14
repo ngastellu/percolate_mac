@@ -57,7 +57,7 @@ for k, T in enumerate(temps):
     print(f"* * * * * * * * * * {T} * * * * * * * * * *")
     for n in range(nloops):
         print(n)
-        t, traj = hopsys.MCpercolate_dipoles(Js,T,E, e_reorg=0.01, return_traj=True)/nloops
+        t, traj = hopsys.MCpercolate_dipoles(Js,T,E, e_reorg=0.005, return_traj=True)/nloops
         ts[k] += t
         if n % 100 == 0:
             np.save(f'traj-{nsample}-{n}.npy', traj)
