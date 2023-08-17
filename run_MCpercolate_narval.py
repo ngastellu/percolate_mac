@@ -3,11 +3,26 @@
 import sys
 from os import path
 import numpy as np
+from numba import njit, prange
 from monte_carlo import MACHopSites, dipole_coupling
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
 
 
+@njit(parallel=True)
+def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, Js, temps, E, nloops):
+
+    hopsys = MACHopSites(pos,M,MO_energies, sites_data, MO_gams)
+    ts = np.ones((nloops, temps.shape[0]), dtype='float') * -1
+    for n in prange(nloops):
+        print(f"Loop {n}")
+        for k in prange(temps.shape[0]):
+            T = temps[k]
+            print(f"T = {int(T)} K")
+            t, _ =  hopsys.MCpercolate_dipoles(Js,T, E, e_reorg=0.005, return_traj=False)
+            ts[n,k] = t
+        print('\n\n')
+    return ts
 nsample = int(sys.argv[1])
 
 arpackdir = path.expanduser(f"~/scratch/ArpackMAC/40x40/sample-{nsample}")
@@ -35,32 +50,25 @@ dX = np.max(pos[:,0]) - np.min(pos[:,1])
 
 E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
 
-hopsys = MACHopSites(pos,M,eMOs, sites_data, MO_gams)
-
 Jfile = f"Jdip-{nsample}.npy"
 
-if path.exists(Jfile):
-    Js = np.load(Jfile)
-else:
-    Js = dipole_coupling(M,pos,site_inds)
-    np.save(Jfile, Js)
+# if path.exists(Jfile):
+#     Js = np.load(Jfile)
+# else:
+#     Js = dipole_coupling(M,pos,site_inds)
+#     np.save(Jfile, Js)
+
+print("Calculating J...", flush=True)
+Js = dipole_coupling(M,pos,site_inds)
+print('Done!', flush=True)
+print("Saving J to disk...", flush=True)
+np.save(Jfile, Js)
+print('Done!', flush=True)
 
 #Js = np.load(f"/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/dipole_couplings/Jdip-{nsample}.npy")
 
 
 temps = np.arange(70,505,5,dtype=np.float64)
-
-ts = np.zeros_like(temps) 
-nloops = 10000
-
-for k, T in enumerate(temps):
-    print(f"* * * * * * * * * * {T} * * * * * * * * * *")
-    for n in range(nloops):
-        print(n)
-        t, traj = hopsys.MCpercolate_dipoles(Js,T,E, e_reorg=0.005, return_traj=True)/nloops
-        ts[k] += t
-        if n % 100 == 0:
-            np.save(f'traj-{nsample}-{n}.npy', traj)
-    print('\n\n')
+ts = run_MCpercolate(pos, M, eMOs, sites_data, MO_gams, Js, temps, E, 1000) 
 
 np.save(f'dipole_perc_times-{nsample}.npy', ts)

@@ -102,17 +102,29 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
 
+
 def LR_sites_from_scratch(pos, M, gamma, site_inds, tolscal=3.0, return_ndarray=False):
-    
+    """Determines which hopping sites 'strongly coupled' to the leads 'fronm scratch', i.e. 
+    without having computed the MO-lead couplings. The `site_inds` argument is an array if inds
+    whose jth entry corresponds to the index of the MO which yielded hopping site j (i.e. 
+    `site_inds[j] = n` <==> site j come from MO |psi_n>).""" 
     # Get MO couplings
     agaL, agaR = qcm.AO_gammas(pos, gamma)
     gamL, gamR = qcm.MO_gammas(M,agaL, agaR, return_diag=True)
 
-    L,R = LR_sites_from_MOgams(gamL, gamR, site_inds, tolscal, return_ndarray)
+    L,R = LR_sites_from_MOgams(gamL, gamR, site_inds, tolscal)
 
-    return L, R
+    if return_ndarray:
+        return L, R
+    else:
+        return set(L), set(R)
 
-def LR_sites_from_MOgams(gamL, gamR, site_inds, tolscal=3.0, return_ndarray=False):
+@njit
+def LR_sites_from_MOgams(gamL, gamR, site_inds, tolscal=3.0):
+    """Determines which hopping sites 'strongly coupled' to the leads having already computed 
+    the MO-lead couplings (the two first arguments of the function). The `site_inds` argument is an array if inds
+    whose jth entry corresponds to the index of the MO which yielded hopping site j (i.e. 
+    `site_inds[j] = n` <==> site j come from MO |psi_n>).""" 
     # Define high-coupling threshold
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
@@ -125,10 +137,23 @@ def LR_sites_from_MOgams(gamL, gamR, site_inds, tolscal=3.0, return_ndarray=Fals
     L = (sgamL >= gamL_tol).nonzero()[0]
     R = (sgamR >= gamR_tol).nonzero()[0]
 
-    if return_ndarray: #set to `True` if working with Numba
-        return L,R 
-    else:
-        return set(L), set(R) # using sets is faster to check membership; but Numba complains
+    # Using sets is faster to check membership; but Numba complains; 
+    # Cast L and R into sets if not working with Numba
+    return L,R 
+
+@njit
+def LR_MOs(gamL, gamR, tolscal=3.0):
+    """Determines which MOs are strongly coupled to the leads."""
+
+    # Define high-coupling threshold
+    gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
+    gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
+
+    LMOs = (gamL > gamL_tol).nonzero()[0]
+    RMOs = (gamR > gamR_tol).nonzero()[0]
+
+    return LMOs, RMOs
+
 
 
 def bin_centers(peak_inds,xedges,yedges):

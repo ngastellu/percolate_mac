@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from os import path
 import numpy as np
 import matplotlib.pyplot as plt
 from percolate import LR_sites_from_MOgams
@@ -12,15 +13,20 @@ def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, nsample, temps, E,
 
     hopsys = MACHopSites(pos,M,MO_energies, sites_data, MO_gams)
     # Js = np.load(f"/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/dipole_couplings/Jdip-{nsample}.npy")
+    Jfile = f"/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/dipole_couplings/Jdip-{nsample}.npy"
 
-    Js = dipole_coupling(M,pos,site_inds)
+    if path.exists(Jfile):
+        Js = np.load(Jfile)
+    else:
+        Js = dipole_coupling(M,pos,site_inds)
+        np.save(Jfile, Js)
 
     ts = np.zeros_like(temps) 
     for k, T in enumerate(temps):
         t, traj =  hopsys.MCpercolate_dipoles(Js,T,E, e_reorg, return_traj=True)
         ts[k] = t
         print(ts[k])
-    return ts
+    return ts, traj
 
 nsample = 150
 
@@ -44,14 +50,17 @@ MO_gams = (gamL, gamR)
 pos = remove_dangling_carbons(read_xsf(strucdir + f'bigMAC-{nsample}_relaxed.xsf')[0], 1.8 )
 np.save(f'pos-{nsample}_nodangle.npy', pos)
 
-temps = np.arange(100,500,100,dtype=np.float64)
+temps = np.arange(100,300,100,dtype=np.float64)
 
 dX = np.max(pos[:,0]) - np.min(pos[:,1])
 
 E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
 e_reorg = 0.005
 
-ts = run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams,nsample, temps, E, e_reorg) 
+for iii in range(10):
+
+    ts = run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams,nsample, temps, E, e_reorg) 
+
 plt.plot(temps,ts)
 plt.show()
 
