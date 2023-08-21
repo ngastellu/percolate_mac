@@ -19,7 +19,7 @@ def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, Js, temps, E, nloo
         for k in prange(temps.shape[0]):
             T = temps[k]
             print(f"T = {int(T)} K")
-            t, _ =  hopsys.MCpercolate_dipoles(Js,T, E, e_reorg=0.005, return_traj=False)
+            t, _ =  hopsys.MCpercolate_dipoles(Js,T, E, e_reorg=0.005, return_traj=False, interMO_hops_only=True)
             ts[n,k] = t
         print('\n\n')
     return ts

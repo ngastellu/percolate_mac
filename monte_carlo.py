@@ -57,8 +57,10 @@ class MACHopSites:
     #         return t
 
     
-    def MCpercolate_dipoles(self, Jdipoles, T, E=np.array([1.0,0]), e_reorg=0.1, return_traj=False):
+    def MCpercolate_dipoles(self, Jdipoles, T, E=np.array([1.0,0]), e_reorg=0.1, return_traj=False, interMO_hops_only=False):
         rates = kMarcus_njit(self.e_sites, self.sites, e_reorg, Jdipoles, T, E)
+        if interMO_hops_only:
+            rates = zero_intraMO_rates(rates,self.inds)
         t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj) 
         return t, traj
 
@@ -178,6 +180,20 @@ def kMarcus_njit(energies, pos, e_reorg, Js, T, E):
         for j in prange(N):
             out[i,j] = 2 * np.pi * Js[i,j]* Js[i,j] * np.exp(-(e_reorg + energies[j] - energies[i] - e * np.dot(E,(pos[j] - pos[i])))**2/A) / (hbar * np.sqrt(np.pi * A))
     return out
+
+@njit(parallel=True)
+def zero_intraMO_rates(K,sites2MOs):
+    
+    nsites = sites2MOs.shape[0]
+    assert K.shape[0] == nsites, "Number of sites does not match size of rates matrix!"
+
+    for i in prange(nsites):
+        MOind = sites2MOs[i]
+        matchingMOs = (sites2MOs == MOind).nonzero()[0] # indices of sites who came from the same MO
+        K[i,matchingMOs] = 0
+    
+    return K
+
 
 
 #@vectorize([float64(float64,float64)], nopython=True)

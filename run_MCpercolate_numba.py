@@ -19,7 +19,7 @@ def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, Js, temps, E, nloo
         for k in prange(temps.shape[0]):
             T = temps[k]
             print(f"T = {int(T)} K")
-            t, _ =  hopsys.MCpercolate_dipoles(Js,T, E, e_reorg=0.005, return_traj=False)
+            t, _ =  hopsys.MCpercolate_dipoles(Js,T, E, e_reorg=0.005, return_traj=False, interMO_hops_only=True)
             ts[n,k] = t
         print('\n\n')
     return ts
@@ -50,14 +50,14 @@ pos = remove_dangling_carbons(read_xsf(strucdir + f'bigMAC-{nsample}_relaxed.xsf
 
 Js = np.load(f"/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/dipole_couplings/Jdip-{nsample}.npy")
 
-temps = np.arange(100,300,100,dtype=np.float64)
+temps = np.arange(90,410,10,dtype=np.float64)
 
 dX = np.max(pos[:,0]) - np.min(pos[:,1])
 E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
 
 
-ts = run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, Js, temps, E, 10) 
-plt.plot(temps,ts)
+ts = run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, Js, temps, E, 100) 
+plt.plot(temps,np.mean(ts,axis=0))
 plt.show()
 
 # Js = dipole_coupling(M,pos,site_inds)
