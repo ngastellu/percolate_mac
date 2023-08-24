@@ -46,9 +46,9 @@ strucdir = path.expanduser(f"~/scratch/clean_bigMAC/40x40/relax/relaxed_structur
 
 pos = remove_dangling_carbons(read_xsf(strucdir + f'bigMAC-{nsample}_relaxed.xsf')[0], 1.8 )
 
-dX = np.max(pos[:,0]) - np.min(pos[:,1])
+# dX = np.max(pos[:,0]) - np.min(pos[:,1])
 
-E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
+# E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
 
 Jfile = f"Jdip-{nsample}.npy"
 
@@ -69,6 +69,6 @@ print('Done!', flush=True)
 
 
 temps = np.arange(70,505,5,dtype=np.float64)
-ts = run_MCpercolate(pos, M, eMOs, sites_data, MO_gams, Js, temps, E, 1000) 
+ts = run_MCpercolate(pos, M, eMOs, sites_data, MO_gams, Js, temps, np.zeros(2), 1000) 
 
-np.save(f'dipole_perc_times-{nsample}.npy', ts)
+np.save(f'dipole_perc_times-{nsample}_zero_field.npy', ts)

@@ -15,28 +15,28 @@ temps = np.arange(70,505,5,dtype=np.float64)
 
 times = np.zeros_like(temps)
 
-for f in dipfiles:
-    dat = np.load(f)
-    times += np.mean(dat,axis=0)
+# for f in dipfiles:
+#     dat = np.load(f)
+#     times += np.mean(dat,axis=0)
 
 
-times /= len(dipfiles)
+# times /= len(dipfiles)
 
-plt_utils.setup_tex()
-rcParams['font.size'] = 24
+# plt_utils.setup_tex()
+# rcParams['font.size'] = 24
 
 
-# Regular plot
-plt.plot(temps, times, 'r-', lw=0.8)
-plt.xlabel("$T$ [K]")
-plt.ylabel("$\langle t_{perc}\\rangle$ [fs]")
-plt.show()
+# # Regular plot
+# plt.plot(temps, times, 'r-', lw=0.8)
+# plt.xlabel("$T$ [K]")
+# plt.ylabel("$\langle t_{perc}\\rangle$ [fs]")
+# plt.show()
 
-# Arrhenius plot
-plt.plot(1000/temps, np.log(times), 'r-', lw=0.8)
-plt.xlabel("$1000/T$ [K]")
-plt.ylabel("$\log\langle t_{perc}\\rangle$ [fs]")
-plt.show()
+# # Arrhenius plot
+# plt.plot(1000/temps, np.log(times), 'r-', lw=0.8)
+# plt.xlabel("$1000/T$ [K]")
+# plt.ylabel("$\log\langle t_{perc}\\rangle$ [fs]")
+# plt.show()
 
 
 

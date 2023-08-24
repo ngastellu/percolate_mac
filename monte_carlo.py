@@ -122,14 +122,16 @@ def get_site_overlap(M, sites2MOs, S_sites):
                 #print(S_sites[i,j])
 
 
-@guvectorize([(float64[:,:], float64[:,:], int64[:], float64[:,:])], '(N,n), (N,p), (m) -> (m,m)', nopython=True)#, target_backend='parallel')
-def dipole_coupling(M, pos, sites2MOs, J):
+# @guvectorize([(float64[:,:], float64[:,:], int64[:], float64[:,:])], '(N,n), (N,p), (m) -> (m,m)', nopython=True)#, target_backend='parallel')
+@njit(parallel=True)
+def dipole_coupling(M, pos, sites2MOs):
     N = M.shape[0] #nb of atoms
     n = M.shape[1] #nb of MOs
     d = pos.shape[1] # nb of spatial dimensions (2 or 3) 
-    m = sites2MOs.shape[0]
-    J_MOs = np.zeros((n,n),dtype='float')
-    # e = 1.602e-19
+    m = sites2MOs.shape[0] #nb of sites
+    J_MOs = np.empty((n,n),dtype='float')
+    J = np.empty((m,m),dtype='float')
+    #e = 1.602e-19
     e = 1.00
     #Mcol_prod = (M.T)[:,:,None] * M # Mcol_prod[j] = {jth column of M} * M (column-wise) != M[:,j] * M (<--- row-wise multiplication)
     
@@ -137,15 +139,17 @@ def dipole_coupling(M, pos, sites2MOs, J):
     print("Entering triple for-loop...")
     for i in prange(n):
         for j in prange(n):
-            tmp = np.zeros(d)
-            for k in prange(N):
+            tmp = np.empty(d,dtype='float')
+            for k in range(N):
                 tmp += M[k,i] * M[k,j] * pos[k,:] 
             J_MOs[i,j] = np.linalg.norm(tmp) * e
     print("Done!")
     
     for i in prange(m):
         for j in prange(m):
+            # print(f"(i,j) = ({i}, {j}) ---> ({sites2MOs[i]}, {sites2MOs[j]})")
             J[i,j] = J_MOs[sites2MOs[i], sites2MOs[j]]
+    return J
 
 def vdos_couplings(S_sites, dE_sites, vdos, T, A=1.0):
         if vdos.ndim > 1:
@@ -169,16 +173,25 @@ def kMarcus_gu(energies, pos, e_reorg, Js, T, E, out):
 
 @njit(parallel=True)
 def kMarcus_njit(energies, pos, e_reorg, Js, T, E):
+    print("Evaluating Marcus rates...")# Printing sites (i,j) between whom k_ij = 0:")
     kB = 8.617e-5 # eV * K
     hbar = 6.582e-1 # eV * fs
     A = 4 * e_reorg * kB * T
     #e = 1.602e-19
     e = 1.00
+    cnt = 0
     N = energies.shape[0]
     out = np.empty((N,N),dtype='float')
-    for i in prange(N):
-        for j in prange(N):
+    for i in range(N):
+        for j in range(N):
             out[i,j] = 2 * np.pi * Js[i,j]* Js[i,j] * np.exp(-(e_reorg + energies[j] - energies[i] - e * np.dot(E,(pos[j] - pos[i])))**2/A) / (hbar * np.sqrt(np.pi * A))
+            if out[i,j] == 0: 
+                # print(A)
+                #print(np.exp(-(e_reorg + energies[j] - energies[i] - e * np.dot(E,(pos[j] - pos[i])))**2/A))  
+                #print(-(e_reorg + energies[j] - energies[i] - e * np.dot(E,(pos[j] - pos[i])))**2/A)
+                cnt += 1
+    print("Done!")
+    print(f"Fraction of zero elements = {cnt}/{out.size}")
     return out
 
 @njit(parallel=True)
@@ -210,7 +223,7 @@ def t_percolate(sites, L, R, rates, return_traj=False):
     t = 0
     nstep = 0
     if return_traj:
-        nbuffer = 10000
+        nbuffer = 10000000
         traj = np.ones(nbuffer,'int') * -1
     
     
@@ -222,7 +235,7 @@ def t_percolate(sites, L, R, rates, return_traj=False):
                 traj[nstep] = site
             else:
                 print("Buffer exceeded! Reallocating traj array...")
-                nbuffer += 10000
+                nbuffer += 10000000
                 tmp = traj.copy()
                 traj = np.ones(nbuffer,'int') * -1
                 traj[:nstep] = tmp
