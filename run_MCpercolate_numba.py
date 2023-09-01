@@ -3,32 +3,30 @@
 import numpy as np
 from numba import njit, prange
 import matplotlib.pyplot as plt
-from percolate import LR_sites_from_MOgams
-from monte_carlo import MACHopSites, kMarcus_gu, dipole_coupling
-from qcnico.coords_io import read_xsf
-from qcnico.remove_dangling_carbons import remove_dangling_carbons
+from monte_carlo import MACHopSites
 
 
 @njit(parallel=True)
-def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, Js, temps, E, nloops):
+def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, temps, E, nloops, ts):
 
     hopsys = MACHopSites(pos,M,MO_energies, sites_data, MO_gams)
-    ts = np.ones((nloops, temps.shape[0]), dtype='float') * -1
+    a0 = 30
     for n in prange(nloops):
         print(f"Loop {n}")
         for k in prange(temps.shape[0]):
             T = temps[k]
             print(f"T = {int(T)} K")
-            t, _ =  hopsys.MCpercolate_dipoles(Js,T, E, e_reorg=0.005, return_traj=False, interMO_hops_only=True)
+            t, _ =  hopsys.MCpercolate_MA(T, E, a0, return_traj=False, interMO_hops_only=False)
             ts[n,k] = t
         print('\n\n')
     return ts
+
 
 nsample = 150
 
 percolate_datadir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/sample-{nsample}/'
 M = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/MOs_ARPACK_bigMAC-{nsample}.npy')
-MO_energies = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/eARPACK/eARPACK_bigMAC-{nsample}.npy')
+eMOs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/eARPACK/eARPACK_bigMAC-{nsample}.npy')
 strucdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/structures/'
 print(M.shape)
 
@@ -46,17 +44,20 @@ gamR = np.load(percolate_datadir + f'gamR_40x40-{nsample}.npy')
 
 MO_gams = (gamL, gamR)
 
-pos = remove_dangling_carbons(read_xsf(strucdir + f'bigMAC-{nsample}_relaxed.xsf')[0], 1.8 )
+pos = np.load(strucdir + f'no_dangle/pos-{nsample}_nodangle.npy')
 
-Js = np.load(f"/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/dipole_couplings/Jdip-{nsample}.npy")
+temps = np.arange(90,110,10,dtype=np.float64)
+nloops = 10
+ts = np.ones((nloops, temps.shape[0]), dtype='float') * -1
 
-temps = np.arange(90,410,10,dtype=np.float64)
+# dX = np.max(pos[:,0]) - np.min(pos[:,1])
+# E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
 
-dX = np.max(pos[:,0]) - np.min(pos[:,1])
-E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
+E = np.zeros(2)
 
+ts = np.ones((nloops, temps.shape[0]), dtype='float') * -1
+ts = run_MCpercolate(pos, M, eMOs, sites_data, MO_gams, temps, E, nloops, ts) 
 
-ts = run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, Js, temps, E, 100) 
 plt.plot(temps,np.mean(ts,axis=0))
 plt.show()
 

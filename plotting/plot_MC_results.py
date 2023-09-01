@@ -8,8 +8,8 @@ from qcnico import plt_utils
 
 
 
-datadir = "/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/percolation_times_dipole/MC_1000/"
-dipfiles = glob(datadir + "dip*npy")
+tpercdir = "/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/percolation_times_dipole/MC_1000/zero_ext_field/"
+dipfiles = glob(tpercdir + "dip*100.npy")
 
 temps = np.arange(70,505,5,dtype=np.float64)
 
@@ -42,7 +42,8 @@ times = np.zeros_like(temps)
 
 # Plot individual realisations
 np.random.seed(42)
-inds = np.random.randint(len(dipfiles), size=10)
+# inds = np.random.randint(len(dipfiles), size=10)
+inds = np.array([2,5,6,9])
 
 for i in inds:
 

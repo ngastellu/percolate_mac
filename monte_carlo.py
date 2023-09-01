@@ -56,7 +56,14 @@ class MACHopSites:
     #         t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj)
     #         return t
 
-    
+    def MCpercolate_MA(self, T, E, a0, return_traj=False, interMO_hops_only=False):
+        rates = kMillerAbrahams(self.e_sites, self.dR, T, a0, E)
+        if interMO_hops_only:
+            rates = zero_intraMO_rates(rates,self.inds)
+        t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj) 
+        return t, traj
+
+
     def MCpercolate_dipoles(self, Jdipoles, T, E=np.array([1.0,0]), e_reorg=0.1, return_traj=False, interMO_hops_only=False):
         rates = kMarcus_njit(self.e_sites, self.sites, e_reorg, Jdipoles, T, E)
         if interMO_hops_only:
@@ -78,14 +85,21 @@ def diffpos(pos):
 
 @njit
 def hop_step(i,rates,sites):
+    zero_inds = np.unique((rates[i]==0).nonzero()[0])
+    # print(f'ZERO RATES [i = {i}]: ', zero_inds)
     N = sites.shape[0]
     x = - np.log(1 - np.random.rand(N))
+    # print('any(x<0) = ', np.any(x<0))
 
     #remove ith entry from hopping times to avoid remaining on the same site forever
     if i > 0 and i < N-1: #this condition prevents trying to take argmin of empty array (eg. hop_times[:0])
         # print("Case 1\n")
         hop_times1 = x[:i]/rates[i,:i]
+        # print("0Hop times 1 = ", hop_times1[zero_inds[zero_inds < i]])
+        # print('hop_times1.shape = ', hop_times1.shape)
         hop_times2 = x[i+1:]/rates[i,i+1:]
+        # print("0Hop times 2 = ", hop_times2[zero_inds[zero_inds > i]-i-1])
+        # print('hop_times2.shape = ', hop_times2.shape)
         j1 = np.argmin(hop_times1)
         j2 = np.argmin(hop_times2)
         if hop_times1[j1] < hop_times2[j2]:
@@ -182,8 +196,8 @@ def kMarcus_njit(energies, pos, e_reorg, Js, T, E):
     cnt = 0
     N = energies.shape[0]
     out = np.empty((N,N),dtype='float')
-    for i in range(N):
-        for j in range(N):
+    for i in prange(N):
+        for j in prange(N):
             out[i,j] = 2 * np.pi * Js[i,j]* Js[i,j] * np.exp(-(e_reorg + energies[j] - energies[i] - e * np.dot(E,(pos[j] - pos[i])))**2/A) / (hbar * np.sqrt(np.pi * A))
             if out[i,j] == 0: 
                 # print(A)
@@ -195,8 +209,20 @@ def kMarcus_njit(energies, pos, e_reorg, Js, T, E):
     return out
 
 @njit(parallel=True)
+def kMillerAbrahams(energies, dR, T, a0, E): 
+    """!!!! SITE energies and positions must be used here (as opposed to MO energies and atomic positions) !!!!"""
+    kB = 8.617e-5 # eV * K
+    e = 1.0
+    N = energies.shape[0]
+    out = np.empty((N,N),dtype='float')
+    for i in prange(N):
+        for j in prange(N):
+            out[i,j] = np.exp( -(np.abs(energies[i] - energies[j]) + np.abs(energies[i] + energies[j]) - e*np.dot(E, dR[i,j,:]))/(2*kB*T) - (2*np.linalg.norm(dR[i,j,:]))/a0 )
+    return out
+
+
+@njit(parallel=True)
 def zero_intraMO_rates(K,sites2MOs):
-    
     nsites = sites2MOs.shape[0]
     assert K.shape[0] == nsites, "Number of sites does not match size of rates matrix!"
 
@@ -244,6 +270,7 @@ def t_percolate(sites, L, R, rates, return_traj=False):
                 print("Done.")
                 #del tmp
         site, hop_time = hop_step(site, rates, sites)
+        # print("hop time = ", hop_time)
         t+=hop_time
         nstep += 1
     if return_traj:
