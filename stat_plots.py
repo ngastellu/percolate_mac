@@ -61,7 +61,7 @@ gr_inds = list(map(int,[line.rstrip().lstrip() for line in lines]))
 
 
 temps = np.arange(40,440,10)
-start_ind = 14
+start_ind = 6
 
 dcrits = get_dcrits(gr_inds,temps, datadir)
 print(dcrits.shape)
@@ -85,15 +85,15 @@ rcParams['figure.subplot.right'] = 0.79
 
 fig, ax = plt.subplots()
 ax.plot(temps,davg_T,'r-')
-# ax.plot(temps,davg_T+dstd_T,'k--',lw=0.8)
-# ax.plot(temps,davg_T-dstd_T,'k--',lw=0.8)
+ax.plot(temps,davg_T+dstd_T,'k--',lw=0.8)
+ax.plot(temps,davg_T-dstd_T,'k--',lw=0.8)
 ax.set_xlabel('T [K]')
 ax.set_ylabel('$\langle u_c\\rangle$')
 plt.show()
 
 Tcm = plt_utils.get_cm(temps[start_ind:],'coolwarm',max_val=1.0)
 
-plot_inds = [0,12, 25]
+plot_inds = [0,10,20,33]
 print(plot_inds)
 
 fig, ax = plt.subplots()
@@ -101,7 +101,7 @@ fig, ax = plt.subplots()
 for n in plot_inds:
     plt_utils.histogram(dcrits[:,n+start_ind],nbins=25,show=False, normalised=False, plt_objs=(fig,ax),
         plt_kwargs={'alpha': 0.95, 'color': Tcm[n], 'label': f'$T = {temps[n+start_ind]}$K'})
-ax.set_xlabel('$\langle u_{c}\\rangle$')
+ax.set_xlabel('$u_c$')
 plt.legend()
 plt.show()
 

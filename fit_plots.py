@@ -9,7 +9,7 @@ from qcnico import plt_utils
 
 first_ind = 14
 temps, sigmas = np.load('sigma_v_T.npy')[:,first_ind:]
-y = np.log(sigmas)
+y = -np.log(sigmas)
 
 print(temps[0])
 print(temps[-1])

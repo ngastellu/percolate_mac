@@ -64,8 +64,9 @@ pos, _ = read_xsf(pos_path)
 # np.save(f'gamL_40x40-{sample_index}.npy',gamL)
 # np.save(f'gamR_40x40-{sample_index}.npy',gamR)
 
-gamL = np.load(f'gamL_40x40-{sample_index}.npy')
-gamR = np.load(f'gamR_40x40-{sample_index}.npy')
+percdir = datadir + '/' + f'percolate_output/sample-{sample_index}/'
+gamL = np.load(percdir + f'gamL_40x40-{sample_index}.npy')
+gamR = np.load(percdir + f'gamR_40x40-{sample_index}.npy')
 
 
 # ******* 3: Define strongly-coupled MOs *******
@@ -81,7 +82,7 @@ print(f'{biggaR_inds.shape[0]} MOs strongly coupled to right lead.')
 
 
 # ******* 4: Get a sense of the distance distribution *******
-centres, ee, ii = generate_site_list(pos,M,energies)
+centres, ee, ii = generate_site_list(pos,M,biggaL_inds,biggaR_inds,energies)
 
 centres = np.load('cc.npy')
 ee = np.load('ee.npy')

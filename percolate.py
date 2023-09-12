@@ -238,7 +238,6 @@ def correct_peaks(sites, pos, rho, xedges, yedges, side):
     
     return sites
 
-@njit
 def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60):
     centres = np.zeros(2) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     ee = []

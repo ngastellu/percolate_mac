@@ -29,7 +29,7 @@ plt_utils.setup_tex()
 rcParams['font.size'] = 20
 
 nn = 99
-for T in [200,400]:
+for T in [100,200,300,400]:
     posfile = path.join(posdir,f'bigMAC-{nn}_relaxed.xsf')
     Mfile = path.join(Mdir,f'MOs_ARPACK_bigMAC-{nn}.npy')
     efile = path.join(edir, f'eARPACK_bigMAC-{nn}.npy')
@@ -41,7 +41,9 @@ for T in [200,400]:
     energies = np.load(efile)
     dat = get_data(nn,T,datadir)
     c = dat[0][0]
+    dcrit = dat[1]
     print(c)
+    print('dcrit = ', dcrit)
     A = dat[2]
     pos, _ = read_xsf(posfile)
     fig, ax = plt.subplots()
