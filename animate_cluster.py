@@ -21,33 +21,43 @@ def get_data(run_ind,temp,datadir):
     return dat
 
 
-def remove_singles(centers, pairs):
+def remove_singles(pairs,c):
     """This function weeds out all centres who are only connected to themselves (This happens 2 MOs that can map
     to a single hopping centre)."""
-    pass
+    npairs = pairs.shape[0]
+    keep = np.zeros(npairs,dtype=bool) #initialise to all False
+    for k, p in enumerate(pairs):
+        r1, r2 = p
+        if np.all(r1 == r2) or (r1 not in cc):
+            continue
+        else:
+            keep[k] = True
+    return pairs[keep] # keep only pairs of DISTINCT centers
 
 
 
-
-def get_centers_and_pairs():
+def get_center_pairs():
     """Generator function that gets the hopping centers and the hopping center pairs to be plotted/connected
     at each frame."""
-    d = next(dgen)
     N = centres.shape[0]
-    while d <= dcrit:
-        print('d = ', d)
+    k=0
+    # while True:
+    for d in dgen:
+        # d = next(dgen)
+        print('k = ', k)
         connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
         ii, jj = pair_inds(connected_inds,N)
-        relevant_inds = np.unique((ii,jj))
-        relevant_centers = centres[relevant_inds]
-        relevant_pairs = [(centres[i], centres[j]) for i,j in zip(ii,jj)]
-        yield relevant_centers, relevant_pairs
-        d = next(dgen)
+        relevant_pairs = np.array([(centres[i], centres[j]) for i,j in zip(ii,jj)])
+        relevant_pairs = remove_singles(relevant_pairs, c)
+        yield relevant_pairs
+        k += 1
 
 
 def update(frame):
-    rel_centers, rel_pairs = frame
-    ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=2.0, cmap='plasma',zorder=1)
+    rel_pairs = frame
+    npairs = frame.shape[0]
+    rel_centers = np.unique(rel_pairs.reshape(2*npairs,2),axis=0)
+    ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=1.0, cmap='plasma',zorder=1)
 
     ax.scatter(*rel_centers.T, marker='*', c='r', s=20.0, zorder=2)
 
@@ -59,7 +69,6 @@ def update(frame):
 
 
 # Get data
-
 datadir=path.expanduser("~/Desktop/simulation_outputs/percolation/40x40/percolate_output")
 
 posdir = path.join(path.dirname(datadir), 'structures')
@@ -75,15 +84,17 @@ Mfile = path.join(Mdir,f'MOs_ARPACK_bigMAC-{nn}.npy')
 efile = path.join(edir, f'eARPACK_bigMAC-{nn}.npy')
 ccfile = path.join(datadir,f'sample-{nn}','cc.npy')
 iifile = path.join(datadir,f'sample-{nn}','ii.npy')
+eefile = path.join(datadir,f'sample-{nn}','ee.npy')
 
 
 M = np.load(Mfile)
 centres = np.load(ccfile)
 MOinds = np.load(iifile)
-energies = np.load(efile)
+energies = np.load(eefile)
 pos, _ = read_xsf(posfile)
 dat = get_data(nn,T,datadir)
 c = np.sort(list(dat[0][0])) #sort cluster inds
+cc = centres[c]
 cluster_centres_inds = np.array([np.sum(i > c) for i in c])
 cluster_centres = centres[cluster_centres_inds]
 dcrit = dat[1]
@@ -96,7 +107,10 @@ darr = rdArr + (edArr/(kB*T))
 print(darr)
 #darr = dArray_logMA(energies, centres, T, a0=30,eF=0)
 print(darr[darr<=dcrit].shape)
-dgen = iter(np.hstack( (np.sort(np.unique(darr[darr <= dcrit]))[::10], darr[115:]) ))
+dgen = np.sort(np.unique(darr[darr <= dcrit]))
+print(dgen.shape)
+# dgen = iter(np.hstack((dgen[::10], dgen[-2:]))[2:])
+dgen = iter(np.hstack((dgen[::10], dgen[-2:]))[2:])
 rho = np.sum(M[:,np.unique(MOinds)]**2,axis=1)
 
 
@@ -108,12 +122,16 @@ plt_utils.setup_tex()
 
 
 rcParams['font.size'] = 20
+rcParams['figure.figsize'] = [10,5]
+rcParams['figure.dpi'] = 200.0
+rcParams['figure.constrained_layout.use'] = True
 fig, ax = plt.subplots()
-ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=2.0, cmap='plasma',zorder=1)
-cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
+ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=1.0, cmap='plasma',zorder=1)
+# cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
 ax.set_aspect('equal')
 ax.set_xlabel("$x$ [\AA]")
 ax.set_ylabel("$y$ [\AA]")
 
-ani = animation.FuncAnimation(fig=fig,func=update,frames=get_centers_and_pairs)
+ani = animation.FuncAnimation(fig=fig,func=update,frames=get_center_pairs,repeat=False)
+ani.save(filename='cluster.gif',writer='pillow')
 plt.show()
