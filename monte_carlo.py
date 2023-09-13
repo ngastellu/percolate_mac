@@ -64,7 +64,7 @@ class MACHopSites:
         return t, traj
 
 
-    def MCpercolate_dipoles(self, Jdipoles, T, E=np.array([1.0,0]), e_reorg=0.1, return_traj=False, interMO_hops_only=False):
+    def MCpercolate_dipoles(self, Jdipoles, T, E, e_reorg, return_traj, interMO_hops_only):
         rates = kMarcus_njit(self.e_sites, self.sites, e_reorg, Jdipoles, T, E)
         if interMO_hops_only:
             rates = zero_intraMO_rates(rates,self.inds)
@@ -195,6 +195,7 @@ def kMarcus_njit(energies, pos, e_reorg, Js, T, E):
     e = 1.00
     cnt = 0
     N = energies.shape[0]
+    print('N = ', N)
     out = np.empty((N,N),dtype='float')
     for i in prange(N):
         for j in prange(N):

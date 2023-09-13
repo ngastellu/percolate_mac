@@ -6,20 +6,19 @@ import matplotlib.pyplot as plt
 from monte_carlo import MACHopSites
 
 
-@njit(parallel=True)
-def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, temps, E, nloops, ts):
+# @njit(parallel=True)
+def run_MCpercolate(pos, M, MO_energies, sites_data, MO_gams, Js, temps, E, e_reorg, nloops, ts):
 
     hopsys = MACHopSites(pos,M,MO_energies, sites_data, MO_gams)
-    a0 = 30
-    for n in prange(nloops):
+    for n in range(nloops):
         print(f"Loop {n}")
-        for k in prange(temps.shape[0]):
+        for k in range(temps.shape[0]):
             T = temps[k]
             print(f"T = {int(T)} K")
-            t, _ =  hopsys.MCpercolate_MA(T, E, a0, return_traj=False, interMO_hops_only=False)
+            t, traj =  hopsys.MCpercolate_dipoles(Js, T, E, e_reorg, True, True)
             ts[n,k] = t
         print('\n\n')
-    return ts
+    return ts, traj
 
 
 nsample = 150
@@ -28,6 +27,9 @@ percolate_datadir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/p
 M = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/MOs_ARPACK_bigMAC-{nsample}.npy')
 eMOs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/eARPACK/eARPACK_bigMAC-{nsample}.npy')
 strucdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/structures/'
+
+Jfile = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/dipole_couplings/local/Jdip-{nsample}_local.npy'
+
 print(M.shape)
 
 centers = np.load(percolate_datadir + 'cc.npy')
@@ -46,17 +48,21 @@ MO_gams = (gamL, gamR)
 
 pos = np.load(strucdir + f'no_dangle/pos-{nsample}_nodangle.npy')
 
-temps = np.arange(90,110,10,dtype=np.float64)
-nloops = 10
+temps = np.arange(400,420,10,dtype=np.float64)
+nloops = 1
 ts = np.ones((nloops, temps.shape[0]), dtype='float') * -1
 
-# dX = np.max(pos[:,0]) - np.min(pos[:,1])
-# E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
+dX = np.max(pos[:,0]) - np.min(pos[:,1])
+E = np.array([1.0,0]) / dX # Efield corresponding to a voltage drop of 1V accross MAC sample 
+e_reorg = 0.005
 
-E = np.zeros(2)
+Js = np.load(Jfile)
+
+# E = np.zeros(2)
 
 ts = np.ones((nloops, temps.shape[0]), dtype='float') * -1
-ts = run_MCpercolate(pos, M, eMOs, sites_data, MO_gams, temps, E, nloops, ts) 
+ts, traj = run_MCpercolate(pos, M, eMOs, sites_data, MO_gams, Js, temps, E, e_reorg, nloops, ts)#, return_traj=True) 
+np.save(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/marcus/trajectories/sample-{nsample}_traj_{temps[-1]}K.npy',traj)
 
 plt.plot(temps,np.mean(ts,axis=0))
 plt.show()

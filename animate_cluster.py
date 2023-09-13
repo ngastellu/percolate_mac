@@ -54,6 +54,8 @@ def get_center_pairs():
 
 
 def update(frame):
+    """In this animation the frame is defined by which hopping site pairs are connected for a certain threshold 
+    distance d; those sites are then plotted, along with the edges connecting them."""
     rel_pairs = frame
     npairs = frame.shape[0]
     rel_centers = np.unique(rel_pairs.reshape(2*npairs,2),axis=0)
