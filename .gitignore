@@ -4,3 +4,4 @@ __pycache__
 *.pkl
 dump2VDOS.py
 Ktest.py
+*.gif
