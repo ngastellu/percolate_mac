@@ -9,7 +9,7 @@ from qcnico import plt_utils
 
 first_ind = 14
 temps, sigmas = np.load('sigma_v_T.npy')[:,first_ind:]
-y = -np.log(sigmas)
+y = np.log(sigmas)
 
 print(temps[0])
 print(temps[-1])
@@ -32,7 +32,7 @@ print(f'0D Mott VRH: slope = {slope}, r^2 = {r**2}')
 # axs[0].plot(x, x*slope + intercept,'r-')
 # axs[0].set_xlabel("$1000/T$ [K$^{-1}$]")
 # axs[0].set_ylabel("$\log \sigma$")
-plt.plot(x,y,'ko',ms=2.0)
+plt.plot(x,y,'ko',ms=10.0)
 plt.plot(x, x*slope + intercept,'r-')
 plt.xlabel("$1000/T$ [K$^{-1}$]")
 plt.ylabel("$\log \sigma$")

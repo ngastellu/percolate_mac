@@ -112,7 +112,7 @@ print(darr[darr<=dcrit].shape)
 dgen = np.sort(np.unique(darr[darr <= dcrit]))
 print(dgen.shape)
 # dgen = iter(np.hstack((dgen[::10], dgen[-2:]))[2:])
-dgen = iter(np.hstack((dgen[::10], dgen[-2:]))[2:])
+dgen = iter(np.hstack((dgen[::5], dgen[-2:]))[1:])
 rho = np.sum(M[:,np.unique(MOinds)]**2,axis=1)
 
 

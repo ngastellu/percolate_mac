@@ -10,6 +10,9 @@ from qcnico.coords_io import read_xsf
 
 
 
+# Code shamelessly copied from Adrian Price-Whelan's blog post: https://adrian.pw/blog/matplotlib-transparent-animation/
+
+
 def make_full_traj(pts,m,q):
     """
     This function 'fleshes out' a hopping trajectory by adding `m` intermediate frames per unit distance 
@@ -51,20 +54,35 @@ def find_moves(traj):
     newy = diffs[:,1].nonzero()[0]
     return newx, newy
     
+def init():
+    pt.set_data([], [])
+    for trail in trails:
+        trail.set_data([], [])
+    return (pt,) + tuple(trails)
 
 
-def update(frame):
-    """In this case, each frame is defined by the position of the random walker."""
-    r = full_traj[frame,:2]
-    on_site = full_traj[frame,2]
-    # print(r)
-    ye.set_offsets(r)
-    ye.set_color('r')
-    if on_site == 1:
-        ye.set_sizes([50.0])
-    else:
-        ye.set_sizes([24.0])
-    return ye
+def update(i):
+    ix = i - n_trails
+
+    pt.set_data(x[i], y[i])
+    for j, trail in zip(range(len(trails))[::-1], trails):
+        if ix + j < 0:
+            continue
+        trail.set_data(x[ix + j], y[ix + j])
+    return (pt,) + tuple(trails)
+
+# def update(frame):
+#     """In this case, each frame is defined by the position of the random walker."""
+#     r = full_traj[frame,:2]
+#     on_site = full_traj[frame,2]
+#     # print(r)
+#     ye.set_offsets(r)
+#     ye.set_color('r')
+#     if on_site == 1:
+#         ye.set_sizes([50.0])
+#     else:
+#         ye.set_sizes([24.0])
+#     return ye
 
 
 def sample_traj(traj):
@@ -118,10 +136,6 @@ MOinds = np.load(iifile)
 energies = np.load(eefile)
 pos, _ = read_xsf(posfile)
 
-early_inds = np.arange(10)
-mid_inds1 = np.arange(300,310)
-mid_inds2 = np.arange(600,610)
-end_inds = np.arange(1000,1224)
 
 itraj = np.load(trajfile)
 traj = centres[itraj]
@@ -141,11 +155,12 @@ traj = centres[itraj]
 #     k+=4
 #     j+=1
 
-sampled_pts = sample_traj(traj)
+sampled_pts = sample_traj(traj)[18:]
 
 print(np.any(np.all(sampled_pts==0,axis=1)))
 
-full_traj = make_full_traj(sampled_pts,0.5,3)[:300]
+full_traj = make_full_traj(sampled_pts,0.5,3)[:1500]
+x, y, on_site = full_traj.T
 print('*******************')
 print(full_traj.shape)
 
@@ -156,15 +171,27 @@ plt_utils.setup_tex()
 
 rcParams['font.size'] = 20
 rcParams['figure.figsize'] = [10,5]
-rcParams['figure.dpi'] = 200.0
+rcParams['figure.dpi'] = 150.0
 rcParams['figure.constrained_layout.use'] = True
 fig, ax = plt.subplots()
 ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=1.0, cmap='plasma',zorder=1)
 fig.patch.set_alpha(0.0)
+
+(pt,) = ax.plot([], [], linestyle="none", marker="o", ms=5, color="r",zorder=3)
+
+n_trails = 10
+trails = []
+for i, alpha in enumerate(np.linspace(1.0, 0, n_trails)):
+    (l,) = ax.plot(
+        [], [], linestyle="none", marker="o", ms=3, alpha=alpha, c="w", zorder=2#-1000
+    )
+    trails.append(l)
+
 # cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
 ax.set_aspect('equal')
 ax.set_xlabel("$x$ [\AA]")
 ax.set_ylabel("$y$ [\AA]")
-ani = animation.FuncAnimation(fig=fig,func=update,frames=full_traj.shape[0],repeat=False)
-ani.save(filename='hop_traj.gif',writer='pillow',savefig_kwargs={"transparent":True,"facecolor":"none"})
+# ani = animation.FuncAnimation(fig=fig,func=update,frames=full_traj.shape[0],repeat=False)
+ani = animation.FuncAnimation(fig,update,full_traj.shape[0],init_func=init,interval=0.1)
+ani.save(filename='hop_traj_fast.gif',writer='pillow',savefig_kwargs={"transparent":True,"facecolor":"none"},fps=25)
 plt.show()
