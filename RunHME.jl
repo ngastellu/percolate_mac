@@ -20,10 +20,11 @@ module RunHME
     E = [1 0]/400
 
     temps = collect(100:10:400)
-    velocities, occs, conv = run_HME(site_energies, centers, temps, E)
+    velocities, occs, conv = run_HME(site_energies, centers, L_inds, R_inds, temps, E, μL; ϵ=1e-7)
 
     py"""np.save('velocities.npy', np.vstack(($(PyObject(temps)), np.linalg.norm($(PyObject(velocities)),axis=1))))
     np.save('final_occs.npy', $(PyObject(occs)))
     np.save('conv.npy', $(PyObject(conv)))
     """
+    
 end

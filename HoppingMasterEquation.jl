@@ -1,6 +1,6 @@
 module HoppingMasterEquation
 
-    using LinearAlgebra, Random
+    using LinearAlgebra, Random, StatsBase
 
     export run_HME, lattice_hopping_model
 
@@ -82,8 +82,26 @@ module HoppingMasterEquation
         end
         return K
     end
+
+    function miller_abrahams_YSALM(pos, energies, innn, T, E; a=10.0, ω0=1.0)
+        N = size(pos,1)
+        Γ = 5
+        β = 1.0/(kB*T)
+
+        for i=1:N
+            for j ∈ innn
+                if j == 0
+                    break
+                end 
+                ΔR = pos[j] - pos[i]
+                K[i,j] = ω0 * exp(-2Γ*norm(R)/a) * exp(β*(energies[i] - energies[j] - e*dot(E,ΔR))/2) 
+            end
+        end
+        return K
+    end
     
-    function iterate_implicit(Pold, rates, L_inds, R_inds)
+    # function iterate_implicit(Pold, rates, L_inds, R_inds)
+    function iterate_implicit(Pold, rates)
         norms = sum(rates,dims=2)
         N = size(rates,1)
         Pnew = zeros(N)
@@ -108,7 +126,8 @@ module HoppingMasterEquation
         return Pnew
     end
 
-    function solve(Pinit, rates, L_inds, R_inds; maxiter=1000000, ϵ=1e-6)
+    # function solve(Pinit, rates, L_inds, R_inds; maxiter=1000000, ϵ=1e-6)
+    function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6)
         N = size(Pinit,1)
         # println(N)
         cntr = 1
@@ -118,7 +137,8 @@ module HoppingMasterEquation
         while cntr ≤ maxiter && !converged
             println(cntr)
             Pold = Pnew
-            Pnew = iterate_implicit(Pold,rates, L_inds, R_inds)
+            # Pnew = iterate_implicit(Pold,rates, L_inds, R_inds)
+            Pnew = iterate_implicit(Pold,rates)
             ΔP = abs.(Pnew-Pold)
             converged = all(ΔP .< ϵ)
             conv[cntr, 1] = maximum(ΔP)
@@ -145,7 +165,8 @@ module HoppingMasterEquation
         return v
     end
 
-    function run_HME(energies, pos, L_inds, R_inds, temps, E, μL; maxiter=1000000, ϵ=1e-8)
+    # function run_HME(energies, pos, L_inds, R_inds, temps, E, μL; maxiter=1000000, ϵ=1e-8)
+    function run_HME(energies, pos, temps, E, μL; maxiter=1000000, ϵ=1e-8)
         nb_temps = size(temps,1)
         N = size(energies, 1)
         d = size(pos, 2)
@@ -161,15 +182,16 @@ module HoppingMasterEquation
             P0 = initialise_P(energies, pos, L_inds, R_inds, T, E, μL)
             Pinit[k,:] = P0
             # println(P0)
-            Pfinal[k,:], conv = solve(P0, K, L_inds, R_inds; maxiter=maxiter, ϵ=ϵ)
+            # Pfinal[k,:], conv = solve(P0, K, L_inds, R_inds; maxiter=maxiter, ϵ=ϵ)
+            Pfinal[k,:], conv = solve(P0, K; maxiter=maxiter, ϵ=ϵ)
             velocities[k,:] = carrier_velocity(K, Pfinal, pos)
         end
         return velocities, Pfinal, Pinit, conv
     end
 
 
-    function lattice_hopping_model(pos, L_inds, R_inds, temps, E, μL, ntrials)
-
+    # function lattice_hopping_model(pos, L_inds, R_inds, temps, E, μL, ntrials)
+    function lattice_hopping_model(pos, temps, E, μL, ntrials)
         N = size(pos,1)
         ntemps = size(temps,1)
         occs_init = zeros(ntemps, N)
@@ -181,7 +203,8 @@ module HoppingMasterEquation
             energies = randn(N)
             # energies = rand(N) * (2 * E0) .- E0
     
-            velocities, occs, occs0, conv = run_HME(energies, pos, L_inds, R_inds, temps, E, μL;ϵ=1e-7)
+            # velocities, occs, occs0, conv = run_HME(energies, pos, L_inds, R_inds, temps, E, μL;ϵ=1e-7)
+            velocities, occs, occs0, conv = run_HME(energies, pos, temps, E, μL;ϵ=1e-7)
     
             for j=1:ntemps
                 velocities_norm[i,j] = norm(velocities[j,:])
@@ -197,6 +220,65 @@ module HoppingMasterEquation
         velocities_avg = sum(velocities_norm,dims=1)/ntrials
 
         return velocities_avg, occs_init, occs_final, energies_saved
+
+    end
+
+
+    function intialise_random(N,nocc)
+        P0 = zeros(N)
+        occ_inds = sample(1:N, nocc; replace=false)
+        P0[occ_inds] .= 1
+        return P0
+    end
+
+    function get_nnn_inds_3d(pos)
+        # Given a cubic lattice whose positions are stored in array Nx3 `pos`, generate the list of
+        # nearest and next-nearest neighbour indices for each lattice points.
+        # Points in the bulk of the sample will have 18 nearest/next-nearest neighbours, sites on/nearest
+        # the edges will have less. For these edge/edge-adjacent sites, the "empty" entries will be
+        # assigned the value 0.
+        N = size(pos,1)
+        innn = zeros(N,18)
+        for i=1:N
+            Δ = pos .- pos[i,:]'
+            norms = sqrt.(sum(abs2,Δ;dims=2))
+            ii = findall(0 .< vec(norms) .≤ sqrt(2))
+            for (j,n) in enumerate(ii)
+                innn[i,j] = n
+            end
+        end
+        return innn
+    end
+
+
+    function YSALM_lattice_model(temps,E,density)
+        N1 = 64
+        N2 = 32
+
+        pos = zeros(N1,N2,N2,3)
+
+        for i=1:N1
+            for j=1:N2
+                for k=1:N2
+                    pos[i,j,k,:] = [i,j,k]
+                end
+            end
+        end
+
+        pos = reshape(pos, N1*N2*N2, 3)
+        nnn_inds = get_nnn_inds_3d(pos) #for each site, list of inds nearest neighbours and next-nearest neighbours
+        a = 10 # lattice constant in Å
+        Ω = N1 * N2 * N2 * a #lattice volume in Å        
+        N = size(pos,1)
+        nocc = Int(density * Ω)
+
+        for T ∈ temps
+            P0 = initialise_random(N,nocc)
+            rates = miller_abrahams_YSALM(pos,energies,nnn_inds, T, E)
+            Pfinal, conv = solve(P0, rates)
+        end
+
+
 
     end
 
