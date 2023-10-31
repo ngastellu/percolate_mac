@@ -2,7 +2,7 @@ module HoppingMasterEquation
 
     using LinearAlgebra, Random, StatsBase
 
-    export run_HME, lattice_hopping_model, YSALMB_lattice_model
+    export run_HME, lattice_hopping_model, YSSMB_lattice_model
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -83,7 +83,7 @@ module HoppingMasterEquation
         return K
     end
 
-    function miller_abrahams_YSALMB(pos, energies, innn, T, E; a=10.0, ω0=1.0)
+    function miller_abrahams_YSSMB(pos, energies, innn, T, E; a=10.0, ω0=1.0)
         N = size(pos,1)
         Γ = 5
         β = 1.0/(kB*T)
@@ -122,7 +122,7 @@ module HoppingMasterEquation
             end
             for j=i+1:N
                 sum_top += Pold[j]*rates[j,i]
-                sum_bot += (rates[j,i] - rates[i,j])*Pold[j]
+                sum_bot += (rates[i,j] - rates[j,i])*Pold[j]
             end
             Pnew[i] = (sum_top/norms[i]) / (1 - sum_bot/norms[i])
         end
@@ -260,10 +260,8 @@ module HoppingMasterEquation
     end
 
 
-    function YSALMB_lattice_model(temps, density; νeff = 1.0)
+    function YSSMB_lattice_model(temps, density; νeff = 1.0, N1=64, N2=32)
         nb_temps = size(temps,1)
-        N1 = 64
-        N2 = 32
         a = 10 # lattice constant in Å
 
         pos = zeros(N1,N2,N2,3)
@@ -300,7 +298,7 @@ module HoppingMasterEquation
             P0 = initialise_random(N,nocc)
             println("∑ P0 = $(sum(P0))")
             Pinits[n,:] = P0
-            rates = miller_abrahams_YSALMB(pos,energies,nnn_inds, T, E)
+            rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T, E)
             Pfinal, conv = solve(P0, rates)
             println("∑ Pfinal = $(sum(Pfinal))")
             Pfinal ./= sum(Pfinal)
