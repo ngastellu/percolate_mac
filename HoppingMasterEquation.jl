@@ -2,7 +2,7 @@ module HoppingMasterEquation
 
     using LinearAlgebra, Random, StatsBase
 
-    export run_HME, lattice_hopping_model
+    export run_HME, lattice_hopping_model, YSALMB_lattice_model
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -83,20 +83,23 @@ module HoppingMasterEquation
         return K
     end
 
-    function miller_abrahams_YSALM(pos, energies, innn, T, E; a=10.0, ω0=1.0)
+    function miller_abrahams_YSALMB(pos, energies, innn, T, E; a=10.0, ω0=1.0)
         N = size(pos,1)
         Γ = 5
         β = 1.0/(kB*T)
+
+        K = zeros(N,N)
 
         for i=1:N
             for j ∈ innn
                 if j == 0
                     break
                 end 
-                ΔR = pos[j] - pos[i]
-                K[i,j] = ω0 * exp(-2Γ*norm(R)/a) * exp(β*(energies[i] - energies[j] - e*dot(E,ΔR))/2) 
+                ΔR = pos[j,:] - pos[i,:]
+                K[i,j] = ω0 * exp(-2Γ*norm(ΔR)/a) * exp(β*(energies[i] - energies[j] - e*dot(E,ΔR))/2) 
             end
         end
+        # println("K = $K")
         return K
     end
     
@@ -128,6 +131,7 @@ module HoppingMasterEquation
 
     # function solve(Pinit, rates, L_inds, R_inds; maxiter=1000000, ϵ=1e-6)
     function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6)
+        println("Solving master equation...")
         N = size(Pinit,1)
         # println(N)
         cntr = 1
@@ -139,12 +143,14 @@ module HoppingMasterEquation
             Pold = Pnew
             # Pnew = iterate_implicit(Pold,rates, L_inds, R_inds)
             Pnew = iterate_implicit(Pold,rates)
+            # println("Pnew = $Pnew")
             ΔP = abs.(Pnew-Pold)
             converged = all(ΔP .< ϵ)
             conv[cntr, 1] = maximum(ΔP)
             conv[cntr,2] = sum(ΔP)/N
             conv[cntr,3] = argmax(ΔP)
-            println(conv[cntr,:])
+            println("[max(ΔP), ⟨ΔP⟩, argmax(ΔP)] = $(conv[cntr,:])")
+            println("\n")
             cntr += 1
         end
         return Pnew, conv
@@ -186,6 +192,7 @@ module HoppingMasterEquation
             Pfinal[k,:], conv = solve(P0, K; maxiter=maxiter, ϵ=ϵ)
             velocities[k,:] = carrier_velocity(K, Pfinal, pos)
         end
+        println("Done solving master equation!")
         return velocities, Pfinal, Pinit, conv
     end
 
@@ -224,25 +231,27 @@ module HoppingMasterEquation
     end
 
 
-    function intialise_random(N,nocc)
+    function initialise_random(N,nocc)
         P0 = zeros(N)
         occ_inds = sample(1:N, nocc; replace=false)
-        P0[occ_inds] .= 1
+        P0[occ_inds] .= 1/nocc
         return P0
     end
 
-    function get_nnn_inds_3d(pos)
+    function get_nnn_inds_3d(pos,a)
         # Given a cubic lattice whose positions are stored in array Nx3 `pos`, generate the list of
         # nearest and next-nearest neighbour indices for each lattice points.
         # Points in the bulk of the sample will have 18 nearest/next-nearest neighbours, sites on/nearest
         # the edges will have less. For these edge/edge-adjacent sites, the "empty" entries will be
         # assigned the value 0.
         N = size(pos,1)
-        innn = zeros(N,18)
+        innn = zeros(Int,N,18)
         for i=1:N
             Δ = pos .- pos[i,:]'
             norms = sqrt.(sum(abs2,Δ;dims=2))
-            ii = findall(0 .< vec(norms) .≤ sqrt(2))
+            # println("Working on site $i: max(norms) = $(maximum(norms)); min(norms) = $(minimum(norms))")
+            ii = findall(0 .< vec(norms) .≤ sqrt(2)*a)
+            println(ii)
             for (j,n) in enumerate(ii)
                 innn[i,j] = n
             end
@@ -251,35 +260,55 @@ module HoppingMasterEquation
     end
 
 
-    function YSALM_lattice_model(temps,E,density)
+    function YSALMB_lattice_model(temps, density; νeff = 1.0)
+        nb_temps = size(temps,1)
         N1 = 64
         N2 = 32
+        a = 10 # lattice constant in Å
 
         pos = zeros(N1,N2,N2,3)
-
+        println("Defining lattice positions...")
         for i=1:N1
             for j=1:N2
                 for k=1:N2
-                    pos[i,j,k,:] = [i,j,k]
+                    pos[i,j,k,:] = [i-1,j-1,k-1] * a # start at origin
                 end
             end
         end
 
         pos = reshape(pos, N1*N2*N2, 3)
-        nnn_inds = get_nnn_inds_3d(pos) #for each site, list of inds nearest neighbours and next-nearest neighbours
-        a = 10 # lattice constant in Å
-        Ω = N1 * N2 * N2 * a #lattice volume in Å        
+        println("Done!")
+        println(pos)
+        dX = a * (N1-1)
+        println("Getting NNN inds...") 
+        nnn_inds = get_nnn_inds_3d(pos,a) #for each site, list of inds nearest neighbours and next-nearest neighbours
+        println("Done!")
+        # println("innnn = $nnn_inds")
+        Ω = (N1-1) * (N2-1) * (N2-1) * (a^3) #lattice volume in Å        
         N = size(pos,1)
-        nocc = Int(density * Ω)
+        nocc = Int(floor(density * Ω))
 
-        for T ∈ temps
+        energies = randn(N) * νeff
+        E = [1,0,0] /dX
+
+        Pfinals = zeros(nb_temps,N)
+        Pinits = zeros(nb_temps,N)
+        velocities = zeros(nb_temps, 3)
+
+        for (n,T) ∈ enumerate(temps)
+            println("************** $T **************")
             P0 = initialise_random(N,nocc)
-            rates = miller_abrahams_YSALM(pos,energies,nnn_inds, T, E)
+            println("∑ P0 = $(sum(P0))")
+            Pinits[n,:] = P0
+            rates = miller_abrahams_YSALMB(pos,energies,nnn_inds, T, E)
             Pfinal, conv = solve(P0, rates)
+            println("∑ Pfinal = $(sum(Pfinal))")
+            Pfinal ./= sum(Pfinal)
+            Pfinals[n,:] = Pfinal
+            vs = carrier_velocity(rates,Pfinal,pos)
+            velocities[n,:] = vs
         end
 
-
-
+        return energies, velocities, Pinits, Pfinals
     end
-
 end
