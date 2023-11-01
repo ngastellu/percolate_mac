@@ -5,15 +5,24 @@ include("./HoppingMasterEquation.jl")
 using .HoppingMasterEquation, PyCall, MPI
 
 
+
+
 MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
+nprocs = MPI.Comm_size(comm)
 
-workdir = "sample-$rank"
+all_temps = collect(100:10:400)
+nT = size(all_temps,1)
+nT_per_proc = Int(floor(nT / nprocs))
 
-if !isdir(workdir)
-    mkdir(workdir)
+if rank < nprocs - 1
+    temps = all_temps[1+(rank*nT_per_proc) : (rank+1)*nT_per_proc]
+else
+    temps = all_temps[1+(rank*(nT_per_proc):end)]
 end
+
+
 
 cd(workdir)
 
@@ -25,10 +34,11 @@ temps = collect(100:10:400)
 energies, velocities, Pinits, Pfinals = YSSMB_lattice_model(temps,density; νeff = ν)
 
 py"""import numpy as np
-np.save('temps.npy', $(PyObject(temps)))
-np.save('energies.npy', $(PyObject(energies)))
-np.save('velocities.npy', $(PyObject(velocities)))
-np.save('Pinits.npy', $(PyObject(Pinits)))
-np.save('Pfinals.npy', $(PyObject(Pfinals)))"""
+nn = $rank
+np.save(f'temps-{nn}.npy', $(PyObject(temps)))
+np.save(f'energies-{nn}.npy', $(PyObject(energies)))
+np.save(f'velocities-{nn}.npy', $(PyObject(velocities)))
+np.save(f'Pinits-{nn}.npy', $(PyObject(Pinits)))
+np.save(f'Pfinals-{nn}.npy', $(PyObject(Pfinals)))"""
 
 end

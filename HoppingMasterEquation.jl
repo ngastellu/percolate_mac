@@ -39,7 +39,6 @@ module HoppingMasterEquation
         # μR = μL - e*dot(E,maxpos-minpos) # Make sure lead voltages are consistent with imposed elecrtic field
 
         for i=1:N
-            # println(energies[i] - e*dot(E, pos[i,:]))
             # if i ∉ (L_inds ∪ R_inds)
             #     Pinit[i] = fermi_dirac(energies[i] - e*dot(E, pos[i,:]), T) # !!! Assuming NEGATIVE charge !!!
             # elseif i ∈ L_inds
@@ -99,7 +98,6 @@ module HoppingMasterEquation
                 K[i,j] = ω0 * exp(-2Γ*norm(ΔR)/a) * exp(β*(energies[i] - energies[j] - e*dot(E,ΔR))/2) 
             end
         end
-        # println("K = $K")
         return K
     end
     
@@ -131,9 +129,8 @@ module HoppingMasterEquation
 
     # function solve(Pinit, rates, L_inds, R_inds; maxiter=1000000, ϵ=1e-6)
     function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6)
-        println("Solving master equation...")
+        # println("Solving master equation...")
         N = size(Pinit,1)
-        # println(N)
         cntr = 1
         Pnew = Pinit
         converged = false
@@ -143,7 +140,6 @@ module HoppingMasterEquation
             Pold = Pnew
             # Pnew = iterate_implicit(Pold,rates, L_inds, R_inds)
             Pnew = iterate_implicit(Pold,rates)
-            # println("Pnew = $Pnew")
             ΔP = abs.(Pnew-Pold)
             converged = all(ΔP .< ϵ)
             conv[cntr, 1] = maximum(ΔP)
@@ -157,8 +153,6 @@ module HoppingMasterEquation
     end
 
     function carrier_velocity(rates, occs, pos)
-        println(size(occs[1,:]))
-        println(size(occs[2,:]))
         N = size(rates,1)
         d = size(pos,2)
         v = zeros(d)
@@ -184,10 +178,8 @@ module HoppingMasterEquation
             T = temps[k]
             println("\n\n ************ T = $T *************")
             K = miller_abrahams_asymm(energies, pos, T, E)
-            # println(K)
             P0 = initialise_P(energies, pos, L_inds, R_inds, T, E, μL)
             Pinit[k,:] = P0
-            # println(P0)
             # Pfinal[k,:], conv = solve(P0, K, L_inds, R_inds; maxiter=maxiter, ϵ=ϵ)
             Pfinal[k,:], conv = solve(P0, K; maxiter=maxiter, ϵ=ϵ)
             velocities[k,:] = carrier_velocity(K, Pfinal, pos)
@@ -249,9 +241,7 @@ module HoppingMasterEquation
         for i=1:N
             Δ = pos .- pos[i,:]'
             norms = sqrt.(sum(abs2,Δ;dims=2))
-            # println("Working on site $i: max(norms) = $(maximum(norms)); min(norms) = $(minimum(norms))")
             ii = findall(0 .< vec(norms) .≤ sqrt(2)*a)
-            println(ii)
             for (j,n) in enumerate(ii)
                 innn[i,j] = n
             end
@@ -273,7 +263,7 @@ module HoppingMasterEquation
             r = pos[n,:]
             phases = [dot(r,q) for q in eachrow(reciprocal_lattice)]
             ϕ[n] = sum(Φ .* exp.(-im .* phases)) / Ω
-        end
+        end 
         return ν .*  ϕ
     end
 
@@ -293,12 +283,10 @@ module HoppingMasterEquation
 
         pos = reshape(pos, N1*N2*N2, 3)
         println("Done!")
-        println(pos)
         dX = a * (N1-1)
         println("Getting NNN inds...") 
         nnn_inds = get_nnn_inds_3d(pos,a) #for each site, list of inds nearest neighbours and next-nearest neighbours
         println("Done!")
-        # println("innnn = $nnn_inds")
         Ω = (N1-1) * (N2-1) * (N2-1) * (a^3) #lattice volume in Å        
         N = size(pos,1)
         nocc = Int(floor(density * Ω))
@@ -319,12 +307,18 @@ module HoppingMasterEquation
             if e_corr
                 energies = generate_correlated_esites(pos,a,Ω,T,K,νeff)
             end
+            println("Computing rate matrix...")
             rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T, E)
+            println("Done!")
+            println("Iteratively solving master equation...")
             Pfinal, conv = solve(P0, rates)
+            println("Done!")
             println("∑ Pfinal = $(sum(Pfinal))")
             Pfinal ./= sum(Pfinal)
             Pfinals[n,:] = Pfinal
+            println("Computing carrier velocity...")
             vs = carrier_velocity(rates,Pfinal,pos)
+            println("Done!")
             velocities[n,:] = vs
         end
 
