@@ -1,4 +1,4 @@
-module RunYSALMBHoppingModelMPI
+module RunYSSMBHoppingModelMPI
 
 include("./HoppingMasterEquation.jl")
 

@@ -2,7 +2,7 @@ module HoppingMasterEquation
 
     using LinearAlgebra, Random, StatsBase
 
-    export run_HME, lattice_hopping_model, YSSMB_lattice_model
+    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generated_correlated_esites
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -259,8 +259,25 @@ module HoppingMasterEquation
         return innn
     end
 
+    function generate_correlated_esites(pos, a, Ω, T, K, ν)
+        reciprocal_lattice = (2π/a^2) .* pos
+        N = size(pos,1)
+        Φ = zeros(N)
+        β = 1.0/(kB*T)
+        for (k,q) in enumerate(reciprocal_lattice)
+            σ = Ω / (β*K*norm(q)^2)
+            Φ[k] = randn() * σ
+        end
+        ϕ = zeros(N)
+        for n=1:N
+            r = pos[n,:]
+            phases = [dot(r,q) for q in eachrow(reciprocal_lattice)]
+            ϕ[n] = sum(Φ .* exp.(-im .* phases)) / Ω
+        end
+        return ν .*  ϕ
+    end
 
-    function YSSMB_lattice_model(temps, density; νeff = 1.0, N1=64, N2=32)
+    function YSSMB_lattice_model(temps, density; νeff = 0.3, N1=64, N2=32, e_corr = true, K=0.0034)
         nb_temps = size(temps,1)
         a = 10 # lattice constant in Å
 
@@ -285,8 +302,9 @@ module HoppingMasterEquation
         Ω = (N1-1) * (N2-1) * (N2-1) * (a^3) #lattice volume in Å        
         N = size(pos,1)
         nocc = Int(floor(density * Ω))
-
-        energies = randn(N) * νeff
+        if !e_corr
+            energies = randn(N) * νeff
+        end
         E = [1,0,0] /dX
 
         Pfinals = zeros(nb_temps,N)
@@ -298,6 +316,9 @@ module HoppingMasterEquation
             P0 = initialise_random(N,nocc)
             println("∑ P0 = $(sum(P0))")
             Pinits[n,:] = P0
+            if e_corr
+                energies = generate_correlated_esites(pos,a,Ω,T,K,νeff)
+            end
             rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T, E)
             Pfinal, conv = solve(P0, rates)
             println("∑ Pfinal = $(sum(Pfinal))")
