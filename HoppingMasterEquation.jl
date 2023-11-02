@@ -2,7 +2,7 @@ module HoppingMasterEquation
 
     using LinearAlgebra, Random, StatsBase
 
-    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generated_correlated_esites
+    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generate_correlated_esites
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -249,20 +249,29 @@ module HoppingMasterEquation
         return innn
     end
 
-    function generate_correlated_esites(pos, a, Ω, T, K, ν)
-        reciprocal_lattice = (2π/a^2) .* pos
+    function generate_correlated_esites(pos, a, N1, N2, Ω, T, K, ν)
+        reciprocal_lattice = (2π/(a^2)) .* pos
+        reciprocal_lattice = reciprocal_lattice ./ [N1 N2 N2]
         N = size(pos,1)
         Φ = zeros(N)
         β = 1.0/(kB*T)
-        for (k,q) in enumerate(reciprocal_lattice)
-            σ = Ω / (β*K*norm(q)^2)
-            Φ[k] = randn() * σ
+        for (k,q) in enumerate(eachrow(reciprocal_lattice))
+            σ = 1 / (β*K*norm(q)^2) # neglect factor of Ω bc we end up dividing by Ω when we FT and we wanna avoid overflow
+            Φ[k] = randn() * σ 
         end
+        println(maximum(Φ))
         ϕ = zeros(N)
         for n=1:N
             r = pos[n,:]
-            phases = [dot(r,q) for q in eachrow(reciprocal_lattice)]
-            ϕ[n] = sum(Φ .* exp.(-im .* phases)) / Ω
+            if r == [0,0,0]
+                ϕ[n] = sum(Φ)
+                println(ϕ[n])
+            else
+                println(r)
+                dotprods = [dot(r,q) for q in eachrow(reciprocal_lattice)]
+                phases = exp.(-im .* dotprods)
+                ϕ[n] = sum(Φ .* phases)
+            end
         end 
         return ν .*  ϕ
     end
@@ -324,4 +333,5 @@ module HoppingMasterEquation
 
         return energies, velocities, Pinits, Pfinals
     end
+
 end
