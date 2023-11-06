@@ -1,6 +1,6 @@
 module HoppingMasterEquation
 
-    using LinearAlgebra, Random, StatsBase
+    using LinearAlgebra, Random, StatsBase, FFTW
 
     export run_HME, lattice_hopping_model, YSSMB_lattice_model, generate_correlated_esites
 
@@ -226,7 +226,7 @@ module HoppingMasterEquation
     function initialise_random(N,nocc)
         P0 = zeros(N)
         occ_inds = sample(1:N, nocc; replace=false)
-        P0[occ_inds] .= 1/nocc
+        P0[occ_inds] .= 1
         return P0
     end
 
@@ -250,30 +250,39 @@ module HoppingMasterEquation
     end
 
     function generate_correlated_esites(pos, a, N1, N2, Ω, T, K, ν)
-        reciprocal_lattice = (2π/(a^2)) .* pos
-        reciprocal_lattice = reciprocal_lattice ./ [N1 N2 N2]
-        N = size(pos,1)
-        Φ = zeros(N)
+        # reciprocal_lattice = (2π/(a^2)) .* pos
+        # reciprocal_lattice = reciprocal_lattice ./ [N1 N2 N2]
+        Φ = zeros(N1,N2,N2)
         β = 1.0/(kB*T)
-        for (k,q) in enumerate(eachrow(reciprocal_lattice))
-            σ = 1 / (β*K*norm(q)^2) # neglect factor of Ω bc we end up dividing by Ω when we FT and we wanna avoid overflow
-            Φ[k] = randn() * σ 
-        end
-        println(maximum(Φ))
-        ϕ = zeros(N)
-        for n=1:N
-            r = pos[n,:]
-            if r == [0,0,0]
-                ϕ[n] = sum(Φ)
-                println(ϕ[n])
-            else
-                println(r)
-                dotprods = [dot(r,q) for q in eachrow(reciprocal_lattice)]
-                phases = exp.(-im .* dotprods)
-                ϕ[n] = sum(Φ .* phases)
+        # for (k,q) in enumerate(eachrow(reciprocal_lattice))
+        #     σ = 1 / (β*K*norm(q)^2) # neglect factor of Ω bc we end up dividing by Ω when we FT and we wanna avoid overflow
+        #     Φ[k] = randn() * σ 
+        # end
+        for i=1:N1
+            for j=1:N2
+                for k=1:N2
+                    q = norm([i,j,k] ./ [N1, N2, N2]) * (2π/a)
+                    σ = 1 / (β*K*(q^2)) # neglect factor of Ω bc we end up dividing by Ω when we FT and we wanna avoid overflow
+                    Φ[i,j,k] = randn() * σ
+                end
             end
-        end 
-        return ν .*  ϕ
+        end
+        println("max(Φ) = $(maximum(Φ))")
+        # ϕ = zeros(N)
+        # for n=1:N
+        #     r = pos[n,:]
+        #     if r == [0,0,0]
+        #         ϕ[n] = sum(Φ)
+        #         println(ϕ[n])
+        #     else
+        #         println(r)
+        #         dotprods = [dot(r,q) for q in eachrow(reciprocal_lattice)]
+        #         phases = exp.(-im .* dotprods)
+        #         ϕ[n] = sum(Φ .* phases)
+        #     end
+        # end 
+        ϕ = rfft(Φ)
+        return ν .*  ϕ, Φ
     end
 
     function YSSMB_lattice_model(temps, density; νeff = 0.3, N1=64, N2=32, e_corr = true, K=0.0034)
@@ -314,7 +323,7 @@ module HoppingMasterEquation
             println("∑ P0 = $(sum(P0))")
             Pinits[n,:] = P0
             if e_corr
-                energies = generate_correlated_esites(pos,a,Ω,T,K,νeff)
+                energies = generate_correlated_esites(pos,a,N1,N2,Ω,T,K,νeff)
             end
             println("Computing rate matrix...")
             rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T, E)
