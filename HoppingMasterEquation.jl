@@ -2,7 +2,7 @@ module HoppingMasterEquation
 
     using LinearAlgebra, Random, StatsBase, FFTW
 
-    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generate_correlated_esites
+    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generate_correlated_esites, YSSMB_lattice_model_varE
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -281,7 +281,7 @@ module HoppingMasterEquation
         #         ϕ[n] = sum(Φ .* phases)
         #     end
         # end 
-        ϕ = rfft(Φ)
+        ϕ = fft(Φ)
         return ν .*  ϕ, Φ
     end
 
@@ -319,6 +319,65 @@ module HoppingMasterEquation
 
         for (n,T) ∈ enumerate(temps)
             println("************** $T **************")
+            P0 = initialise_random(N,nocc)
+            println("∑ P0 = $(sum(P0))")
+            Pinits[n,:] = P0
+            if e_corr
+                energies = generate_correlated_esites(pos,a,N1,N2,Ω,T,K,νeff)
+            end
+            println("Computing rate matrix...")
+            rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T, E)
+            println("Done!")
+            println("Iteratively solving master equation...")
+            Pfinal, conv = solve(P0, rates)
+            println("Done!")
+            println("∑ Pfinal = $(sum(Pfinal))")
+            Pfinal ./= sum(Pfinal)
+            Pfinals[n,:] = Pfinal
+            println("Computing carrier velocity...")
+            vs = carrier_velocity(rates,Pfinal,pos)
+            println("Done!")
+            velocities[n,:] = vs
+        end
+
+        return energies, velocities, Pinits, Pfinals
+    end
+
+
+
+    function YSSMB_lattice_model_varE(efields, density; νeff = 0.3, N1=64, N2=32, e_corr = true, K=0.0034, T=300)
+        nb_efields = size(efields,1)
+        a = 10 # lattice constant in Å
+
+        pos = zeros(N1,N2,N2,3)
+        println("Defining lattice positions...")
+        for i=1:N1
+            for j=1:N2
+                for k=1:N2
+                    pos[i,j,k,:] = [i-1,j-1,k-1] * a # start at origin
+                end
+            end
+        end
+
+        pos = reshape(pos, N1*N2*N2, 3)
+        println("Done!")
+        dX = a * (N1-1)
+        println("Getting NNN inds...") 
+        nnn_inds = get_nnn_inds_3d(pos,a) #for each site, list of inds nearest neighbours and next-nearest neighbours
+        println("Done!")
+        Ω = (N1-1) * (N2-1) * (N2-1) * (a^3) #lattice volume in Å        
+        N = size(pos,1)
+        nocc = Int(floor(density * Ω))
+        if !e_corr
+            energies = randn(N) * νeff
+        end
+
+        Pfinals = zeros(nb_efields,N)
+        Pinits = zeros(nb_efields,N)
+        velocities = zeros(nb_efields, 3)
+
+        for (n,E) ∈ enumerate(efields)
+            println("************** $E **************")
             P0 = initialise_random(N,nocc)
             println("∑ P0 = $(sum(P0))")
             Pinits[n,:] = P0

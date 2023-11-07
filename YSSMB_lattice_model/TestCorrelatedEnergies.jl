@@ -1,8 +1,10 @@
 module TestCorrelatedEnergies
 
-include("./HoppingMasterEquation.jl")
+include("../HoppingMasterEquation.jl")
 
 using .HoppingMasterEquation, PyCall
+
+nsamples = 200
 
 N1 = 64
 N2 = 32
@@ -25,11 +27,20 @@ end
 
 pos = reshape(pos, N1*N2*N2, 3) .* a
 
-energies, Φ = generate_correlated_esites(pos, a, N1, N2, Ω, T, K, ν)
 
-py"""import numpy as np
-np.save('correlated_energies.npy', $(PyObject(energies)))
-np.save('ft_mol_geom_field.npy', $(PyObject(Φ)))
-"""
+for i=1:nsamples
+    println(i)
+    energies, Φ = generate_correlated_esites(pos, a, N1, N2, Ω, T, K, ν)
+    energies = real(energies)
 
+    py"""import numpy as np
+    nn = $i
+    NN = $nsamples
+    np.save(f'corr_energies/correlated_energies-{nn}.npy', $(PyObject(energies)))
+
+    if nn == NN - 1:
+        np.save('lattice.npy', $(PyObject(pos)))
+        np.save(f'ft_mol_geom_field-{nn}.npy', $(PyObject(Φ)))
+    """
+end
 end
