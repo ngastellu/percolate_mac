@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from numba import njit
 # from scalene import scalene_profiler
  
-@profile
+# @profile
 @njit
 def get_pair_qties(n, pos, energies, corr, dists):
     """This function's job is to loop over all pairs of distinct lattice sites to compute:
@@ -18,7 +18,7 @@ def get_pair_qties(n, pos, energies, corr, dists):
     k = 0
     for i in range(N):
         for j in range(i):
-            if n == 0:
+            if n == 1:
                 dists[k] = np.linalg.norm(pos[j,:] - pos[i,:])
             corr[k] += energies[j] * energies[i]
             print(k)
