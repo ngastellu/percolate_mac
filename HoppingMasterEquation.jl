@@ -2,7 +2,7 @@ module HoppingMasterEquation
 
     using LinearAlgebra, Random, StatsBase, FFTW
 
-    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generate_correlated_esites, YSSMB_lattice_model_varE
+    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generate_correlated_esites, YSSMB_lattice_model_varE, generate_correlated_esites_1d
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -284,6 +284,34 @@ module HoppingMasterEquation
         ϕ = fft(Φ)
         return ν .*  ϕ, Φ
     end
+
+
+    function generate_correlated_esites_1d(a, N, T, K, ν;even=true)
+            Φ = zeros(N)
+            β = 1.0/(kB*T)
+            n = Int(N/2)
+            Q = vcat(collect(-n:-1),collect(1:n))
+            if even
+                q = abs.(collect(-n:-1)) .* (2π/n*a)
+                for j=1:n
+                    σ = 1 / (β*K*(q[j]^2)) 
+                    f = randn() * σ
+                    Φ[j] = f
+                    Φ[N-j+1] = f
+                end
+            else
+                q = collect(1:N) .* (2π/N*a)
+                for j=1:N
+                    σ = 1 / (β*K*(q[j]^2)) 
+                    f = randn() * σ
+                    Φ[j] = f
+                end
+            end
+            println("max(Φ) = $(maximum(Φ))")
+            ϕ = fft(Φ)
+            return ν .*  ϕ, Φ
+        end
+
 
     function YSSMB_lattice_model(temps, density; νeff = 0.3, N1=64, N2=32, e_corr = true, K=0.0034)
         nb_temps = size(temps,1)

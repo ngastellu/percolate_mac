@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from numba import njit
+import os
 # from scalene import scalene_profiler
  
 # @profile
@@ -19,7 +20,7 @@ def get_pair_qties(n, pos, energies, corr, dists):
     for i in range(N):
         for j in range(i):
             if n == 1:
-                dists[k] = np.linalg.norm(pos[j,:] - pos[i,:])
+                dists[k] = np.abs(pos[j] - pos[i])
             corr[k] += energies[j] * energies[i]
             print(k)
             k += 1
@@ -35,25 +36,24 @@ n = int(sys.argv[1])
 # N1 = 64
 # N2 = 32
 
-N1 = 32
-N2 = 16
-
-N = N1 * N2 * N2
-
+N = int(sys.argv[2])
 # scalene_profiler.start()
 
 corr = np.zeros(N*(N-1)//2)
 dists = np.zeros(N*(N-1)//2)
 
-pos = np.load(f'lattice_{N1}x{N2}x{N2}.npy')
+pos = np.hstack((np.arange(-int(N/2),0), np.arange(1,int(N/2)+1)))
 
-energies = np.load(f'corr_energies_{N1}x{N2}x{N2}/correlated_energies-{n}.npy').ravel()
+energies = np.load(f'corr_energies_1d_{N}/correlated_energies-{n}.npy').ravel()
 dists, corr = get_pair_qties(n,pos,energies, corr, dists)
 
 # scalene_profiler.end()
 
 if n == 0:
-    np.save(f'pairdists_{N1}x{N2}x{N2}.npy', dists)
+    np.save(f'pairdists_{N}.npy', dists)
 
-# np.save(f'energy_correlations/ecorr-{n}.npy', corr)
+if not os.path.exists(f'energy_correlations_{N}'):
+    os.mkdir(f'energy_correlations_{N}')
+
+np.save(f'energy_correlations_{N}/ecorr-{n}.npy', corr)
 
