@@ -100,10 +100,10 @@ module RunYSSMBHoppingModelTest
 
     nocc = 1
     ν = 0.007  # picked this stdev to roughly match the Gaussian DOS in the paper (DOI: 10.1103/PhysRevB.63.085202)
-    d = 2
+    d = 3
 
 
-    energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=32, N2=32, νeff = ν, save_each=1, dim=d,pbc=true)
+    energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=8, N2=4, νeff = ν, save_each=1, dim=d,pbc=true)
 
     py"""import numpy as np
     nn= $rnseed

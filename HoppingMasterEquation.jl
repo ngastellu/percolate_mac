@@ -2,7 +2,10 @@ module HoppingMasterEquation
 
     using LinearAlgebra, Random, StatsBase, FFTW
 
-    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generate_correlated_esites, YSSMB_lattice_model_varE, generate_correlated_esites_1d, YSSMB_lattice_model_varE_1d,YSSMB_lattice_model_varT_1d
+    export run_HME, lattice_hopping_model, YSSMB_lattice_model, generate_correlated_esites, 
+    YSSMB_lattice_model_varE, generate_correlated_esites_1d, YSSMB_lattice_model_varE_1d,
+    YSSMB_lattice_model_varT_1d, miller_abrahams_YSSMB, get_nnn_inds, initialise_random,
+    solve, carrier_velocity
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -86,6 +89,7 @@ module HoppingMasterEquation
         N = size(pos,1)
         Γ = 5
         β = 1.0/(kB*T)
+        println("β = $β")
 
         K = zeros(N,N)
 
@@ -133,7 +137,7 @@ module HoppingMasterEquation
     end
 
     # function solve(Pinit, rates, L_inds, R_inds; maxiter=1000000, ϵ=1e-6)
-    function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6, restart_threshold=5)
+    function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6, restart_threshold=5, save_each=-1)
         # println("Solving master equation...")
         N = size(Pinit,1)
         cntr = 1
@@ -141,11 +145,18 @@ module HoppingMasterEquation
         Pnew = Pinit
         converged = false
         conv = zeros(maxiter,3)
+        if save_each > 0
+            Ps = zeros(maxiter ÷ save_each,N)
+            Ps[1,:] = Pinit
+        end
         while cntr ≤ maxiter && !converged
             println(cntr)
             Pold = Pnew
             # Pnew = iterate_implicit(Pold,rates, L_inds, R_inds)
             Pnew = iterate_implicit(Pold,rates)
+            if (save_each > 0) && (cntr % save_each == 0)
+                Ps[cntr ÷ save_each, :] = Pnew
+            end
             ΔP = abs.(Pnew-Pold)
             converged = all(ΔP .< ϵ)
             conv[cntr, 1] = maximum(ΔP)
@@ -161,11 +172,20 @@ module HoppingMasterEquation
                 end
             end
             if restart_cntr ≥ restart_threshold
-                return ones(N) .* -1, conv 
+                return converged, ones(N) .* -1, conv 
             end
             cntr += 1
         end
-        return Pnew, conv
+        
+        conv = conv[1:cntr-1,:]
+
+        if save_each > 0
+            Ps = Ps[1:cntr-1,:]
+            return converged, Pnew, conv, Ps
+        else
+            return converged, Pnew, conv
+        end
+        
     end
 
     function carrier_velocity(rates, occs, pos)
@@ -246,21 +266,63 @@ module HoppingMasterEquation
         return P0
     end
 
-    function get_nnn_inds_3d(pos,a)
-        # Given a cubic lattice whose positions are stored in array Nx3 `pos`, generate the list of
+    function get_nnn_inds(pos,a;pbc=false)
+        # Given a cubic lattice whose positions are stored in array Nxd (where 1 ≤ d ≤ 3) `pos`, generate the list of
         # nearest and next-nearest neighbour indices for each lattice points.
-        # Points in the bulk of the sample will have 18 nearest/next-nearest neighbours, sites on/nearest
-        # the edges will have less. For these edge/edge-adjacent sites, the "empty" entries will be
+        # Points in the bulk of the sample will have 4 (d=1), 8 (d=2), or 18 (d=3) nearest/next-nearest neighbours, 
+        # sites on/nearest the edges will have less. For these edge/edge-adjacent sites, the "empty" entries will be
         # assigned the value 0.
-        N = size(pos,1)
-        innn = zeros(Int,N,18)
-        for i=1:N
-            Δ = pos .- pos[i,:]'
-            norms = sqrt.(sum(abs2,Δ;dims=2))
-            ii = findall(0 .< vec(norms) .≤ sqrt(2)*a)
-            for (j,n) in enumerate(ii)
-                innn[i,j] = n
+        N = size(pos, 1)
+        d = size(pos, 2)
+        @assert d ∈ (1,2,3) "Lattice positions must be 1-,2-, or 3-dimensional. Here d = $(d)."
+        if d == 3 || d == 2
+            if d==3
+                innn = zeros(Int,N,18)
+            else # d==2
+                innn = zeros(Int,N,8)
             end
+            if pbc # to enforce PBC, must know max size of lattice in each direction
+                # Assume positions start at a and end at (L-1)*a along each direction
+                sorted_cols = [sort(col) for col in eachcol(pos)]
+                L = ([col[end] - col[1] for col in sorted_cols])'
+            end
+            for i=1:N
+                if pbc
+                    Δ = (pos .- pos[i,:]') .% L
+                else
+                    Δ = pos .- pos[i,:]'
+                end
+                norms = sqrt.(sum(abs2,Δ;dims=2))
+                ii = findall(0 .< vec(norms) .≤ sqrt(2)*a)
+                println("size of ii = $(size(ii))")
+                if pbc
+                    println("Working on site $i:  $(pos[i,:])")
+                    for k in ii
+                        println("NNN $(k) = $(pos[k,:])")
+                    end
+                end
+                for (j,n) in enumerate(ii)
+                    innn[i,j] = n
+                end
+            end
+        else #d ==1
+            innn = zeros(Int,N,4)
+            if pbc
+                # Enforce PBC
+                innn[1,:] = [N-1,N,2,3]
+                innn[2,:] = [N,1,3,4]
+                innn[N-1,:] = [N-3,N-2,N,1]
+                innn[N,:] = [N-2,N-1,1,2]
+            else
+                innn[1,:] = [2,3,0,0]
+                innn[2,:] = [1,3,4,0]
+                innn[N-1,:] = [N-3,N-2,N,0]
+                innn[N,:] = [N-2,N-1,0,0]
+            end
+    
+            for i=3:N-2
+                innn[i,:] = [-2, -1, 1, 2] .+ i 
+            end 
         end
         return innn
     end
@@ -338,7 +400,7 @@ module HoppingMasterEquation
         println("Done!")
         dX = a * (N1-1)
         println("Getting NNN inds...") 
-        nnn_inds = get_nnn_inds_3d(pos,a) #for each site, list of inds nearest neighbours and next-nearest neighbours
+        innn = get_innn_3d(pos,a) #for each site, list of inds nearest neighbours and next-nearest neighbours
         println("Done!")
         Ω = (N1-1) * (N2-1) * (N2-1) * (a^3) #lattice volume in Å        
         N = size(pos,1)
@@ -519,7 +581,7 @@ module HoppingMasterEquation
         nnn_inds[N,:] = [N-2,N-1,1,2]
 
         for i=3:N-2
-        nnn_inds[i,:] = [-2, -1, 1, 2] .+ i 
+            nnn_inds[i,:] = [-2, -1, 1, 2] .+ i 
         end
 
         println("Done!")
