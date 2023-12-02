@@ -4,7 +4,7 @@ module RunYSSMBHoppingModelTest
 
     using .HoppingMasterEquation, PyCall, Random
 
-    function YSSMB_lattice_model_singleT(T, nocc; νeff= 0.3, N1=64, N2=32, K=0.0034, dim=3, save_each=-1)
+    function YSSMB_lattice_model_singleT(T, nocc; νeff= 0.3, N1=64, N2=32, K=0.0034, dim=3, save_each=-1, pbc=false)
         a = 10 # lattice constant in Å
 
         if dim == 3
@@ -27,12 +27,14 @@ module RunYSSMBHoppingModelTest
                 end
             end
             pos = reshape(pos, N1*N2,2)
+        elseif dim == 1
+            pos = collect(0:N1-1)
         end
 
         println("Done!")
         dX = a * (N1-1)
         println("Getting NNN inds...") 
-        nnn_inds = get_nnn_inds_3d(pos,a) #for each site, list of inds nearest neighbours and next-nearest neighbours
+        nnn_inds = get_nnn_inds(pos,a;pbc=pbc) #for each site, list of inds nearest neighbours and next-nearest neighbours
         println("Done!")
         if dim == 3
             Ω = (N1-1) * (N2-1) * (N2-1) * (a^3) #lattice volume in Å        
@@ -101,7 +103,7 @@ module RunYSSMBHoppingModelTest
     d = 2
 
 
-    energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=4, N2=4, νeff = ν, save_each=1, dim=d)
+    energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=32, N2=32, νeff = ν, save_each=1, dim=d,pbc=true)
 
     py"""import numpy as np
     nn= $rnseed
