@@ -390,19 +390,15 @@ module HoppingMasterEquation
 
 
     function generate_correlated_esites_1d(a, N, T, K, ν)
-            n = Int(N/2) + 1
-            Φ = zeros(ComplexF64, n)
+            Φ = zeros(N)
             β = 1.0/(kB*T)
-            Q = vcat(collect(-n:-1),collect(1:n))
-            q = abs.(collect(-n:-1)) .* (2π/n*a)
-            for j=1:n
+            q = collect(1:N) .* (2π/n*a)
+            for j=1:N
                 σ = 1 / (β*K*(q[j]^2)) 
                 f = randn() * σ
-                φ = randn()
-                Φ[j] = f * exp(im*φ)
-                # Φ[N-j+1] = f * exp(-im*φ) # enforce Hermitian symmetry to get real energies after FT
+                Φ[j] = f
             end
-            ϕ = irfft(fftshift(Φ),N)
+            ϕ = ifft(fftshift(Φ),N)
             return ν .*  ϕ, Φ
     end
 
