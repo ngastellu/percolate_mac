@@ -392,13 +392,13 @@ module HoppingMasterEquation
     function generate_correlated_esites_1d(a, N, T, K, ν)
             Φ = zeros(N)
             β = 1.0/(kB*T)
-            q = collect(1:N) .* (2π/n*a)
+            q = collect(1:N) .* (2π/N*a)
             for j=1:N
                 σ = 1 / (β*K*(q[j]^2)) 
                 f = randn() * σ
                 Φ[j] = f
             end
-            ϕ = ifft(fftshift(Φ),N)
+            ϕ = ifft(fftshift(Φ))
             return ν .*  ϕ, Φ
     end
 
