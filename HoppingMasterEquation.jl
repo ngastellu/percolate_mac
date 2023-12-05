@@ -148,8 +148,14 @@ module HoppingMasterEquation
         if save_each > 0
             Ps = zeros(maxiter ÷ save_each,N)
             Ps[1,:] = Pinit
+            # println("******")
+            # println(sum(Ps[1,:]))
+            # println("******")
         end
         while cntr ≤ maxiter && !converged
+            # if cntr > 2
+            #     break
+            # end
             println(cntr)
             Pold = Pnew
             # Pnew = iterate_implicit(Pold,rates, L_inds, R_inds)
@@ -288,19 +294,38 @@ module HoppingMasterEquation
             end
             for i=1:N
                 if pbc
-                    Δ = (pos .- pos[i,:]') .% L
+                    if d==2
+                        Δ = (pos .- pos[i,:]') .% L
+                    else
+                        Δ = (pos .- pos[i,:]')     # this handles the situation where
+                        for r in eachrow(Δ)        # edge sites get spurious extra neighbours
+                            for i=1:3              # when PBC are turned on in 3D
+                                if abs(r[i]) == L[i]
+                                    r[i] += a
+                                end
+                            end
+                        end
+                        Δ = Δ .% L
+                    end
                 else
                     Δ = pos .- pos[i,:]'
                 end
                 norms = sqrt.(sum(abs2,Δ;dims=2))
                 ii = findall(0 .< vec(norms) .≤ sqrt(2)*a)
-                println("size of ii = $(size(ii))")
-                if pbc
-                    println("Working on site $i:  $(pos[i,:])")
+                nii = size(ii,1)
+                if nii < size(innn,2)
+                    println("Site $(pos[i,:]) has $nii NNN instead of $(size(innn,2)). The NNNs are:")
                     for k in ii
-                        println("NNN $(k) = $(pos[k,:])")
+                        println(pos[k,:])
                     end
                 end
+                # println("size of ii = $(size(ii))")
+                # if pbc
+                    # println("Working on site $i:  $(pos[i,:])")
+                    # for k in ii
+                        # println("NNN $(k) = $(pos[k,:])")
+                    # end
+                # end
                 for (j,n) in enumerate(ii)
                     innn[i,j] = n
                 end

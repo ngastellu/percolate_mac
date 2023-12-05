@@ -1,11 +1,10 @@
-module RunYSSMBHoppingModelTest
+module YSSMBHoppingModelT
 
-    include("../../HoppingMasterEquation.jl")
+    include("./HoppingMasterEquation.jl")
 
-    using .HoppingMasterEquation, PyCall, Random
+    using .HoppingMasterEquation, PyCall, Random, MPI
 
-    function YSSMB_lattice_model_singleT(T, nocc; νeff= 0.3, N1=64, N2=32, K=0.0034, dim=3, pbc=false,
-        save_each=-1, restart_threshold=5)
+    function YSSMB_lattice_model_singleT(T, nocc; νeff= 0.3, N1=64, N2=32, K=0.0034, dim=3, save_each=-1, pbc=false)
         a = 10 # lattice constant in Å
 
         if dim == 3
@@ -49,8 +48,6 @@ module RunYSSMBHoppingModelTest
             E = [1,0,0] /dX
         elseif dim == 2
             E = [1,0] /dX
-        else
-            E = 1.0 / dX
         end
 
 
@@ -72,7 +69,7 @@ module RunYSSMBHoppingModelTest
             rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T, E)
             println("Done!")
             println("Iteratively solving master equation...")
-            solve_out = solve(P0, rates; save_each=save_each, restart_threshold=restart_threshold)
+            solve_out = solve(P0, rates; save_each=save_each, restart_threshold=1000)
             if save_each > 0
                 converged, Pfinal, conv, Pt = solve_out
             else
@@ -94,33 +91,39 @@ module RunYSSMBHoppingModelTest
 
     end
 
+    # --------------------- MAIN ---------------------
 
-    rnseed = 64
-    Random.seed!(rnseed) # seed RNG with task number so that we have the same disorder realisation at each T
+    MPI.Init()
+    comm = MPI.COMM_WORLD
+    rank = MPI.Comm_rank(comm)
+    nprocs = MPI.Comm_size(comm)
+    task_nb = parse(Int, ARGS[2])
+    Random.seed!(task_nb) # seed RNG with task number so that we have the same disorder realisation at each T
 
+    allTs = collect(100:10:300)
+    T = allTs[rank+1]
 
-    T = 300
-
-    nocc = 50
+    nocc = parse(Int, ARGS[1])
     ν = 0.007  # picked this stdev to roughly match the Gaussian DOS in the paper (DOI: 10.1103/PhysRevB.63.085202)
-    d = 1
-    n1 = 1024
+    d = 2
+    n1 = 64
     n2 = 32
+    pbc_flag = false
 
 
-    energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=n1, N2=n2, νeff = ν, save_each=1, dim=d,
-    pbc=true, restart_threshold=10000)
+    energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=n1, N2=n2, νeff = ν, save_each=10, dim=d,pbc=pbc_flag)
 
     py"""import numpy as np
-    nn= $rnseed
+    nn = $rank
     dd = $d
-    np.save(f'{dd}d/energies-{nn}.npy', $(PyObject(energies)))
-    np.save(f'{dd}d/velocities-{nn}.npy', $(PyObject(velocities)))
-    np.save(f'{dd}d/Pinits-{nn}.npy', $(PyObject(Pinits)))
-    np.save(f'{dd}d/Pfinals-{nn}.npy', $(PyObject(Pfinals)))
-    np.save(f'{dd}d/rates-{nn}.npy', $(PyObject(rates)))
-    np.save(f'{dd}d/conv-{nn}.npy', $(PyObject(conv)))
-    np.save(f'{dd}d/Pt-{nn}.npy', $(PyObject(Pt)))
+    n = $nocc
+    np.save(f'{dd}D/{n}_carriers/energies-{nn}.npy', $(PyObject(energies)))
+    np.save(f'{dd}D/{n}_carriers/velocities-{nn}.npy', $(PyObject(velocities)))
+    np.save(f'{dd}D/{n}_carriers/Pinits-{nn}.npy', $(PyObject(Pinits)))
+    np.save(f'{dd}D/{n}_carriers/Pfinals-{nn}.npy', $(PyObject(Pfinals)))
+    np.save(f'{dd}D/{n}_carriers/rates-{nn}.npy', $(PyObject(rates)))
+    np.save(f'{dd}D/{n}_carriers/conv-{nn}.npy', $(PyObject(conv)))
+    np.save(f'{dd}D/{n}_carriers/Pt-{nn}.npy', $(PyObject(Pt)))
     """   
 
 end
