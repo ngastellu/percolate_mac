@@ -2,9 +2,9 @@ module RunYSSMBHoppingModelTest
 
     include("../../HoppingMasterEquation.jl")
 
-    using .HoppingMasterEquation, PyCall, Random
+    using .HoppingMasterEquation, PyCall, Random, LinearAlgebra
 
-    function YSSMB_lattice_model_singleT(T, nocc; νeff= 0.3, N1=64, N2=32, K=0.0034, dim=3, pbc=false,
+    function YSSMB_lattice_model_singleT(T, nocc; νeff= 0.3, N1=64, N2=32, K=0.0034, E0=1, dim=3, pbc=false,
         save_each=-1, restart_threshold=5)
         a = 10 # lattice constant in Å
 
@@ -46,15 +46,15 @@ module RunYSSMBHoppingModelTest
         # nocc = Int(floor(density * Ω))
     
         if dim == 3
-            E = [1,0,0] /dX
+            E = [E0,0,0] /dX
         elseif dim == 2
-            E = [1,0] /dX
+            E = [E0,0] /dX
         else
-            E = 1.0 / dX
+            E = E0 / dX
         end
 
 
-        println("************** $T **************")
+        # println("************** $T **************")
         converged = false
         P0 = zeros(N)
         Pfinal = zeros(N)
@@ -65,8 +65,9 @@ module RunYSSMBHoppingModelTest
 
 
         while !converged
-            P0 = initialise_random(N,nocc)
+            # P0 = initialise_FD(N,nocc)
             energies = randn(N) * νeff
+            P0 = initialise_FD(energies, pos, T, E)
             println("∑ P0 = $(sum(P0))")
             println("Computing rate matrix...")
             rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T, E)
@@ -81,9 +82,9 @@ module RunYSSMBHoppingModelTest
          end
         println("Done!")
         println("∑ Pfinal = $(sum(Pfinal))")
-        Pfinal ./= sum(Pfinal)
         println("Computing carrier velocity...")
         vs = carrier_velocity(rates,Pfinal,pos)
+        println("vs = $(norm(vs))")
         println("Done!")
 
         if save_each > 0
@@ -94,33 +95,35 @@ module RunYSSMBHoppingModelTest
 
     end
 
-
-    rnseed = 64
-    Random.seed!(rnseed) # seed RNG with task number so that we have the same disorder realisation at each T
-
-
-    T = 300
-
-    nocc = 50
-    ν = 0.007  # picked this stdev to roughly match the Gaussian DOS in the paper (DOI: 10.1103/PhysRevB.63.085202)
-    d = 1
-    n1 = 1024
-    n2 = 32
+    for rnseed ∈ [0, 42, 64, 78]
+    # rnseed = 64
+        println("********** $rnseed **********")
+        Random.seed!(rnseed) # seed RNG with task number so that we have the same disorder realisation at each T
 
 
-    energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=n1, N2=n2, νeff = ν, save_each=1, dim=d,
-    pbc=true, restart_threshold=10000)
+        T = 300
 
-    py"""import numpy as np
-    nn= $rnseed
-    dd = $d
-    np.save(f'{dd}d/energies-{nn}.npy', $(PyObject(energies)))
-    np.save(f'{dd}d/velocities-{nn}.npy', $(PyObject(velocities)))
-    np.save(f'{dd}d/Pinits-{nn}.npy', $(PyObject(Pinits)))
-    np.save(f'{dd}d/Pfinals-{nn}.npy', $(PyObject(Pfinals)))
-    np.save(f'{dd}d/rates-{nn}.npy', $(PyObject(rates)))
-    np.save(f'{dd}d/conv-{nn}.npy', $(PyObject(conv)))
-    np.save(f'{dd}d/Pt-{nn}.npy', $(PyObject(Pt)))
-    """   
+        nocc = 50
+        ν = 0.007  # picked this stdev to roughly match the Gaussian DOS in the paper (DOI: 10.1103/PhysRevB.63.085202)
+        d = 2
+        n1 = 20
+        n2 = 20
+
+
+        energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=n1, N2=n2, E0 = 0.0, νeff = ν, save_each=1, dim=d,
+        pbc=true, restart_threshold=10000)
+
+        py"""import numpy as np
+        nn= $rnseed
+        dd = $d
+        np.save(f'{dd}d/energies-{nn}.npy', $(PyObject(energies)))
+        np.save(f'{dd}d/velocities-{nn}.npy', $(PyObject(velocities)))
+        np.save(f'{dd}d/Pinits-{nn}.npy', $(PyObject(Pinits)))
+        np.save(f'{dd}d/Pfinals-{nn}.npy', $(PyObject(Pfinals)))
+        np.save(f'{dd}d/rates-{nn}.npy', $(PyObject(rates)))
+        np.save(f'{dd}d/conv-{nn}.npy', $(PyObject(conv)))
+        np.save(f'{dd}d/Pt-{nn}.npy', $(PyObject(Pt)))
+        """   
+    end
 
 end
