@@ -3,7 +3,7 @@ module Utils
     using LinearAlgebra, Random, StatsBase, FFTW
 
     export initialise_P, initialise_FD, initialise_random, miller_abrahams_asymm, miller_abrahams_YSSMB,
-            carrier_velocity, get_nnn_inds
+            carrier_velocity, get_nnn_inds, get_Efermi
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -56,11 +56,18 @@ module Utils
         return Pinit
     end
 
-    function initialise_FD(energies, T)
+    function get_Efermi(energies,nocc)
+        N = size(energies,1)
+        @assert 0 < nocc ≤ N "Number of charge carriers must be smaller than the number of sites."
+        e_sorted = sort(energies)
+        return 0.5 * (e_sorted[nocc] + e_sorted[nocc+1])
+    end
+
+    function initialise_FD(energies, eF, T)
         N = size(energies, 1)
         P = zeros(N)
         for i=1:N
-            P[i] = fermi_dirac(energies[i], T)
+            P[i] = fermi_dirac(energies[i]-eF, T)
         end
         return P
     end
