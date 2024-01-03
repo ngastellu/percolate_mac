@@ -1,0 +1,78 @@
+{
+    "alloc_samples": 70,
+    "elapsed_time_sec": 8.410031795501709,
+    "files": {
+        "check_energy_correlations_narval.py": {
+            "functions": [],
+            "leaks": {},
+            "lines": [
+                {
+                    "line": "def get_pair_qties(n, pos, energies, corr, dists):\n",
+                    "lineno": 11,
+                    "memory_samples": [
+                        [
+                            3201916034,
+                            39.76719746768219
+                        ]
+                    ],
+                    "n_avg_mb": 1.477834701538086,
+                    "n_copy_mb_s": 0.0,
+                    "n_cpu_percent_c": 0.017267720196826066,
+                    "n_cpu_percent_python": 0.10092180126724604,
+                    "n_gpu_avg_memory_mb": 0.0,
+                    "n_gpu_peak_memory_mb": 0.0,
+                    "n_gpu_percent": 0,
+                    "n_growth_mb": 1.477834701538086,
+                    "n_malloc_mb": 1.477834701538086,
+                    "n_mallocs": 1,
+                    "n_peak_mb": 1.477834701538086,
+                    "n_python_fraction": 0.96667,
+                    "n_sys_percent": 0.027032409167934836,
+                    "n_usage_fraction": 0.021569017998655713
+                }
+            ],
+            "percent_cpu_time": 54.33729458152669
+        }
+    },
+    "gpu": false,
+    "growth_rate": 104.26398371712584,
+    "max_footprint_fname": "check_energy_correlations_narval.py",
+    "max_footprint_lineno": 51,
+    "max_footprint_mb": 71.43808460235596,
+    "memory": true,
+    "program": "check_energy_correlations_narval.py",
+    "samples": [
+        [
+            1388545236,
+            11.098464467560344
+        ],
+        [
+            1585690343,
+            20.95151697964037
+        ],
+        [
+            2788314145,
+            28.724563207784414
+        ],
+        [
+            3117470232,
+            36.62040124049946
+        ],
+        [
+            3211629484,
+            44.35056379670822
+        ],
+        [
+            3447701539,
+            52.98739663314437
+        ],
+        [
+            3705469685,
+            60.92463620837327
+        ],
+        [
+            5738634470,
+            68.47325119189541
+        ]
+    ]
+}
