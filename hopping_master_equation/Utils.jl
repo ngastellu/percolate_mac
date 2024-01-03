@@ -56,23 +56,19 @@ module Utils
         return Pinit
     end
 
-    function initialise_FD(energies, pos, T, E)
+    function initialise_FD(energies, T)
         N = size(energies, 1)
         P = zeros(N)
         for i=1:N
-            P[i] = fermi_dirac(energies[i] - dot(E,pos[i,:]), T)
+            P[i] = fermi_dirac(energies[i], T)
         end
         return P
     end
 
-    function miller_abrahams_asymm(energies, pos, T, E; α=1.0/30.0)
+    function miller_abrahams_asymm(energies, pos, T; α=1.0/30.0)
         N = size(energies,1)
         β = 1.0/(kB*T)
         K = zeros(N,N)
-
-        for i=1:N
-            energies[i] -= e * dot(E,pos[i,:])
-        end
 
         for i=1:N
             for j=1:N
@@ -92,7 +88,7 @@ module Utils
         return K
     end
 
-    function miller_abrahams_YSSMB(pos, energies, innn, T, E; a=10.0, ω0=1.0, _1d=false)
+    function miller_abrahams_YSSMB(pos, energies, innn, T; a=10.0, ω0=1.0, _1d=false)
         N = size(pos,1)
         Γ = 5
         β = 1.0/(kB*T)
@@ -107,10 +103,10 @@ module Utils
                 end
                 if _1d
                     ΔR = abs(pos[j] - pos[i])
-                    K[i,j] = ω0 * exp(-2Γ*ΔR/a) * exp(β*(energies[i] - energies[j] - e*E*ΔR)/2) 
+                    K[i,j] = ω0 * exp(-2Γ*ΔR/a) * exp(β*(energies[i] - energies[j])/2) 
                 else
                     ΔR = pos[j,:] - pos[i,:]
-                    K[i,j] = ω0 * exp(-2Γ*norm(ΔR)/a) * exp(β*(energies[i] - energies[j] - e*dot(E,ΔR))/2) 
+                    K[i,j] = ω0 * exp(-2Γ*norm(ΔR)/a) * exp(β*(energies[i] - energies[j])/2) 
                 end
             end
         end

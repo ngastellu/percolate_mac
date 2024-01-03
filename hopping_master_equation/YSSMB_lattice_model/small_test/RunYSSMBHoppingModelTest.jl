@@ -67,11 +67,11 @@ module RunYSSMBHoppingModelTest
 
         while !converged
             # P0 = initialise_FD(N,nocc)
-            energies = randn(N) * νeff
-            P0 = initialise_FD(energies, pos, T, E)
+            energies = randn(N) * νeff .- [dot(E, r) for r in eachrow(pos)]
+            P0 = initialise_FD(energies, T)
             println("∑ P0 = $(sum(P0))")
             println("Computing rate matrix...")
-            rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T, E)
+            rates = miller_abrahams_YSSMB(pos,energies,nnn_inds, T)
             println("Done!")
             println("Iteratively solving master equation...")
             solve_out = solve(P0, rates; save_each=save_each, restart_threshold=restart_threshold)
