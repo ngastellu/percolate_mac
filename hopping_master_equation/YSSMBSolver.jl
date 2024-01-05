@@ -3,16 +3,23 @@ module YSSMBSolver
     export solve
 
     # function iterate_implicit(Pold, rates, L_inds, R_inds)
-    function iterate_implicit(Pold, rates)
+    function iterate_implicit(Pold, rates; full_device=false, electrode_inds=0)
         norms = sum(rates,dims=2)
         N = size(rates,1)
         Pnew = zeros(N)
+
+        if full_device
+            @assert electrode_inds != 0 "Electrode indices must be specified for full-device simulations!"
+        end
+
         for i=1:N
-            # if i ∈ (L_inds ∪ R_inds) #impose fixed occupations at the boundaries of the system
-            # if i ∈ L_inds #impose fixed occupations at the boundaries of the system
-                # Pnew[i] = Pold[i]
-                # continue
-            # end
+            if full_device
+                if i ∈ electrode_inds #impose fixed occupations at the boundaries of the system
+                # if i ∈ L_inds #impose fixed occupations at the boundaries of the system
+                    Pnew[i] = Pold[i]
+                    continue
+                end
+            end
             sum_top = 0
             sum_bot = 0
             for j=1:i

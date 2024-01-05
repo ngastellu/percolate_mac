@@ -3,7 +3,7 @@ module Utils
     using LinearAlgebra, Random, StatsBase, FFTW
 
     export initialise_P, initialise_FD, initialise_random, miller_abrahams_asymm, miller_abrahams_YSSMB,
-            carrier_velocity, get_nnn_inds, get_Efermi
+            carrier_velocity, get_nnn_inds, get_Efermi, create_2d_lattice, create_3d_lattice, MA_asymm_hop_rate
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -72,6 +72,17 @@ module Utils
         return P
     end
 
+    function MA_asymm_hop_rate(ei,ej,ri,rj,β,α)
+        ΔE = ei - ej
+        ΔR = norm(ri - rj)
+        if ΔE < 0
+            ω = exp(-2*α*ΔR)
+        else
+            ω = exp(-2*α*ΔR - β*ΔE)
+        end
+        return ω
+    end
+
     function miller_abrahams_asymm(energies, pos, T; α=1.0/30.0)
         N = size(energies,1)
         β = 1.0/(kB*T)
@@ -134,7 +145,28 @@ module Utils
         return v
     end
 
-    
+    function create_3d_lattice(Nx,Ny,Nz,a)
+        pos = zeros(Nx,Ny,Nz,3)
+        for i=1:Nx
+            for j=1:Ny
+                for k=1:Nz
+                    pos[i,j,k,:] = [i,j,k].* a
+                end
+            end
+        end
+        pos = reshape(pos,Nx*Ny*Nz)
+    end
+
+    function create_2d_lattice(Nx,Ny,a)
+        pos = zeros(Nx,Ny,Nz,2)
+        for i=1:Nx
+            for j=1:Ny
+                pos[i,j,:] = [i,j].* a
+            end
+        end
+        pos = reshape(pos,Nx*Ny)
+    end
+
 
     function initialise_random(N,nocc)
         P0 = zeros(N)
@@ -143,28 +175,45 @@ module Utils
         return P0
     end
 
-    function get_nnn_inds(pos,a;pbc=false)
+
+    function get_nnn_inds(pos,a;pbc="none")
+
         # Given a cubic lattice whose positions are stored in array Nxd (where 1 ≤ d ≤ 3) `pos`, generate the list of
         # nearest and next-nearest neighbour indices for each lattice points.
+        
+        # * If no PBC are enforced (i.e. pbc = "none"):
         # Points in the bulk of the sample will have 4 (d=1), 8 (d=2), or 18 (d=3) nearest/next-nearest neighbours, 
         # sites on/nearest the edges will have less. For these edge/edge-adjacent sites, the "empty" entries will be
         # assigned the value 0.
+        
+        # * If full PBC are enforced (i.e. pbc = "full")
+        # There is no edge/bulk distinction; all sites are bulk sites.
+        
+        # * If partial PBC are enforced (i.e. pbc = "partial")
+        # PBC are only applied along the y and z directions for now (this assumes the E-field is in
+        # the x direction).
+
         N = size(pos, 1)
         d = size(pos, 2)
         @assert d ∈ (1,2,3) "Lattice positions must be 1-,2-, or 3-dimensional. Here d = $(d)."
+        @assert pbc ∈ ("none", "full", "partial") "PBC argument must one of three values: \"none\" (default), 
+                                                \"full\", or \"partial\"."
         if d == 3 || d == 2
             if d==3
                 innn = zeros(Int,N,18)
             else # d==2
                 innn = zeros(Int,N,8)
             end
-            if pbc # to enforce PBC, must know max size of lattice in each direction
+            if pbc != "none" # to enforce PBC, must know max size of lattice in each direction
                 # Assume positions start at a and end at (L-1)*a along each direction
                 sorted_cols = [sort(col) for col in eachcol(pos)]
                 L = ([col[end] - col[1] for col in sorted_cols])'
+                if pbc == "partial"
+                    L[1] = 1 #this basically nullifies the PBC along x
+                end
             end
             for i=1:N
-                if pbc
+                if pbc != "none"
                     if d==2
                         Δ = (pos .- pos[i,:]') .% L
                     else

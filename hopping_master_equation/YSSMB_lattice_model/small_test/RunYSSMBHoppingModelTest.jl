@@ -5,7 +5,7 @@ module RunYSSMBHoppingModelTest
 
     using .YSSMBSolver, .Utils, PyCall, Random, LinearAlgebra
 
-    function YSSMB_lattice_model_singleT(T, nocc; νeff= 0.3, N1=64, N2=32, K=0.0034, E0=1, dim=3, pbc=false,
+    function YSSMB_lattice_model_singleT(T, nocc; νeff= 0.3, N1=64, N2=32, K=0.0034, E0=1, dim=3, pbc="none",
         save_each=-1, restart_threshold=5)
         a = 10 # lattice constant in Å
 
@@ -96,6 +96,9 @@ module RunYSSMBHoppingModelTest
 
     end
 
+
+    # ******* MAIN *******
+
     for rnseed ∈ [0, 42, 64, 78]
     # rnseed = 64
         println("********** $rnseed **********")
@@ -112,7 +115,7 @@ module RunYSSMBHoppingModelTest
 
 
         energies, velocities, Pinits, Pfinals, rates, conv, Pt = YSSMB_lattice_model_singleT(T,nocc; N1=n1, N2=n2, E0 = 0.0, νeff = ν, save_each=1, dim=d,
-        pbc=true, restart_threshold=10000)
+        pbc="full", restart_threshold=10000)
 
         py"""import numpy as np
         nn= $rnseed
