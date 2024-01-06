@@ -72,9 +72,10 @@ module Utils
         return P
     end
 
-    function MA_asymm_hop_rate(ei,ej,ri,rj,β,α)
+    function MA_asymm_hop_rate(ei,ej,ri,rj,β,α;L=Inf)
         ΔE = ei - ej
-        ΔR = norm(ri - rj)
+        ΔR = norm((ri - rj) .% L)
+        
         if ΔE < 0
             ω = exp(-2*α*ΔR)
         else
@@ -83,7 +84,7 @@ module Utils
         return ω
     end
 
-    function miller_abrahams_asymm(energies, pos, T; α=1.0/30.0)
+    function miller_abrahams_asymm(energies, pos, T; α=1.0/30.0, L=Inf)
         N = size(energies,1)
         β = 1.0/(kB*T)
         K = zeros(N,N)
@@ -91,7 +92,7 @@ module Utils
         for i=1:N
             for j=1:N
                 ΔE = energies[i] - energies[j]
-                ΔR = norm(pos[i,:] - pos[j,:])
+                ΔR = norm((pos[i,:] - pos[j,:]) .% L)
                 if ΔE < 0
                     K[i,j] = exp(-2*α*ΔR)
                 else
@@ -146,25 +147,25 @@ module Utils
     end
 
     function create_3d_lattice(Nx,Ny,Nz,a)
-        pos = zeros(Nx,Ny,Nz,3)
-        for i=1:Nx
+        pos = zeros(Nz,Ny,Nx,3)
+        for i=1:Nz
             for j=1:Ny
-                for k=1:Nz
-                    pos[i,j,k,:] = [i,j,k].* a
+                for k=1:Nx
+                    pos[i,j,k,:] = [k-1,j-1,i-1] .* a # this will sort final array along its first axis
                 end
             end
         end
-        pos = reshape(pos,Nx*Ny*Nz)
+        pos = reshape(pos,Nx*Ny*Nz,3)
     end
 
     function create_2d_lattice(Nx,Ny,a)
-        pos = zeros(Nx,Ny,Nz,2)
-        for i=1:Nx
-            for j=1:Ny
-                pos[i,j,:] = [i,j].* a
+        pos = zeros(Ny,Nx,2)
+        for i=1:Ny
+            for j=1:Nx
+                pos[i,j,:] = [j-1,i-1].* a # this will sort final array along its first axis
             end
         end
-        pos = reshape(pos,Nx*Ny)
+        pos = reshape(pos,Nx*Ny,2)
     end
 
 
@@ -175,21 +176,111 @@ module Utils
         return P0
     end
 
+    function isghost(r,Nx,Ny,Nz,a;full_device=false)
+        if full_device
+            return findall(iszero, r[2:3] .- ([Ny,Nz] .-1 ) .* a) .+ 1
+        else
+            return findall(iszero, r .- ([Nx,Ny,Nz].-1) .* a )
+        end
+    end
+
+    function ghost_inds_3d(pos,Nx,Ny,Nz,a;full_device=false)
+        # Determines indices of edge sites which are periodic images of each other, depending on
+        # the type of PBC are enforced.
+        # If full_device is true, only PBC along y and z are enforced.
+        # Otherwise PBC along all three axes are enforced.
+        # Assumes coords go from 0 to (N-1)*a along each axis.
+
+        N = Nx * Ny * Nz
+
+        if full_device
+            edge_size = Ny * Nz
+            L = ([Ny,Nz] .- 1) .* a
+            Nx_org = Nx - 4
+            org_pos = pos[2*edge_size+1:N-2*edge_size]
+            nghosts = Nx_org * (Ny + Nz - 1)
+            ghost_inds = zeros(Int, nghosts)
+            k = 1
+            for (i,r) in enumerate(eachrow(org_pos))
+                i += 2*edge_size
+                zero_axes = findall(iszero, r[2:3])
+                if size(zero_axes,1) > 0
+                    ghost_axes = isghost(r,Nx,Ny,Nz,a;full_device=true)
+                    if size(ghost_axes) > 0
+                        ighost = i
+                        target = r
+                        for d in ghost_axes
+                            target[d] = 0
+                        end
+                        Δ = [r2 - target for r2 ∈ eachrow(org_pos)]
+                        j = findall(iszero,eachrow(Δ)) 
+                        ireal = j + 2*edge_size # 'real' site, the one whose occ prob we actually solve for
+                    else
+                        ireal = i  # 'real' site, the one whose occ prob we actually solve for
+                        target = r
+                        for d ∈ zero_axes
+                            target[d] = L[d-1]
+                        end
+                        Δ = [r2 - target for r2 ∈ eachrow(pos)]
+                        j = findall(iszero,eachrow(Δ))
+                        ighost = j + 2*edge_size # fictitious site, the one which mirrors the 'real' site
+                    end
+                    ghost_inds[k,:] = ighost, ireal
+                    k += 1
+                end
+            end
+
+        else
+            nghosts = Nx*Ny + Nx*Nz + Ny*Nz - (Nx + Ny + Nz) + 1
+            @assert Nx*Ny*Nz > nghosts "Lattice too small! Must have:
+             Nx*Ny*Nz ($(Nx*Ny*Nz)) > Nx*Ny + Nx*Nz + Ny*Nz ($nghosts)"
+            L = ([Nx,Ny,Nz] .- 1) .* a
+            ghost_inds = zeros(Int,nghosts,2)
+            k = 1
+            for (i,r) in enumerate(eachrow(pos))
+                zero_axes = findall(iszero, r)
+                if size(zero_axes,1) > 0
+                    ghost_axes = isghost(r,Nx,Ny,Nz,a;full_device=false)
+                    if size(ghost_axes,1) > 0 # ignore sites with forms like [(Nx-1)*a, 0, z], [x, (Ny-1)*a, 0], etc.
+                        ighost = i # fictitious site, the one which mirrors the 'real' site
+                        target = r
+                        for d ∈ ghost_axes
+                            target[d] = 0
+                        end
+                        Δ = [r2 - target for r2 ∈ eachrow(pos)]
+                        j = findall(iszero,eachrow(Δ))
+                        ireal = j # 'real' site, the one whose occ prob we actually solve for
+                    else
+                        ireal = i  # 'real' site, the one whose occ prob we actually solve for
+                        target = r
+                        for d ∈ zero_axes
+                            target[d] = L[d]
+                        end
+                        Δ = [r2 - target for r2 ∈ eachrow(pos)]
+                        j = findall(iszero,eachrow(Δ))
+                        ighost = j # fictitious site, the one which mirrors the 'real' site
+                    end
+                    ghost_inds[k,:] = ighost, ireal
+                    k += 1
+                end
+            end
+        end
+    end
+
 
     function get_nnn_inds(pos,a;pbc="none")
-
         # Given a cubic lattice whose positions are stored in array Nxd (where 1 ≤ d ≤ 3) `pos`, generate the list of
         # nearest and next-nearest neighbour indices for each lattice points.
         
-        # * If no PBC are enforced (i.e. pbc = "none"):
+        # * If no PBC are enforced (i.e. L = Inf):
         # Points in the bulk of the sample will have 4 (d=1), 8 (d=2), or 18 (d=3) nearest/next-nearest neighbours, 
         # sites on/nearest the edges will have less. For these edge/edge-adjacent sites, the "empty" entries will be
         # assigned the value 0.
         
-        # * If full PBC are enforced (i.e. pbc = "full")
+        # * If full PBC are enforced (i.e. L = [Lx, Ly, Lz])
         # There is no edge/bulk distinction; all sites are bulk sites.
         
-        # * If partial PBC are enforced (i.e. pbc = "partial")
+        # * If partial PBC are enforced (i.e. L = [Inf, Ly, Lz])
         # PBC are only applied along the y and z directions for now (this assumes the E-field is in
         # the x direction).
 
@@ -206,11 +297,12 @@ module Utils
             end
             if pbc != "none" # to enforce PBC, must know max size of lattice in each direction
                 # Assume positions start at a and end at (L-1)*a along each direction
-                sorted_cols = [sort(col) for col in eachcol(pos)]
-                L = ([col[end] - col[1] for col in sorted_cols])'
+                sorted_cols = [unique(sort(col)) for col in eachcol(pos)]
+                L = ([col[end-1] - col[1] for col in sorted_cols])'
                 if pbc == "partial"
-                    L[1] = 1 #this basically nullifies the PBC along x
+                    L[1] = Inf #this basically nullifies the PBC along x
                 end
+                println("-------- L = $L --------")
             end
             for i=1:N
                 if pbc != "none"
@@ -218,13 +310,13 @@ module Utils
                         Δ = (pos .- pos[i,:]') .% L
                     else
                         Δ = (pos .- pos[i,:]')     # this handles the situation where
-                        for r in eachrow(Δ)        # edge sites get spurious extra neighbours
-                            for i=1:3              # when PBC are turned on in 3D
-                                if abs(r[i]) == L[i]
-                                    r[i] += a
-                                end
-                            end
-                        end
+                        # for r in eachrow(Δ)        # edge sites get spurious extra neighbours
+                        #     for i=1:3              # when PBC are turned on in 3D
+                        #         if abs(r[i]) == L[i]
+                        #             r[i] += a
+                        #         end
+                        #     end
+                        # end
                         Δ = Δ .% L
                     end
                 else
@@ -235,26 +327,26 @@ module Utils
                 ii = findall(0 .≤ vec(norms) .≤ sqrt(2)*a)
                 nii = size(ii,1)
                 # ----- PRINT ERRORS IN NN COUNT -----
-                if nii < size(innn,2)
+                if nii > size(innn,2)
                     println("Site $(pos[i,:]) has $nii NNN instead of $(size(innn,2)). The NNNs are:")
+                    # for k in ii
+                    #     println(pos[k,:])
+                    # end
+                end
+                println("size of ii = $(size(ii))")
+                if pbc != "none"
+                    println("Working on site $i:  $(pos[i,:])")
                     for k in ii
-                        println(pos[k,:])
+                        println("NNN $(k) = $(pos[k,:]); ΔR = $(norms[k])")
                     end
                 end
-                # println("size of ii = $(size(ii))")
-                # if pbc
-                #     println("Working on site $i:  $(pos[i,:])")
-                #     for k in ii
-                #         println("NNN $(k) = $(pos[k,:])")
-                #     end
-                # end
                 for (j,n) in enumerate(ii)
                     innn[i,j] = n
                 end
             end
         else #d ==1
             innn = zeros(Int,N,4)
-            if pbc
+            if pbc != "none"
                 # Enforce PBC
                 innn[1,:] = [N-1,N,2,3]
                 innn[2,:] = [N,1,3,4]

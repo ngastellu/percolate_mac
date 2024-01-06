@@ -3,13 +3,17 @@ module YSSMBSolver
     export solve
 
     # function iterate_implicit(Pold, rates, L_inds, R_inds)
-    function iterate_implicit(Pold, rates; full_device=false, electrode_inds=0)
+    function iterate_implicit(Pold, rates; full_device=false, electrode_inds=0, pbc="none", ghost_inds=0)
         norms = sum(rates,dims=2)
         N = size(rates,1)
         Pnew = zeros(N)
 
         if full_device
             @assert electrode_inds != 0 "Electrode indices must be specified for full-device simulations!"
+        end
+
+        if pbc != "none"
+            @assert ghost_inds != 0 "Indices of ghost sites must be specified for PBC to be enforced!"
         end
 
         for i=1:N
@@ -36,7 +40,7 @@ module YSSMBSolver
     end
 
     # function solve(Pinit, rates, L_inds, R_inds; maxiter=1000000, ϵ=1e-6)
-    function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6, restart_threshold=5, save_each=-1)
+    function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6, restart_threshold=-1, save_each=-1)
         # println("Solving master equation...")
         N = size(Pinit,1)
         cntr = 1
@@ -69,7 +73,7 @@ module YSSMBSolver
                     restart_cntr = 0 # reset to zero if max(ΔP) decreases on consecutive iterations
                 end
             end
-            if restart_cntr ≥ restart_threshold
+            if restart_threshold > 0 && restart_cntr ≥ restart_threshold
                 return converged, ones(N) .* -1, conv 
             end
             cntr += 1

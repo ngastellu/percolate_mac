@@ -1,9 +1,8 @@
 module FullDeviceUtils
 
     include("./Utils.jl")
-    include("./YSSMBSolver.jl")
 
-    using .Utils, .YSSMBSolver
+    using .Utils, Random
 
     function swapcols!(arr::AbstractMatrix,i::Integer,j::Integer)
         # Swaps columns i and j of a matrix in-place.
@@ -37,7 +36,7 @@ module FullDeviceUtils
 
     end
 
-    function initialise_energies_fdev(pos, lattice_dims, eL, eR, E0, dos_type, dos_param)
+    function initialise_energies_fdev(pos, lattice_dims, a, eL, eR, E0, dos_type, dos_param)
         # Sets site energies (already accounting for static electric field). 
         # * eL, eR: Work functions of the left and right electrodes (i.e. energies of the electrode sites)
         # * E0: electric field strength (E = [E0, 0, 0] is assumed)
@@ -63,6 +62,24 @@ module FullDeviceUtils
             if i ≤ 2*edge_size # left electrode sites
                 energies[i] = eL
             elseif 2*edge_size < i ≤ N-(2*edge_size) # organic sites
+                @assert 0 ≤ pos[i,1] ≤ (Nx-2) * a "xcoord of organic site should be ∈ [0,$((Nx-2)*a)]! (x = $(pos[i,1]))"
+                
+                # Handle PBC cases
+                if d== 2
+                    if pos[i,2] == (Ny-2)*a #handles PBC along y-direction; all sites with max y are mapped to y=0 sites
+                        map_ind = i - Ny + 1
+                        energies[i] = energies[map_ind]
+                    end
+                else # 3D cases
+                    if pos[i,2] == (Ny-2) * a && pos[i,3] < (Nz-2)*a # y-edge sites
+                        pass
+                    elseif pos[i,3] == (Nz-2)*a && pos[i,2] < (Ny-2)*a # z-edge sites
+                        pass
+                    elseif pos[i,2] == (Ny-2)*a && pos[i,3] == (Nz-2)*a
+                        pass
+                    end
+                end 
+                 
                 if dos_type == "gaussian"
                     energies[i] = randn() * dos_param - E0 * pos[i,1]
                 else
@@ -100,30 +117,12 @@ module FullDeviceUtils
 
         # Hopping between organic sites
         for i=2*edge_size+1:N-(2*edge_size)
-            for j=2*edge_size+1:N-(2*edge_size)
-                if i == j
-                    K[i,j] = 0
-                else
-                    K[i,j] = MA_asymm_hop_rate(energies[i], energies[j], pos[i], pos[j], β, α)
+            for j=i+1:N-(2*edge_size)
+                K[i,j] = MA_asymm_hop_rate(energies[i], energies[j], pos[i], pos[j], β, α)
+                K[j,i] = MA_asymm_hop_rate(energies[j], energies[i], pos[j], pos[i], β, α)
             end
         end
         return K
     end
-
-
-    function run_full_device(lattice_dims,E0,T;a=10)
-        d = size(lattice_dims,1)
-        @assert d ∈ (2,3) "Only 2D and 3D implemented. (d=$d dimensions specified)"
-        if d == 2
-            pos = create_2d_lattice(lattice_dims..., a)
-        else
-            pos = create_3d_lattice(lattice_dims..., a)
-        end
-
-        # sort pos by x value (by construction, pos is sorted along its last column)
-        swapcols!(pos,1,d)
-        pos = pos .- [3*a,0,0] # set x coord of first row of organic sites to 0
-        
-    end 
 
 end
