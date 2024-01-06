@@ -3,7 +3,8 @@ module Utils
     using LinearAlgebra, Random, StatsBase, FFTW
 
     export initialise_P, initialise_FD, initialise_random, miller_abrahams_asymm, miller_abrahams_YSSMB,
-            carrier_velocity, get_nnn_inds, get_Efermi, create_2d_lattice, create_3d_lattice, MA_asymm_hop_rate
+            carrier_velocity, get_nnn_inds, get_Efermi, create_2d_lattice, create_3d_lattice, MA_asymm_hop_rate,
+            ghost_inds_3d
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -197,35 +198,37 @@ module Utils
             edge_size = Ny * Nz
             L = ([Ny,Nz] .- 1) .* a
             Nx_org = Nx - 4
-            org_pos = pos[2*edge_size+1:N-2*edge_size]
+            org_pos = pos[2*edge_size+1:N-2*edge_size,:]
+            print(org_pos[1,:])
             nghosts = Nx_org * (Ny + Nz - 1)
-            ghost_inds = zeros(Int, nghosts)
+            ghost_inds = zeros(Int, nghosts, 2)
             k = 1
             for (i,r) in enumerate(eachrow(org_pos))
                 i += 2*edge_size
-                zero_axes = findall(iszero, r[2:3])
+                zero_axes = findall(iszero, r[2:3]) .+ 1
                 if size(zero_axes,1) > 0
                     ghost_axes = isghost(r,Nx,Ny,Nz,a;full_device=true)
-                    if size(ghost_axes) > 0
+                    if size(ghost_axes,1) > 0
                         ighost = i
-                        target = r
+                        target = r[:] # using [:] copies r instead of operating on a view
                         for d in ghost_axes
                             target[d] = 0
                         end
                         Δ = [r2 - target for r2 ∈ eachrow(org_pos)]
-                        j = findall(iszero,eachrow(Δ)) 
+                        j = findall(iszero,Δ)[1] 
                         ireal = j + 2*edge_size # 'real' site, the one whose occ prob we actually solve for
                     else
                         ireal = i  # 'real' site, the one whose occ prob we actually solve for
-                        target = r
+                        target = r[:] # using [:] copies r instead of operating on a view
                         for d ∈ zero_axes
                             target[d] = L[d-1]
                         end
                         Δ = [r2 - target for r2 ∈ eachrow(pos)]
-                        j = findall(iszero,eachrow(Δ))
+                        j = findall(iszero,Δ)[1]
                         ighost = j + 2*edge_size # fictitious site, the one which mirrors the 'real' site
                     end
-                    ghost_inds[k,:] = ighost, ireal
+                    ghost_inds[k,1] = ighost
+                    ghost_inds[k,2] = ireal
                     k += 1
                 end
             end
@@ -243,28 +246,30 @@ module Utils
                     ghost_axes = isghost(r,Nx,Ny,Nz,a;full_device=false)
                     if size(ghost_axes,1) > 0 # ignore sites with forms like [(Nx-1)*a, 0, z], [x, (Ny-1)*a, 0], etc.
                         ighost = i # fictitious site, the one which mirrors the 'real' site
-                        target = r
+                        target = r[:] # using [:] copies r instead of operating on a view
                         for d ∈ ghost_axes
                             target[d] = 0
                         end
                         Δ = [r2 - target for r2 ∈ eachrow(pos)]
-                        j = findall(iszero,eachrow(Δ))
+                        j = findall(iszero,Δ)[1]
                         ireal = j # 'real' site, the one whose occ prob we actually solve for
                     else
                         ireal = i  # 'real' site, the one whose occ prob we actually solve for
-                        target = r
+                        target = r[:] # using [:] copies r instead of operating on a view
                         for d ∈ zero_axes
                             target[d] = L[d]
                         end
                         Δ = [r2 - target for r2 ∈ eachrow(pos)]
-                        j = findall(iszero,eachrow(Δ))
+                        j = findall(iszero,Δ)[1]
                         ighost = j # fictitious site, the one which mirrors the 'real' site
                     end
-                    ghost_inds[k,:] = ighost, ireal
+                    ghost_inds[k,1] = ighost
+                    ghost_inds[k,2] = ireal
                     k += 1
                 end
             end
         end
+        return ghost_inds
     end
 
 
