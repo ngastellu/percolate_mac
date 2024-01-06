@@ -36,7 +36,7 @@ module FullDeviceUtils
 
     end
 
-    function initialise_energies_fdev(pos, lattice_dims, a, eL, eR, E0, dos_type, dos_param)
+    function initialise_energies_fdev(pos, lattice_dims, a, eL, eR, E0, dos_type, dos_param;ghost_inds=0)
         # Sets site energies (already accounting for static electric field). 
         # * eL, eR: Work functions of the left and right electrodes (i.e. energies of the electrode sites)
         # * E0: electric field strength (E = [E0, 0, 0] is assumed)
@@ -47,6 +47,9 @@ module FullDeviceUtils
         N = prod(lattice_dims)
 
         @assert dos_type ∈ ("uniform", "gaussian") "dos_type must \"uniform\" or \"gaussian\" (currently set to $dos_type)"
+        if d == 3
+            @assert ghost_inds != 0 "Ghost indices must be specified to enforce PBC in 3D calculations."
+        end
 
         if d == 2
             Nx, Ny = lattice_dims
@@ -63,22 +66,6 @@ module FullDeviceUtils
                 energies[i] = eL
             elseif 2*edge_size < i ≤ N-(2*edge_size) # organic sites
                 @assert 0 ≤ pos[i,1] ≤ (Nx-2) * a "xcoord of organic site should be ∈ [0,$((Nx-2)*a)]! (x = $(pos[i,1]))"
-                
-                # Handle PBC cases
-                if d== 2
-                    if pos[i,2] == (Ny-2)*a #handles PBC along y-direction; all sites with max y are mapped to y=0 sites
-                        map_ind = i - Ny + 1
-                        energies[i] = energies[map_ind]
-                    end
-                else # 3D cases
-                    if pos[i,2] == (Ny-2) * a && pos[i,3] < (Nz-2)*a # y-edge sites
-                        pass
-                    elseif pos[i,3] == (Nz-2)*a && pos[i,2] < (Ny-2)*a # z-edge sites
-                        pass
-                    elseif pos[i,2] == (Ny-2)*a && pos[i,3] == (Nz-2)*a
-                        pass
-                    end
-                end 
                  
                 if dos_type == "gaussian"
                     energies[i] = randn() * dos_param - E0 * pos[i,1]
@@ -90,10 +77,23 @@ module FullDeviceUtils
             end
         end
 
+        # Handle PBC cases
+        if d == 2
+            for i=3:(Nx-2)
+                ii = i * Ny
+                energies[ii] = energies[ii-Ny + 1] # this works bc sites are stored in ascending order of x-coordinate
+            end
+        else # 3D cases, sites are sorted the same as 2D but the extra dimension complicates things; resorting to hacky soln
+            for ij in eachrow(ghost_inds)
+                i, j = ij
+                energies[i] = energies[j] # ghost_inds keeps track of which sites are periodic images of each other
+            end
+        end 
+
     end
 
     
-    function hop_rates_fdev(energies,pos,T,edge_size,α)
+    function hop_rates_fdev(energies,pos,T,edge_size,α, ghost_inds)
         # We assume an asymmetrical Miller-Abrahams hopping model.
         N = size(energies,1)
         β = 1.0/(kB*T)

@@ -4,8 +4,8 @@ module TestGhostInds
     using .Utils
 
     Nx = 10 
-    Ny = 5
-    Nz = 8
+    Ny = 10
+    Nz = 10
     a = 10
     full_device = true
 
@@ -19,5 +19,8 @@ module TestGhostInds
         i,j = ij
         println("Ghost inds =  ($i,$j) ---> ($(pos[i,:]), $(pos[j,:]))")
     end
+
+    println("Nb of ghost sites = $(size(gg,1))")
+    println("Nb of unique ghost sites = $(size(unique(gg[:,1]),1))")
 
 end
