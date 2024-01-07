@@ -9,6 +9,8 @@ module TestGhostInds
     a = 10
     full_device = true
 
+    N = Nx*Ny*Nz
+
     pos = create_3d_lattice(Nx,Ny,Nz,a)
     if full_device
         pos[:,1] = pos[:,1] .- 2.0*a
@@ -20,7 +22,17 @@ module TestGhostInds
         println("Ghost inds =  ($i,$j) ---> ($(pos[i,:]), $(pos[j,:]))")
     end
 
-    println("Nb of ghost sites = $(size(gg,1))")
-    println("Nb of unique ghost sites = $(size(unique(gg[:,1]),1))")
+    println("\n-----------------\n")
+
+    for i=1:N
+        check = gg .- i
+        image_check = findall(iszero, check[:,2])
+        if size(image_check,1) > 0
+            ghost_inds = [gg[k,1] for k ∈ image_check]
+            println("$i -----> $image_check")
+            println("Ghost inds = $ghost_inds")
+        end
+    end
+
 
 end

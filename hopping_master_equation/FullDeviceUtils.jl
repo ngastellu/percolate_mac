@@ -4,6 +4,8 @@ module FullDeviceUtils
 
     using .Utils, Random
 
+    export initialise_energies_fdev, initialise_p_fdev
+
     function swapcols!(arr::AbstractMatrix,i::Integer,j::Integer)
         # Swaps columns i and j of a matrix in-place.
         N = size(arr,1)
@@ -33,6 +35,8 @@ module FullDeviceUtils
                 Pinit[i] = fermi_dirac(energies[i],T)
             end
         end
+
+        return Pinit
 
     end
 
@@ -90,10 +94,11 @@ module FullDeviceUtils
             end
         end 
 
+        return energies
+
     end
 
-    
-    function hop_rates_fdev(energies,pos,T,edge_size,α, ghost_inds)
+    function hop_rates_fdev(energies,pos,T,edge_size,α)
         # We assume an asymmetrical Miller-Abrahams hopping model.
         N = size(energies,1)
         β = 1.0/(kB*T)

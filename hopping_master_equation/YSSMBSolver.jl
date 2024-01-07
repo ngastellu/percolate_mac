@@ -1,9 +1,13 @@
 module YSSMBSolver
 
+    include("./Utils.jl")
+
+    using .Utils
+
     export solve
 
     # function iterate_implicit(Pold, rates, L_inds, R_inds)
-    function iterate_implicit(Pold, rates; full_device=false, electrode_inds=0, pbc="none", ghost_inds=0)
+    function iterate_implicit(Pold, rates; full_device=false, electrode_inds=0, pbc_on=false, ghost_inds=0)
         norms = sum(rates,dims=2)
         N = size(rates,1)
         Pnew = zeros(N)
@@ -12,9 +16,9 @@ module YSSMBSolver
             @assert electrode_inds != 0 "Electrode indices must be specified for full-device simulations!"
         end
 
-        if pbc != "none"
-            @assert ghost_inds != 0 "Indices of ghost sites must be specified for PBC to be enforced!"
-        end
+        # if pbc_on
+        #     @assert ghost_inds != 0 "Indices of ghost sites must be specified for PBC to be enforced!"
+        # end
 
         for i=1:N
             if full_device
@@ -24,11 +28,16 @@ module YSSMBSolver
                     continue
                 end
             end
+            if pbc_on
+                if i ∈ ghost_inds[:,1] # do not update ghost sites during implicit iteration  
+                    continue
+                end
+            end
             sum_top = 0
             sum_bot = 0
             for j=1:i
                 sum_top += Pnew[j]*rates[j,i]
-                sum_bot += (rates[j,i] - rates[i,j])*Pnew[j]
+                sum_bot += (rates[i,j] - rates[j,i])*Pnew[j]
             end
             for j=i+1:N
                 sum_top += Pold[j]*rates[j,i]
@@ -36,11 +45,136 @@ module YSSMBSolver
             end
             Pnew[i] = (sum_top/norms[i]) / (1 - sum_bot/norms[i])
         end
+        if ghost_inds != 0
+            for ij ∈ ghost_inds
+                i,j = ij
+                Pnew[i] = Pnew[j] # set probabilities at ghost sites equal to that of their periodic images
+            end
+        end
         return Pnew
     end
 
-    # function solve(Pinit, rates, L_inds, R_inds; maxiter=1000000, ϵ=1e-6)
-    function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6, restart_threshold=-1, save_each=-1)
+
+    function update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+        ei = energies[i]
+        ej = energies[j]
+        ri = pos[i,:]
+        rj = pos[j,:]
+        if j < i
+            Pj = Pnew[j]
+        else
+            Pj = Pold[j]
+        end
+        ω_ji =  MA_asymm_hop_rate(ej,ei,rj,ri,β,α)
+        ω_ij = MA_asymm_hop_rate(ei,ej,ri,rj,β,α) 
+        sum_top += Pj * ω_ji
+        sum_bot += Pj * (ω_ij - ω_ji)
+        sum_rates += ω_ji
+        return sum_top, sum_bot, sum_rates
+    end
+
+
+    function iterate_implicit_otf(Pold, energies, pos, ineigh, β, α; full_device=false, ighost=0,lattice_dims=0)
+        # Implicit iteration solver where the hopping rates are computed on-the-fly ('otf').
+        # Partial or full PBC are assumed here.
+
+        N = size(Pold, 1)
+        Pnew = zeros(N)
+
+        if full_device
+            @assert lattice_dims != 0 "lattice_dimensions must be specified for full-device simulations!"
+            d = size(lattice_dims,1)
+            if d == 2
+                Nx, Ny = lattice_dims
+                edge_size = lattice_dims
+            else
+                Nx, Ny, Nz = lattice_dims
+                edge_size = Ny * Nz
+            end
+        end
+
+        for i=1:N
+            ghost_inds = 0
+            if full_device
+                # if i ∈ electrode_inds #impose fixed occupations at the boundaries of the system
+                if i ≤ 2*edge_size || i > N - 2*edge_size #impose fixed occupations at the boundaries of the system
+                    Pnew[i] = Pold[i]
+                    continue
+                end
+            end
+
+            sum_top = 0
+            sum_bot = 0
+            sum_rates = 0
+
+            # Apply PBC
+            if d == 2
+                if full_device
+                    if i % Ny == 0 #if site is a ghost site
+                        continue
+                    elseif i % Ny == 1 #if site is the periodic image of a ghost site
+                        ighost = i + Ny - 1
+                        for j ∈ ineigh[ighost,:]
+                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                        end
+                        ghost_inds = [ighost]
+                    end
+                else
+                    if i > N - Ny || i % Ny == 0 #if site is a ghost site
+                        continue
+                    elseif i ≤ Ny #site is on the x = 0 edge of lattice
+                        if i == 1
+                            ghost_inds = [N - Ny + 1, N]
+                        else
+                            ghost_inds = [i + N - Ny]
+                        end
+                        
+                    elseif i % Ny == 1 #site is on the y = 0 edge of lattice
+                        ghost_inds = [i + Ny - 1]
+                    end
+                    for g ∈ ghost_inds
+                        for j ∈ ineigh[g,:]
+                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                        end
+                    end
+                end
+
+            else # d = 3
+                check = ighost .- i
+                if any(iszero, check[:,1]) #if site is a ghost site, ignore it
+                    continue
+                end
+                image_check = findall(iszero, check[:,2]) #check if site is the image site to any ghost sites
+                if size(image_check,1) > 0
+                    ghost_inds = [ighost[k,1] for k ∈ image_check]
+                    for g ∈ ghost_inds
+                        for j ∈ ineigh[g,:]
+                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                        end
+                    end
+                end
+            end
+
+            for j ∈ ineigh[i,:]
+                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+            end
+
+            numerator = sum_top / sum_rates
+            denominator = 1 - (sum_bot / sum_rates)
+            Pnew[j] = numerator / denominator
+            
+            # Apply PBC; update P of ghost sites corresponding to i, if any
+            if ghost_inds != 0
+                for k ∈ ghost_inds
+                    Pnew[k] = Pnew[i]
+                end
+            end
+
+        end
+    end
+
+    function solve(Pinit; rates=0, ineigh=0, pbc_on=false, pbc_args=0, otf_args=0, maxiter=1000000, ϵ=1e-6, 
+        restart_threshold=-1, save_each=-1)
         # println("Solving master equation...")
         N = size(Pinit,1)
         cntr = 1
@@ -48,6 +182,26 @@ module YSSMBSolver
         Pnew = Pinit
         converged = false
         conv = zeros(maxiter,3)
+
+        if rates != 0
+            on_the_fly = true
+            β, α = otf_args
+            println("Rates not specified; will compute them on the fly.")
+            @assert ineigh != 0 "Neighbour list must be specified for on-the-fly calculation of
+                                hopping rates."
+            if pbc_on
+                @assert pbc_args != 0 "The following pbc_args must be supplied to enforce PBC:
+                * full_device: type of PBC to enforce
+                * lattice_dims: Nx, Ny, Nz the number of sites in each direction
+                * ighost: list of ghost sites and their corresponging 'real' image sites"
+                full_device = pbc_args["full_device"]
+                lattice_dims = pbc_args["lattice_dims"]
+                ighost = pbc_args["ighost"]
+            end
+        else
+            on_the_fly = false
+        end
+
         if save_each > 0
             Ps = zeros(maxiter ÷ save_each,N)
             Ps[1,:] = Pinit
@@ -55,7 +209,11 @@ module YSSMBSolver
         while cntr ≤ maxiter && !converged
             Pold = Pnew
             # Pnew = iterate_implicit(Pold,rates, L_inds, R_inds)
-            Pnew = iterate_implicit(Pold,rates)
+            if on_the_fly
+                Pnew = iterate_implicit_otf(Pold,energies,pos,ineigh,β,α;full_device=full_device, ighost=ighost, lattice_dims=lattice_dims)
+            else
+                Pnew = iterate_implicit(Pold,rates;pbc_on=pbc_on)
+            end
             if (save_each > 0) && (cntr % save_each == 0)
                 Ps[cntr ÷ save_each, :] = Pnew
             end

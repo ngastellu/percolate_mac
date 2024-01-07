@@ -2,9 +2,9 @@ module Utils
 
     using LinearAlgebra, Random, StatsBase, FFTW
 
-    export initialise_P, initialise_FD, initialise_random, miller_abrahams_asymm, miller_abrahams_YSSMB,
+    export fermi_dirac, initialise_P, initialise_FD, initialise_random, miller_abrahams_asymm, miller_abrahams_YSSMB,
             carrier_velocity, get_nnn_inds, get_Efermi, create_2d_lattice, create_3d_lattice, MA_asymm_hop_rate,
-            ghost_inds_3d
+            ghost_inds_3d, get_neighbour_lists
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -199,7 +199,6 @@ module Utils
             L = ([Ny,Nz] .- 1) .* a
             Nx_org = Nx - 4
             org_pos = pos[2*edge_size+1:N-2*edge_size,:]
-            print(org_pos[1,:])
             nghosts = Nx_org * (Ny + Nz - 1)
             ghost_inds = zeros(Int, nghosts, 2)
             k = 1
@@ -371,22 +370,26 @@ module Utils
         return innn
     end
 
-    function get_neighbour_inds(pos,rcut; pbc=false)
+    function get_neighbour_lists(pos,rcut; max_nn_estimate=50) # Might be worth using a kD-tree for this...
+        # Creates ineighbours, a N * nneighbours matrix, where ineighbours[i,:] = indices of site i's 
+        # neighbours. If site i has m < nneighbours neighbours, ineighbours[i,:m+1:nneighbours] = 0.
         N = size(pos,1)
-        nb_neighbours = 50
-        nnn_inds = zeros(N,nb_neighbours)
-        if pbc # to enforce PBC, must know max size of lattice in each direction
-            # Assume positions start at a and end at (L-1)*a along each direction
-            sorted_cols = [sort(col) for col in eachcol(pos)]
-            L = ([col[end] - col[1] for col in sorted_cols])'
-        end
+        ineighbours = zeros(N,max_nn_estimate)
+        max_nn = 0
         for i=1:N
-            Δ = pos .- pos[i,:]'
-            if pbc
-                Δ = Δ .% L
+            ΔR = pos .- pos[i,:]' 
+            ΔR = vec(sqrt.(sum(abs2,ΔR;dims=2)))
+            ΔR[i] = 1000 #avoid counting self as neighbour
+            ii = findall(ΔR .≤ rcut)
+            println(ii)
+            nb_neighbs = size(ii,1)
+            @assert nb_neighbs ≤ max_nn_estimate "Atom $i has $nb_neighbs neighbours! Expected at most max_nn = $(max_nn_estimate)."
+            if nb_neighbs > max_nn
+                max_nn = nb_neighbs
             end
-            Δ = norm(Δ)
+            ineighbours[i,1:nb_neighbs] = ii
         end
+        return ineighbours[:,1:max_nn] # get rid of useless zero entries
     end
 
 end
