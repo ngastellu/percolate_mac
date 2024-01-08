@@ -147,6 +147,29 @@ module Utils
         return v
     end
 
+    function current_density_otf(occs, energies, pos, ineigh, β, α, lattice_dims, a;e=1.0)
+        # Assumes the electric field is in the x-direction
+        N = size(rates,1)
+        d = size(pos,2)
+        v = zeros(d)
+        J = 0
+        lattice_volume = prod(lattice_dims .- 1) * (a^d)
+        for i=1:N
+            ei = energies[i]
+            ri = pos[i,:]
+            for j ∈ ineigh[i,:]
+                while j > 0
+                    ej = energies[j]
+                    rj = pos[j,:]
+                    ΔR = rj[1] - ri[1] # !!! Assuming NEGATIVE charge carriers !!
+                    ω_ij = MA_asymm_hop_rate(ei,ej,ri,rj,β,α)
+                    J += ω_ij*occs[i]*(1-occs[j])*Δx
+                end
+            end
+        end
+        return J * e / lattice_volume
+    end
+
     function create_3d_lattice(Nx,Ny,Nz,a)
         pos = zeros(Nz,Ny,Nx,3)
         for i=1:Nz
@@ -374,7 +397,7 @@ module Utils
         # Creates ineighbours, a N * nneighbours matrix, where ineighbours[i,:] = indices of site i's 
         # neighbours. If site i has m < nneighbours neighbours, ineighbours[i,:m+1:nneighbours] = 0.
         N = size(pos,1)
-        ineighbours = zeros(N,max_nn_estimate)
+        ineighbours = zeros(Int,N,max_nn_estimate)
         max_nn = 0
         for i=1:N
             ΔR = pos .- pos[i,:]' 

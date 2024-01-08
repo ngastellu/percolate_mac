@@ -54,9 +54,8 @@ module RunFullDevice
         # rates = hop_rates_fdev(energies, pos, T, edge_size, α)
         # println("Done!")
 
-        pbc_args = [true, lattice_dims, ighost]
         println("Solving master equation...")
-        solve_out =  solve(P0; ineigh=ineighbours, pbc_on=true, pbc_args=pbc_args, otf_args = (β,α),
+        solve_out =  solve_otf(P0, energies, pos, ineighbours, β, α; full_device=true, ighost=ighost, lattice_dims=lattice_dims,
                             save_each=save_each, restart_threshold=restart_threshold)
         
         if save_each > 0
@@ -68,7 +67,7 @@ module RunFullDevice
         println("Done!")
         println("∑ Pfinal = $(sum(Pfinal))")
         println("Computing carrier velocity...")
-        vs = carrier_velocity(rates,Pfinal,pos)
+        vs = carrier_velocity_otf(Pfinal,energies,pos,ineigh,β,α)
         println("vs = $(norm(vs))")
         println("Done!")
 

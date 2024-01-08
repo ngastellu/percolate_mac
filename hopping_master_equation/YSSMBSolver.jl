@@ -4,7 +4,7 @@ module YSSMBSolver
 
     using .Utils
 
-    export solve
+    export solve, solve_otf
 
     # function iterate_implicit(Pold, rates, L_inds, R_inds)
     function iterate_implicit(Pold, rates; full_device=false, electrode_inds=0, pbc_on=false, ghost_inds=0)
@@ -115,7 +115,9 @@ module YSSMBSolver
                     elseif i % Ny == 1 #if site is the periodic image of a ghost site
                         ighost = i + Ny - 1
                         for j ∈ ineigh[ighost,:]
-                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            while j > 0
+                                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            end
                         end
                         ghost_inds = [ighost]
                     end
@@ -134,7 +136,9 @@ module YSSMBSolver
                     end
                     for g ∈ ghost_inds
                         for j ∈ ineigh[g,:]
-                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            while j > 0
+                                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            end
                         end
                     end
                 end
@@ -149,14 +153,18 @@ module YSSMBSolver
                     ghost_inds = [ighost[k,1] for k ∈ image_check]
                     for g ∈ ghost_inds
                         for j ∈ ineigh[g,:]
-                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            while j > 0
+                                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            end
                         end
                     end
                 end
             end
 
             for j ∈ ineigh[i,:]
-                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                while j > 0
+                    sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                end
             end
 
             numerator = sum_top / sum_rates
@@ -173,8 +181,8 @@ module YSSMBSolver
         end
     end
 
-    function solve(Pinit; rates=0, ineigh=0, pbc_on=false, pbc_args=0, otf_args=0, maxiter=1000000, ϵ=1e-6, 
-        restart_threshold=-1, save_each=-1)
+    function solve_otf(Pinit, energies, pos, ineigh, β, α; full_device=false, ighost=0, lattice_dims=0, 
+        maxiter=1000000, ϵ=1e-6, restart_threshold=-1, save_each=-1)
         # println("Solving master equation...")
         N = size(Pinit,1)
         cntr = 1
@@ -183,25 +191,56 @@ module YSSMBSolver
         converged = false
         conv = zeros(maxiter,3)
 
-        if rates != 0
-            on_the_fly = true
-            β, α = otf_args
-            println("Rates not specified; will compute them on the fly.")
-            @assert ineigh != 0 "Neighbour list must be specified for on-the-fly calculation of
-                                hopping rates."
-            if pbc_on
-                @assert pbc_args != 0 "The following pbc_args must be supplied to enforce PBC:
-                * full_device: type of PBC to enforce
-                * lattice_dims: Nx, Ny, Nz the number of sites in each direction
-                * ighost: list of ghost sites and their corresponging 'real' image sites"
-                full_device = pbc_args["full_device"]
-                lattice_dims = pbc_args["lattice_dims"]
-                ighost = pbc_args["ighost"]
-            end
-        else
-            on_the_fly = false
+    
+        if save_each > 0
+            Ps = zeros(maxiter ÷ save_each,N)
+            Ps[1,:] = Pinit
         end
+        while cntr ≤ maxiter && !converged
+            Pold = Pnew
+            Pnew = iterate_implicit_otf(Pold,energies,pos,ineigh,β,α;full_device=full_device, ighost=ighost, lattice_dims=lattice_dims)
+            if (save_each > 0) && (cntr % save_each == 0)
+                Ps[cntr ÷ save_each, :] = Pnew
+            end
+            ΔP = abs.(Pnew-Pold)
+            converged = all(ΔP .< ϵ)
+            conv[cntr, 1] = maximum(ΔP)
+            conv[cntr,2] = sum(ΔP)/N
+            conv[cntr,3] = argmax(ΔP)
+            println("[max(ΔP), ⟨ΔP⟩, argmax(ΔP)] = $(conv[cntr,:])")
+            # println("\n")
+            if cntr > 1
+                if conv[cntr,1] > conv[cntr-1,1]
+                    restart_cntr += 1
+                else
+                    restart_cntr = 0 # reset to zero if max(ΔP) decreases on consecutive iterations
+                end
+            end
+            if restart_threshold > 0 && restart_cntr ≥ restart_threshold
+                return converged, ones(N) .* -1, conv 
+            end
+            cntr += 1
+        end
+        
+        conv = conv[1:cntr-1,:]
 
+        if save_each > 0
+            Ps = Ps[1:cntr-1,:]
+            return converged, Pnew, conv, Ps
+        else
+            return converged, Pnew, conv
+        end      
+    end
+
+
+    function solve(Pinit, rates; maxiter=1000000, ϵ=1e-6, restart_threshold=5, save_each=-1)
+        # println("Solving master equation...")
+        N = size(Pinit,1)
+        cntr = 1
+        restart_cntr = 0
+        Pnew = Pinit
+        converged = false
+        conv = zeros(maxiter,3)
         if save_each > 0
             Ps = zeros(maxiter ÷ save_each,N)
             Ps[1,:] = Pinit
@@ -209,11 +248,7 @@ module YSSMBSolver
         while cntr ≤ maxiter && !converged
             Pold = Pnew
             # Pnew = iterate_implicit(Pold,rates, L_inds, R_inds)
-            if on_the_fly
-                Pnew = iterate_implicit_otf(Pold,energies,pos,ineigh,β,α;full_device=full_device, ighost=ighost, lattice_dims=lattice_dims)
-            else
-                Pnew = iterate_implicit(Pold,rates;pbc_on=pbc_on)
-            end
+            Pnew = iterate_implicit(Pold,rates)
             if (save_each > 0) && (cntr % save_each == 0)
                 Ps[cntr ÷ save_each, :] = Pnew
             end
@@ -231,7 +266,7 @@ module YSSMBSolver
                     restart_cntr = 0 # reset to zero if max(ΔP) decreases on consecutive iterations
                 end
             end
-            if restart_threshold > 0 && restart_cntr ≥ restart_threshold
+            if restart_cntr ≥ restart_threshold
                 return converged, ones(N) .* -1, conv 
             end
             cntr += 1
