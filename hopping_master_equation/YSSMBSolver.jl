@@ -56,6 +56,7 @@ module YSSMBSolver
 
 
     function update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+        @assert i != j "No site is its own neighbour! Error for i = $i."
         ei = energies[i]
         ej = energies[j]
         ri = pos[i,:]
@@ -86,13 +87,12 @@ module YSSMBSolver
             d = size(lattice_dims,1)
             if d == 2
                 Nx, Ny = lattice_dims
-                edge_size = lattice_dims
+                edge_size = Ny
             else
                 Nx, Ny, Nz = lattice_dims
                 edge_size = Ny * Nz
             end
         end
-
         for i=1:N
             ghost_inds = 0
             if full_device
@@ -115,9 +115,10 @@ module YSSMBSolver
                     elseif i % Ny == 1 #if site is the periodic image of a ghost site
                         ighost = i + Ny - 1
                         for j ∈ ineigh[ighost,:]
-                            while j > 0
-                                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            if j == 0
+                                break
                             end
+                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
                         end
                         ghost_inds = [ighost]
                     end
@@ -136,9 +137,10 @@ module YSSMBSolver
                     end
                     for g ∈ ghost_inds
                         for j ∈ ineigh[g,:]
-                            while j > 0
-                                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            if j == 0
+                                break
                             end
+                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
                         end
                     end
                 end
@@ -153,23 +155,25 @@ module YSSMBSolver
                     ghost_inds = [ighost[k,1] for k ∈ image_check]
                     for g ∈ ghost_inds
                         for j ∈ ineigh[g,:]
-                            while j > 0
-                                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                            if j == 0
+                                break
                             end
+                            sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
                         end
                     end
                 end
             end
 
             for j ∈ ineigh[i,:]
-                while j > 0
-                    sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
+                if j == 0
+                    break
                 end
+                sum_top, sum_bot, sum_rates = update_sums(i,j,energies,pos,Pold,Pnew,sum_top,sum_bot,sum_rates,β,α)
             end
 
             numerator = sum_top / sum_rates
             denominator = 1 - (sum_bot / sum_rates)
-            Pnew[j] = numerator / denominator
+            Pnew[i] = numerator / denominator
             
             # Apply PBC; update P of ghost sites corresponding to i, if any
             if ghost_inds != 0
@@ -177,8 +181,8 @@ module YSSMBSolver
                     Pnew[k] = Pnew[i]
                 end
             end
-
         end
+        return Pnew
     end
 
     function solve_otf(Pinit, energies, pos, ineigh, β, α; full_device=false, ighost=0, lattice_dims=0, 

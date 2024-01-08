@@ -4,7 +4,7 @@ module Utils
 
     export fermi_dirac, initialise_P, initialise_FD, initialise_random, miller_abrahams_asymm, miller_abrahams_YSSMB,
             carrier_velocity, get_nnn_inds, get_Efermi, create_2d_lattice, create_3d_lattice, MA_asymm_hop_rate,
-            ghost_inds_3d, get_neighbour_lists
+            ghost_inds_3d, get_neighbour_lists, current_density_otf
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -149,7 +149,7 @@ module Utils
 
     function current_density_otf(occs, energies, pos, ineigh, β, α, lattice_dims, a;e=1.0)
         # Assumes the electric field is in the x-direction
-        N = size(rates,1)
+        N = size(occs,1)
         d = size(pos,2)
         v = zeros(d)
         J = 0
@@ -158,13 +158,14 @@ module Utils
             ei = energies[i]
             ri = pos[i,:]
             for j ∈ ineigh[i,:]
-                while j > 0
-                    ej = energies[j]
-                    rj = pos[j,:]
-                    ΔR = rj[1] - ri[1] # !!! Assuming NEGATIVE charge carriers !!
-                    ω_ij = MA_asymm_hop_rate(ei,ej,ri,rj,β,α)
-                    J += ω_ij*occs[i]*(1-occs[j])*Δx
-                end
+                if j == 0
+                    break
+                end                
+                ej = energies[j]
+                rj = pos[j,:]
+                Δx = rj[1] - ri[1] # !!! Assuming NEGATIVE charge carriers !!
+                ω_ij = MA_asymm_hop_rate(ei,ej,ri,rj,β,α)
+                J += ω_ij*occs[i]*(1-occs[j])*Δx
             end
         end
         return J * e / lattice_volume

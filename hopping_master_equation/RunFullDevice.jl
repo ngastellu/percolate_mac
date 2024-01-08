@@ -12,7 +12,7 @@ module RunFullDevice
     const e = 1.0 # positron charge
 
     function run_full_device_lattice(lattice_dims,ΔV,T,dos_type, dos_param;a=10, eL=0, eR=0,
-        α_ratio=10.0,  save_each=0, restart_threshold=-1, cutoff_ratio=10)
+        α_ratio=10.0, rcut_ratio=10, maxiter=1000000, save_each=0, restart_threshold=-1)
         d = size(lattice_dims,1)
         @assert d ∈ (2,3) "Only 2D and 3D implemented. (d=$d dimensions specified)"
         # Lattice creation functions are defined such that pos is sorted by ascending x-coord
@@ -32,11 +32,15 @@ module RunFullDevice
             end
         end
 
-        pos = pos .- [2*a,0,0]' # set x coord of first row of organic sites to 0
+        if d == 2
+            pos = pos .- [2*a,0]' # set x coord of first row of organic sites to 0
+        else
+            pos = pos .- [2*a,0,0]' # set x coord of first row of organic sites to 0
+        end
         ΔX = (lattice_dims[1]-2) * a # last two rows of lattice are electrode sites
         E0 = ΔV / ΔX
 
-        rcut = cutoff_ratio * a
+        rcut = rcut_ratio * a
         println("Getting neighbour lists...")
         ineighbours = get_neighbour_lists(pos, rcut)
         println("Done!")
@@ -56,7 +60,7 @@ module RunFullDevice
 
         println("Solving master equation...")
         solve_out =  solve_otf(P0, energies, pos, ineighbours, β, α; full_device=true, ighost=ighost, lattice_dims=lattice_dims,
-                            save_each=save_each, restart_threshold=restart_threshold)
+                            save_each=save_each, restart_threshold=restart_threshold,maxiter=maxiter)
         
         if save_each > 0
             converged, Pfinal, conv, Pt = solve_out
@@ -67,14 +71,14 @@ module RunFullDevice
         println("Done!")
         println("∑ Pfinal = $(sum(Pfinal))")
         println("Computing carrier velocity...")
-        vs = carrier_velocity_otf(Pfinal,energies,pos,ineigh,β,α)
-        println("vs = $(norm(vs))")
+        J = current_density_otf(Pfinal,energies,pos,ineighbours,β,α,lattice_dims,a)
+        println("J = $J")
         println("Done!")
 
         if save_each > 0
-            return energies, vs, P0, Pfinal, rates, conv, Pt
+            return energies, J, P0, Pfinal, conv, Pt
         else
-            return energies, vs, P0, Pfinal, rates, conv
+            return energies, J, P0, Pfinal, conv
         end
         
     end 

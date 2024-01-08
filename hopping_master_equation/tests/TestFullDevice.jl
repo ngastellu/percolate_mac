@@ -4,7 +4,7 @@ include("../RunFullDevice.jl")
 
 using Random, PyCall, .RunFullDevice
 
-    for rnseed ∈ [0, 42, 64, 78]
+    for rnseed ∈ [10, 42, 64, 78]
         # rnseed = 64
             println("********** $rnseed **********")
             Random.seed!(rnseed) # seed RNG with task number so that we have the same disorder realisation at each T
@@ -17,22 +17,22 @@ using Random, PyCall, .RunFullDevice
             Nx = 10
             Ny = 10
             Nz = 10
-            lattice_dims = (Nx,Ny,Nz)
+            lattice_dims = (Nx,Ny)#,Nz)
+            d = size(lattice_dims,1)
             ΔV = 1.0
             T = 300
             dos_type = "gaussian"
             save_each = 1
             
-            energies, velocities, Pinits, Pfinals, rates, conv, Pt = run_full_device_lattice(lattice_dims,ΔV,T,dos_type,ν; cutoff_ratio=1.0)
+            energies, current, Pinits, Pfinals, conv, Pt = run_full_device_lattice(lattice_dims,ΔV,T,dos_type,ν; rcut_ratio=1.0,save_each=1,maxiter=10000)
     
             py"""import numpy as np
             nn= $rnseed
             dd = $d
             np.save(f'full_device_test/{dd}d/energies-{nn}.npy', $(PyObject(energies)))
-            np.save(f'full_device_test/{dd}d/velocities-{nn}.npy', $(PyObject(velocities)))
+            np.save(f'full_device_test/{dd}d/J-{nn}.npy', $(PyObject(current)))
             np.save(f'full_device_test/{dd}d/Pinits-{nn}.npy', $(PyObject(Pinits)))
             np.save(f'full_device_test/{dd}d/Pfinals-{nn}.npy', $(PyObject(Pfinals)))
-            np.save(f'full_device_test/{dd}d/rates-{nn}.npy', $(PyObject(rates)))
             np.save(f'full_device_test/{dd}d/conv-{nn}.npy', $(PyObject(conv)))
             np.save(f'full_device_test/{dd}d/Pt-{nn}.npy', $(PyObject(Pt)))
             """   
