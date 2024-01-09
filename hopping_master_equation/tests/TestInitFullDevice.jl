@@ -21,8 +21,8 @@ module TestInitFullDevice
     pos2 = create_2d_lattice(Nx,Ny,a;full_device=true)
     pos3 = create_3d_lattice(Nx,Ny,Nz,a;full_device=true)
 
-    nn2 = get_neighbour_lists_fdev(pos2,a,Ny;max_nn_estimate=10)
-    nn3 = get_neighbour_lists_fdev(pos3,a,Ny*Nz;max_nn_estimate=20)
+    nn2 = build_neighbour_lists_fdev(pos2,a,Ny;max_nn_estimate=10)
+    nn3 = build_neighbour_lists_fdev(pos3,a,Ny*Nz;max_nn_estimate=20)
 
 
     ld2 = (Nx,Ny)
@@ -48,6 +48,7 @@ module TestInitFullDevice
     np.save('full_device_test/3d/init/energies.npy', $(PyObject(e3)))
     np.save('full_device_test/3d/init/prob.npy', $(PyObject(p3)))
     np.save('full_device_test/3d/init/ighost.npy', $(PyObject(ig)))
+    np.save('full_device_test/2d/init/nn3.npy', $(PyObject(nn3)))
     """
 
 end

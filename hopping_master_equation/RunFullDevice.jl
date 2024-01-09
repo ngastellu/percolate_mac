@@ -42,7 +42,7 @@ module RunFullDevice
 
         rcut = rcut_ratio * a
         println("Getting neighbour lists...")
-        ineighbours = get_neighbour_lists_fdev(pos, rcut, edge_size)
+        ineighbours = build_neighbour_lists_fdev(pos, rcut, edge_size)
         println("Done!")
 
         α = α_ratio / a

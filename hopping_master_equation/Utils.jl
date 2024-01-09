@@ -4,7 +4,7 @@ module Utils
 
     export fermi_dirac, initialise_P, initialise_FD, initialise_random, miller_abrahams_asymm, miller_abrahams_YSSMB,
             carrier_velocity, get_nnn_inds, get_Efermi, create_2d_lattice, create_3d_lattice, MA_asymm_hop_rate,
-            ghost_inds_3d, get_neighbour_lists, current_density_otf
+            ghost_inds_3d, get_neighbours, build_neighbour_lists, current_density_otf
 
     const kB = 8.617333262e-5 # Boltzmann constant in eV/K
     const e = 1.0 # positron charge
@@ -313,8 +313,15 @@ module Utils
         return ghost_inds
     end
 
+    function get_neighbours(r,pos_array,rcut)
+        ΔR = pos_array .- r'
+        ΔR = vec(sqrt.(sum(abs2,ΔR;dims=2)))
+        ii = findall(ΔR .≤ rcut)
+        return ii
+    end
 
-    function get_neighbour_lists(pos,rcut; max_nn_estimate=50) # Might be worth using a kD-tree for this...
+
+    function build_neighbour_lists(pos,rcut; max_nn_estimate=50) # Might be worth using a kD-tree for this...
         # Creates ineighbours, a N * nneighbours matrix, where ineighbours[i,:] = indices of site i's 
         # neighbours. If site i has m < nneighbours neighbours, ineighbours[i,:m+1:nneighbours] = 0.
         N = size(pos,1)
