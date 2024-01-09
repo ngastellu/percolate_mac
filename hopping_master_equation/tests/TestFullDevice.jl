@@ -14,21 +14,22 @@ using Random, PyCall, .RunFullDevice
     
             # nocc = 50
             ν = 0.007  # picked this stdev to roughly match the Gaussian DOS in the paper (DOI: 10.1103/PhysRevB.63.085202)
-            Nx = 10
-            Ny = 10
-            Nz = 10
-            lattice_dims = (Nx,Ny)#,Nz)
+            Nx = 20
+            Ny = 20
+            Nz = 20
+            lattice_dims = (Nx,Ny,Nz)
             d = size(lattice_dims,1)
             ΔV = 1.0
             T = 300
             dos_type = "gaussian"
             save_each = 1
             
-            energies, current, Pinits, Pfinals, conv, Pt = run_full_device_lattice(lattice_dims,ΔV,T,dos_type,ν; rcut_ratio=1.0,save_each=1,maxiter=10000)
+            energies, pos, current, Pinits, Pfinals, conv, Pt = run_full_device_lattice(lattice_dims,ΔV,T,dos_type,ν; rcut_ratio=sqrt(3),save_each=-1,maxiter=10)
     
             py"""import numpy as np
             nn= $rnseed
             dd = $d
+            np.save(f'full_device_test/{dd}d/pos.npy', $(PyObject(pos)))
             np.save(f'full_device_test/{dd}d/energies-{nn}.npy', $(PyObject(energies)))
             np.save(f'full_device_test/{dd}d/J-{nn}.npy', $(PyObject(current)))
             np.save(f'full_device_test/{dd}d/Pinits-{nn}.npy', $(PyObject(Pinits)))

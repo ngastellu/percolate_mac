@@ -171,7 +171,7 @@ module Utils
         return J * e / lattice_volume
     end
 
-    function create_3d_lattice(Nx,Ny,Nz,a)
+    function create_3d_lattice(Nx,Ny,Nz,a;full_device=false)
         pos = zeros(Nz,Ny,Nx,3)
         for i=1:Nz
             for j=1:Ny
@@ -180,17 +180,35 @@ module Utils
                 end
             end
         end
-        pos = reshape(pos,Nx*Ny*Nz,3)
+        N = Nx*Ny*Nz
+        pos = reshape(pos,N,3)
+        if full_device
+            pos = pos .- [2*a,0,0]' # set x coord of first row of organic sites to 0
+            # set position of outermost rows of electrode sites equal to that of the innermost rows
+            edge_size = Ny*Nz
+            pos[1:edge_size,1] .+= a
+            pos[N-edge_size+1:N,1] .-= a
+        end
+        return pos
     end
 
-    function create_2d_lattice(Nx,Ny,a)
+    function create_2d_lattice(Nx,Ny,a;full_device=true)
         pos = zeros(Ny,Nx,2)
         for i=1:Ny
             for j=1:Nx
                 pos[i,j,:] = [j-1,i-1].* a # this will sort final array along its first axis
             end
         end
-        pos = reshape(pos,Nx*Ny,2)
+        N = Nx*Ny
+        pos = reshape(pos,N,2)
+        if full_device
+            pos = pos .- [2*a,0]' # set x coord of first row of organic sites to 0
+            # set position of outermost rows of electrode sites equal to that of the innermost rows
+            edge_size = Ny
+            pos[1:edge_size,1] .+= a
+            pos[N-edge_size+1:N,1] .-= a
+        end
+        return pos
     end
 
 
@@ -230,7 +248,7 @@ module Utils
                 i += 2*edge_size
                 zero_axes = findall(iszero, r[2:3]) .+ 1
                 if size(zero_axes,1) > 0
-                    ghost_axes = isghost(r,Nx,Ny,Nz,a;full_device=true)
+                    ghost_axes = isghost(r,Nx,Ny,Nz,a;full_device=full_device)
                     if size(ghost_axes,1) > 0
                         ighost = i
                         target = r[:] # using [:] copies r instead of operating on a view
@@ -238,7 +256,7 @@ module Utils
                             target[d] = 0
                         end
                         Δ = [r2 - target for r2 ∈ eachrow(org_pos)]
-                        j = findall(iszero,Δ)[1] 
+                        j = findall(iszero,Δ)[1]
                         ireal = j + 2*edge_size # 'real' site, the one whose occ prob we actually solve for
                     else
                         ireal = i  # 'real' site, the one whose occ prob we actually solve for
@@ -246,7 +264,7 @@ module Utils
                         for d ∈ zero_axes
                             target[d] = L[d-1]
                         end
-                        Δ = [r2 - target for r2 ∈ eachrow(pos)]
+                        Δ = [r2 - target for r2 ∈ eachrow(org_pos)]
                         j = findall(iszero,Δ)[1]
                         ighost = j + 2*edge_size # fictitious site, the one which mirrors the 'real' site
                     end
@@ -295,6 +313,28 @@ module Utils
         return ghost_inds
     end
 
+
+    function get_neighbour_lists(pos,rcut; max_nn_estimate=50) # Might be worth using a kD-tree for this...
+        # Creates ineighbours, a N * nneighbours matrix, where ineighbours[i,:] = indices of site i's 
+        # neighbours. If site i has m < nneighbours neighbours, ineighbours[i,:m+1:nneighbours] = 0.
+        N = size(pos,1)
+        ineighbours = zeros(Int,N,max_nn_estimate)
+        max_nn = 0
+        for i=1:N
+            ΔR = pos .- pos[i,:]' 
+            ΔR = vec(sqrt.(sum(abs2,ΔR;dims=2)))
+            ΔR[i] = 1000 #avoid counting self as neighbour
+            ii = findall(ΔR .≤ rcut)
+            println(ii)
+            nb_neighbs = size(ii,1)
+            @assert nb_neighbs ≤ max_nn_estimate "Atom $i has $nb_neighbs neighbours! Expected at most max_nn = $(max_nn_estimate)."
+            if nb_neighbs > max_nn
+                max_nn = nb_neighbs
+            end
+            ineighbours[i,1:nb_neighbs] = ii
+        end
+        return ineighbours[:,1:max_nn] # get rid of useless zero entries
+    end
 
     function get_nnn_inds(pos,a;pbc="none")
         # Given a cubic lattice whose positions are stored in array Nxd (where 1 ≤ d ≤ 3) `pos`, generate the list of
@@ -392,28 +432,6 @@ module Utils
             end 
         end
         return innn
-    end
-
-    function get_neighbour_lists(pos,rcut; max_nn_estimate=50) # Might be worth using a kD-tree for this...
-        # Creates ineighbours, a N * nneighbours matrix, where ineighbours[i,:] = indices of site i's 
-        # neighbours. If site i has m < nneighbours neighbours, ineighbours[i,:m+1:nneighbours] = 0.
-        N = size(pos,1)
-        ineighbours = zeros(Int,N,max_nn_estimate)
-        max_nn = 0
-        for i=1:N
-            ΔR = pos .- pos[i,:]' 
-            ΔR = vec(sqrt.(sum(abs2,ΔR;dims=2)))
-            ΔR[i] = 1000 #avoid counting self as neighbour
-            ii = findall(ΔR .≤ rcut)
-            println(ii)
-            nb_neighbs = size(ii,1)
-            @assert nb_neighbs ≤ max_nn_estimate "Atom $i has $nb_neighbs neighbours! Expected at most max_nn = $(max_nn_estimate)."
-            if nb_neighbs > max_nn
-                max_nn = nb_neighbs
-            end
-            ineighbours[i,1:nb_neighbs] = ii
-        end
-        return ineighbours[:,1:max_nn] # get rid of useless zero entries
     end
 
 end

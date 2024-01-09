@@ -13,16 +13,20 @@ module RunFullDevice
 
     function run_full_device_lattice(lattice_dims,ΔV,T,dos_type, dos_param;a=10, eL=0, eR=0,
         α_ratio=10.0, rcut_ratio=10, maxiter=1000000, save_each=0, restart_threshold=-1)
+        
+        N = prod(lattice_dims)
         d = size(lattice_dims,1)
         @assert d ∈ (2,3) "Only 2D and 3D implemented. (d=$d dimensions specified)"
         # Lattice creation functions are defined such that pos is sorted by ascending x-coord
         println("Creating lattice...")
         if d == 2
             pos = create_2d_lattice(lattice_dims..., a)
+            edge_size = lattice_dims[2]
             println("Done!")
             ighost = [0]
         else
             pos = create_3d_lattice(lattice_dims..., a)
+            edge_size = lattice_dims[2] * lattice_dims[3]
             println("Done!")
             println("Getting ghost inds...")
             ighost = ghost_inds_3d(pos,lattice_dims...,a;full_device=true)
@@ -32,17 +36,13 @@ module RunFullDevice
             end
         end
 
-        if d == 2
-            pos = pos .- [2*a,0]' # set x coord of first row of organic sites to 0
-        else
-            pos = pos .- [2*a,0,0]' # set x coord of first row of organic sites to 0
-        end
+          
         ΔX = (lattice_dims[1]-2) * a # last two rows of lattice are electrode sites
         E0 = ΔV / ΔX
 
         rcut = rcut_ratio * a
         println("Getting neighbour lists...")
-        ineighbours = get_neighbour_lists(pos, rcut)
+        ineighbours = get_neighbour_lists_fdev(pos, rcut, edge_size)
         println("Done!")
 
         α = α_ratio / a
@@ -76,9 +76,9 @@ module RunFullDevice
         println("Done!")
 
         if save_each > 0
-            return energies, J, P0, Pfinal, conv, Pt
+            return energies, pos, J, P0, Pfinal, conv, Pt
         else
-            return energies, J, P0, Pfinal, conv
+            return energies, pos, J, P0, Pfinal, conv
         end
         
     end 

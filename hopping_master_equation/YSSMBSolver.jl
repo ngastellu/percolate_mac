@@ -114,7 +114,8 @@ module YSSMBSolver
                         continue
                     elseif i % Ny == 1 #if site is the periodic image of a ghost site
                         ighost = i + Ny - 1
-                        for j ∈ ineigh[ighost,:]
+                        # println("Site $i = $(pos[i,:]) ---> Ghost site $ighost = $(pos[ighost,:])")
+                        for j ∈ ineigh[ighost-2*edge_size,:] #neighbours[i,:] contains neighbours of sites i+2*edge_size
                             if j == 0
                                 break
                             end
@@ -154,7 +155,7 @@ module YSSMBSolver
                 if size(image_check,1) > 0
                     ghost_inds = [ighost[k,1] for k ∈ image_check]
                     for g ∈ ghost_inds
-                        for j ∈ ineigh[g,:]
+                        for j ∈ ineigh[g-2*edge_size,:] #neighbours[i,:] contains neighbours of sites i+2*edge_size
                             if j == 0
                                 break
                             end
@@ -164,7 +165,7 @@ module YSSMBSolver
                 end
             end
 
-            for j ∈ ineigh[i,:]
+            for j ∈ ineigh[i-2*edge_size,:] #neighbours[i,:] contains neighbours of sites i+2*edge_size
                 if j == 0
                     break
                 end

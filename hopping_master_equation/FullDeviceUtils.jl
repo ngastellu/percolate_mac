@@ -4,7 +4,7 @@ module FullDeviceUtils
 
     using .Utils, Random
 
-    export initialise_energies_fdev, initialise_p_fdev
+    export initialise_energies_fdev, initialise_p_fdev, get_neighbour_lists_fdev
 
     function swapcols!(arr::AbstractMatrix,i::Integer,j::Integer)
         # Swaps columns i and j of a matrix in-place.
@@ -128,6 +128,81 @@ module FullDeviceUtils
             end
         end
         return K
+    end
+
+    function get_neighbours(r,pos_array,rcut;iremove=0)
+        ΔR = pos_array .- r'
+        ΔR = vec(sum(abs2,ΔR;dims=2))
+        if iremove > 0 #if r is contained in pos_array, remove it from list of neighbours
+            ΔR[iremove] += rcut*2
+        end
+        ii = findall(ΔR .≤ rcut)
+        return ii
+    end
+
+    
+    function build_neighbour_lists_fdev(pos,rcut,edge_size;max_nn_estimate=50) 
+        # Creates ineighbours, a N * nneighbours matrix, where ineighbours[i,:] = indices of site i's 
+        # neighbours. If site i has m < nneighbours neighbours, ineighbours[i,:m+1:nneighbours] = 0.
+        # Since this is for full device calculations, electrode sites are treated a bit differently;
+        # left-electrode sites are added to neighbour list of x=0 organic sites and right-electrode
+        # sites are added to the neighbour lists of the x=(Nx-2)*a organic sites.
+
+        N = size(pos,1)
+        Norg = N - 4*edge_size # nb of organic sites
+        ineighbours = zeros(Int,N,max_nn_estimate)
+        max_nn = 0
+        pos_org = view(pos, 1+2*edge_size:N-2*edge_size,:) #positions of organic sites only
+
+        for i=1:N
+            r = pos[i,:]
+            if i ≤ edge_size || i > N - 2*edge_size #electrode site
+                ii = get_neighbours(r,pos_org,rcut) .+ 2*edge_size
+            else #organic site
+                iorg = i - 2*edge_size
+                ii = get_neighbours(r,pos_org[1+iorg:end,:],rcut;iremove=iorg) .+ 2*edge_size 
+            end
+
+            nb_neighs = sum(!iszero, ineighbours[i,:])
+            nb_neighbs_new = size(ii,1) + nb_neighbs
+            if nb_neighbs_new > max_nn
+                max_nn = nb_neighbs_new
+            end
+            ineighbours[i,1+nb_neighs:nb_neighbs_new] = ii
+            
+            for j in ii # Add i to neighbour list of its neighbours
+                nb_neighbs_j = sum(!iszero,ineighbours[j,:])
+                ineighbours[j,nb_neighbs_j+1] = i
+            end
+        end
+
+        # Organic sites
+        for i=1+2*edge_size:N-(2*edge_size)
+            i_fullpos = i+2*edge_size #index of site in full positions array
+            ΔR = pos_org .- pos_org[i,:]' 
+            ΔR = vec(sqrt.(sum(abs2,ΔR;dims=2)))
+            ΔR[i] = 1000 #avoid counting self as neighbour
+            ii = findall(ΔR .≤ rcut) .+ 2*edge_size
+            if i ≤ edge_size
+                ΔR_L = posL .- pos_org[i,:]'
+                ΔR_L = vec(sqrt.(sum(abs2,ΔR_L;dims=2)))
+                iiL = findall(ΔR_L .≤ rcut)
+                ii = cat(iiL,  ii, dims=1)
+            elseif i > Norg - edge_size
+                ΔR_R = posR .- pos_org[i,:]'
+                ΔR_R = vec(sqrt.(sum(abs2,ΔR_R;dims=2)))
+                iiR = findall(ΔR_R .≤ rcut) .+ (N - 2*edge_size)
+                ii = cat(ii, iiR, dims=1)
+            end
+            # println(ii)
+            nb_neighbs = size(ii,1)
+            @assert nb_neighbs ≤ max_nn_estimate "Atom $i_fullpos has $nb_neighbs neighbours! Expected at most max_nn = $(max_nn_estimate)."
+            if nb_neighbs > max_nn
+                max_nn = nb_neighbs
+            end
+            ineighbours[i,1:nb_neighbs] = ii
+        end
+        return ineighbours[:,1:max_nn] # get rid of useless zero entries
     end
 
 end
