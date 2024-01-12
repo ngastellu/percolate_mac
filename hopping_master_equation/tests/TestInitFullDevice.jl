@@ -5,13 +5,13 @@ module TestInitFullDevice
 
     using PyCall, Random, .FullDeviceUtils, .Utils
 
-    Random.seed!(0)
+    Random.seed!(10)
     
     ν = 0.007  # picked this stdev to roughly match the Gaussian DOS in the paper (DOI: 10.1103/PhysRevB.63.085202)
     Nx = 20
     Ny = 20
     Nz = 20
-    a = 5
+    a = 10
     eL = 0
     eR = 0
     T = 300
@@ -35,6 +35,17 @@ module TestInitFullDevice
 
     p2 = initialise_p_fdev(ld2,e2,T)
     p3 = initialise_p_fdev(ld3,e3,T)
+
+    for ij ∈ eachrow(ig)
+        i, j = ij
+        println("\nReal $(pos3[j,:]) ---> Ghost $(pos3[i,:])")
+        if e3[i] != e3[j]
+            println("--- e mismatch! $i --> $(e3[i]); $j --> $(e3[j]) ---")
+        end
+        if p3[i] !=p3[j]
+            println("*** p mismatch! $i --> $(p3[i]); $j --> $(p3[j]) ***\n")
+        end
+    end
 
 
 

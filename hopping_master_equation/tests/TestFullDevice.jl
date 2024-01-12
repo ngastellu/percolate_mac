@@ -4,7 +4,7 @@ include("../RunFullDevice.jl")
 
 using Random, PyCall, .RunFullDevice
 
-    for rnseed ∈ [10, 42, 64, 78]
+    for rnseed ∈ [10]
         # rnseed = 64
             println("********** $rnseed **********")
             Random.seed!(rnseed) # seed RNG with task number so that we have the same disorder realisation at each T
@@ -13,18 +13,19 @@ using Random, PyCall, .RunFullDevice
             T = 300
     
             # nocc = 50
-            ν = 0.007  # picked this stdev to roughly match the Gaussian DOS in the paper (DOI: 10.1103/PhysRevB.63.085202)
-            Nx = 20
-            Ny = 20
+            # ν = 0.007  # picked this stdev to roughly match the Gaussian DOS in the paper (DOI: 10.1103/PhysRevB.63.085202)
+            ν = 0.007
+            Nx = 100
+            Ny = 100
             Nz = 20
-            lattice_dims = (Nx,Ny,Nz)
+            lattice_dims = (Nx,Ny)#,Nz)
             d = size(lattice_dims,1)
-            ΔV = 1.0
+            ΔV = 0
             T = 300
             dos_type = "gaussian"
             save_each = 1
             
-            energies, pos, current, Pinits, Pfinals, conv, Pt = run_full_device_lattice(lattice_dims,ΔV,T,dos_type,ν; rcut_ratio=sqrt(3),save_each=-1,maxiter=10)
+            energies, pos, current, Pinits, Pfinals, conv, Pt = run_full_device_lattice(lattice_dims,ΔV,T,dos_type,ν; rcut_ratio=sqrt(3),save_each=1,maxiter=100)
     
             py"""import numpy as np
             nn= $rnseed

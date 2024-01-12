@@ -73,14 +73,14 @@ module Utils
         return P
     end
 
-    function MA_asymm_hop_rate(ei,ej,ri,rj,β,α;L=Inf)
-        ΔE = ei - ej
+    function MA_asymm_hop_rate(ei,ej,ri,rj,β,α;L=Inf,ω0=1e12)
+        ΔE = ej - ei # hopping from site i to site j
         ΔR = norm((ri - rj) .% L)
         
         if ΔE < 0
-            ω = exp(-2*α*ΔR)
+            ω = ω0 * exp(-2*α*ΔR)
         else
-            ω = exp(-2*α*ΔR - β*ΔE)
+            ω = ω0 * exp(-2*α*ΔR - β*ΔE)
         end
         return ω
     end
@@ -240,7 +240,7 @@ module Utils
             edge_size = Ny * Nz
             L = ([Ny,Nz] .- 1) .* a
             Nx_org = Nx - 4
-            org_pos = pos[2*edge_size+1:N-2*edge_size,:]
+            org_pos = view(pos,2*edge_size+1:N-2*edge_size,:)
             nghosts = Nx_org * (Ny + Nz - 1)
             ghost_inds = zeros(Int, nghosts, 2)
             k = 1
@@ -250,22 +250,40 @@ module Utils
                 if size(zero_axes,1) > 0
                     ghost_axes = isghost(r,Nx,Ny,Nz,a;full_device=full_device)
                     if size(ghost_axes,1) > 0
+                        # println("Ghost site! $i ---> $(pos[i,:])")
                         ighost = i
                         target = r[:] # using [:] copies r instead of operating on a view
                         for d in ghost_axes
                             target[d] = 0
                         end
+                        # println("Target = $target")
                         Δ = [r2 - target for r2 ∈ eachrow(org_pos)]
-                        j = findall(iszero,Δ)[1]
+                        hits = findall(iszero,Δ)
+                        # println("Hits: ")
+                        # for h in hits
+                            # h+= 2*edge_size
+                            # println("$h ---> $(pos[h,:])")
+                        # end
+                        # print('\n')
+                        j = hits[1]
                         ireal = j + 2*edge_size # 'real' site, the one whose occ prob we actually solve for
                     else
+                        # println("Image site! $i ---> $(pos[i,:])")
                         ireal = i  # 'real' site, the one whose occ prob we actually solve for
                         target = r[:] # using [:] copies r instead of operating on a view
                         for d ∈ zero_axes
                             target[d] = L[d-1]
                         end
+                        # println("Target = $target")
                         Δ = [r2 - target for r2 ∈ eachrow(org_pos)]
-                        j = findall(iszero,Δ)[1]
+                        hits = findall(iszero,Δ)
+                        # println("Hits: ")
+                        # for h in hits
+                            # h+= 2*edge_size
+                            # println("$h ---> $(pos[h,:])")
+                        # end
+                        # print('\n')
+                        j = hits[1]
                         ighost = j + 2*edge_size # fictitious site, the one which mirrors the 'real' site
                     end
                     ghost_inds[k,1] = ighost

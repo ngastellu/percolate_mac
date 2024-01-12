@@ -93,6 +93,7 @@ module YSSMBSolver
                 edge_size = Ny * Nz
             end
         end
+
         for i=1:N
             ghost_inds = 0
             if full_device
@@ -149,12 +150,15 @@ module YSSMBSolver
             else # d = 3
                 check = ighost .- i
                 if any(iszero, check[:,1]) #if site is a ghost site, ignore it
+                    # println("\n*** Ghost site! i = $i ---> $(pos[i,:]) ***")
                     continue
                 end
                 image_check = findall(iszero, check[:,2]) #check if site is the image site to any ghost sites
                 if size(image_check,1) > 0
+                    # println("\n--- Image site! i = $i ---> $(pos[i,:]) ---")
                     ghost_inds = [ighost[k,1] for k ∈ image_check]
                     for g ∈ ghost_inds
+                        # println("\tghost site $g ---> $(pos[g,:])")
                         for j ∈ ineigh[g,:]
                             if j == 0
                                 break
@@ -180,6 +184,7 @@ module YSSMBSolver
             if ghost_inds != 0
                 for k ∈ ghost_inds
                     Pnew[k] = Pnew[i]
+                    Pold[k] = Pnew[i] # if k > i, this will allow the update of other probabilities of sites j < k to use the updated P[k]
                 end
             end
         end

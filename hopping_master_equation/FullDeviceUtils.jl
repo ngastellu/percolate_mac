@@ -27,9 +27,9 @@ module FullDeviceUtils
 
         Pinit = zeros(N)
         for i=1:N
-            if i ≤ edge_size || i ≥ N-edge_size + 1
+            if i ≤ edge_size || i > N-edge_size 
                 Pinit[i] = 0 # perpetually empty electrode site
-            elseif edge_size < i ≤ 2*edge_size || N-(2*edge_size) + 1 ≤ i ≤ N-edge_size
+            elseif edge_size < i ≤ 2*edge_size || N-(2*edge_size) < i ≤ N-edge_size
                 Pinit[i] = 1 # perpetually occupied electrode site
             else
                 Pinit[i] = fermi_dirac(energies[i],T)
@@ -69,7 +69,7 @@ module FullDeviceUtils
             if i ≤ 2*edge_size # left electrode sites
                 energies[i] = eL
             elseif 2*edge_size < i ≤ N-(2*edge_size) # organic sites
-                @assert 0 ≤ pos[i,1] ≤ (Nx-2) * a "xcoord of organic site should be ∈ [0,$((Nx-2)*a)]! (x = $(pos[i,1]))"
+                @assert 0 ≤ pos[i,1] ≤ (Nx-4) * a "xcoord of organic site should be ∈ [0,$((Nx-4)*a)]! (x = $(pos[i,1]))"
                  
                 if dos_type == "gaussian"
                     energies[i] = randn() * dos_param - E0 * pos[i,1]
@@ -77,7 +77,7 @@ module FullDeviceUtils
                     energies[i] = rand()*dos_param - dos_param - E0 * pos[i,1]
                 end
             else
-                energies[i] = eR
+                energies[i] = eR - E0 * pos[i,1]
             end
         end
 
@@ -152,11 +152,6 @@ module FullDeviceUtils
                 ii = get_neighbours(r,pos_org[1+iorg:end,:],rcut) .+ i 
             end
 
-            println("Working on site $i --> $r")
-            for jj in ii
-                println("$jj --> $(pos[jj,:])")
-            end
-
             nb_neighbs = sum(!iszero, ineighbours[i,:])
             nb_neighbs_new = size(ii,1) + nb_neighbs
             @assert nb_neighbs_new ≤ max_nn_estimate "Atom $i_fullpos has $nb_neighbs neighbours! Expected at most max_nn = $(max_nn_estimate)."
@@ -169,7 +164,6 @@ module FullDeviceUtils
                 nb_neighbs_j = sum(!iszero,ineighbours[j,:])
                 ineighbours[j,nb_neighbs_j+1] = i
             end
-            print('\n')
         end
         return ineighbours[:,1:max_nn] # get rid of useless zero entries
     end

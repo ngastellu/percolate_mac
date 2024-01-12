@@ -4,7 +4,7 @@ module RunFullDevice
     include("./FullDeviceUtils.jl")
     include("./YSSMBSolver.jl")
 
-    using .Utils, .FullDeviceUtils, .YSSMBSolver
+    using .Utils, .FullDeviceUtils, .YSSMBSolver, PyCall
 
     export run_full_device_lattice
 
@@ -20,24 +20,26 @@ module RunFullDevice
         # Lattice creation functions are defined such that pos is sorted by ascending x-coord
         println("Creating lattice...")
         if d == 2
-            pos = create_2d_lattice(lattice_dims..., a)
+            pos = create_2d_lattice(lattice_dims..., a; full_device=true)
             edge_size = lattice_dims[2]
             println("Done!")
             ighost = [0]
         else
-            pos = create_3d_lattice(lattice_dims..., a)
+            pos = create_3d_lattice(lattice_dims..., a; full_device=true)
             edge_size = lattice_dims[2] * lattice_dims[3]
             println("Done!")
             println("Getting ghost inds...")
             ighost = ghost_inds_3d(pos,lattice_dims...,a;full_device=true)
             println("Done!")
+            println("\n----- Ghost inds array -----")
             for ij ∈ eachrow(ighost)
                 println(ij)
             end
+            println("----------------\n")
         end
 
           
-        ΔX = (lattice_dims[1]-2) * a # last two rows of lattice are electrode sites
+        ΔX = (lattice_dims[1]-4) * a # there are 4 rows of lattice are electrode sites
         E0 = ΔV / ΔX
 
         rcut = rcut_ratio * a
