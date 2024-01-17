@@ -7,17 +7,18 @@ from scipy.stats import linregress
 from qcnico import plt_utils
 
 
-# first_ind = 14
-first_ind = 0
+first_ind = 14
+omega0 = 1e11
+# first_ind = 0
 temps, sigmas = np.load('sigma_v_T-100x100gridMOs.npy')[:,first_ind:]
-y = np.log(sigmas)
+y = np.log(sigmas*omega0)
 
 print(temps[0])
 print(temps[-1])
 
 
 plt_utils.setup_tex()
-rcParams['font.size'] = 24
+rcParams['font.size'] = 18
 rcParams['figure.dpi'] = 150.0 #increasre figure resolution
 rcParams['figure.subplot.top'] = 0.92
 rcParams['figure.subplot.bottom'] = 0.17
@@ -36,7 +37,7 @@ print(f'**** 0D Mott VRH (Arrhenius law) ****\n slope = {slope}, r^2 = {r**2}')
 plt.plot(x,y,'ko',ms=5.0)
 plt.plot(x, x*slope + intercept,'r-')
 plt.xlabel("$1000/T$ [K$^{-1}$]")
-plt.ylabel("$\log \sigma$")
+plt.ylabel("$\log \sigma$ [$\log\\text{s}^{-1}$]")
 plt.show()
 #ax.set_yscale('log')
 #axs[0].set_title(f'Mott $d=0$ [$r^2 = $ {r**2}]')

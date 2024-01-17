@@ -57,7 +57,7 @@ class MACHopSites:
     #         return t
 
     def MCpercolate_MA(self, T, E, a0, return_traj=False, interMO_hops_only=False):
-        rates = kMillerAbrahams(self.e_sites, self.dR, T, a0, E)
+        rates = kMillerAbrahams(self.e_sites, self.sites, self.dR, T, a0, E)
         if interMO_hops_only:
             rates = zero_intraMO_rates(rates,self.inds)
         t, traj = t_percolate(self.sites, self.L, self.R, rates, return_traj) 
@@ -210,15 +210,17 @@ def kMarcus_njit(energies, pos, e_reorg, Js, T, E):
     return out
 
 @njit(parallel=True)
-def kMillerAbrahams(energies, dR, T, a0, E): 
+def kMillerAbrahams(energies, pos, dR, T, a0, E): 
     """!!!! SITE energies and positions must be used here (as opposed to MO energies and atomic positions) !!!!"""
     kB = 8.617e-5 # eV * K
     e = 1.0
     N = energies.shape[0]
     out = np.empty((N,N),dtype='float')
     for i in prange(N):
+        ei = energies[i] - pos[i,:].dot(E)
         for j in prange(N):
-            out[i,j] = np.exp( -(np.abs(energies[i] - energies[j]) + np.abs(energies[i] + energies[j]) - e*np.dot(E, dR[i,j,:]))/(2*kB*T) - (2*np.linalg.norm(dR[i,j,:]))/a0 )
+            ej = energies[j] - pos[j,:].dot(E)
+            out[i,j] = np.exp( -(np.abs(ei - ej) + np.abs(ei) + np.abs(ej) - e*np.dot(E, dR[i,j,:]))/(2*kB*T) - (2*np.linalg.norm(dR[i,j,:]))/a0 )
     return out
 
 
