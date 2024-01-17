@@ -7,8 +7,9 @@ from scipy.stats import linregress
 from qcnico import plt_utils
 
 
-first_ind = 14
-temps, sigmas = np.load('sigma_v_T.npy')[:,first_ind:]
+# first_ind = 14
+first_ind = 0
+temps, sigmas = np.load('sigma_v_T-100x100gridMOs.npy')[:,first_ind:]
 y = np.log(sigmas)
 
 print(temps[0])
@@ -16,7 +17,7 @@ print(temps[-1])
 
 
 plt_utils.setup_tex()
-rcParams['font.size'] = 20
+rcParams['font.size'] = 24
 rcParams['figure.dpi'] = 150.0 #increasre figure resolution
 rcParams['figure.subplot.top'] = 0.92
 rcParams['figure.subplot.bottom'] = 0.17
@@ -27,12 +28,12 @@ rcParams['figure.subplot.bottom'] = 0.17
 # Do Mott linear regression d = 0
 x = 1000.0/temps
 slope, intercept, r, *_ = linregress(x,y)
-print(f'0D Mott VRH: slope = {slope}, r^2 = {r**2}')
+print(f'**** 0D Mott VRH (Arrhenius law) ****\n slope = {slope}, r^2 = {r**2}')
 # axs[0].plot(x,y,'ko',ms=2.0)
 # axs[0].plot(x, x*slope + intercept,'r-')
 # axs[0].set_xlabel("$1000/T$ [K$^{-1}$]")
 # axs[0].set_ylabel("$\log \sigma$")
-plt.plot(x,y,'ko',ms=10.0)
+plt.plot(x,y,'ko',ms=5.0)
 plt.plot(x, x*slope + intercept,'r-')
 plt.xlabel("$1000/T$ [K$^{-1}$]")
 plt.ylabel("$\log \sigma$")
@@ -42,13 +43,13 @@ plt.show()
 
 kB = 8.617e-5
 
-print(slope*kB*1000)
+print(f"Ea = {-slope*kB*1000} eV")
 
 
 # Do Mott linear regression d = 2
 x = np.power(1.0/temps,3)
 slope, intercept, r, *_ = linregress(x, y)
-print(f'2D Mott VRH: slope = {slope}, r^2 = {r**2}')
+print(f'\n**** 2D Mott VRH ****\n slope = {slope}, r^2 = {r**2}')
 # axs[1].plot(x,y,'ko',ms=2.0)
 # axs[1].plot(x,intercept + slope*x,'r-',lw=0.8)
 # axs[1].set_xlabel("$T^{-1/3}$ [K$^{-1/3}$]")
@@ -65,7 +66,7 @@ plt.show()
 # Do RCH linear regression
 x = np.log(temps)
 slope, intercept, r, *_ = linregress(x, y)
-print(f'RCH: slope = {slope}, r^2 = {r**2}')
+print(f'\n**** RCH ****\n slope = {slope}, r^2 = {r**2}')
 # axs[2].plot(x,y,'ko',ms=2.0)
 # axs[2].plot(x,intercept + slope*x,'r-',lw=0.8)
 # axs[2].set_xlabel("$\log T$")
