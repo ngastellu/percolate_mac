@@ -27,14 +27,16 @@ def log_miller_abrahams_distance(ei, ej, ri, rj, mu, T, a0):
     return ((np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T)) + 2*np.linalg.norm(ri - rj)/a0
 
 @njit
-def diff_arrs(e, coms, a0, eF=0):
+def diff_arrs(e, coms, a0, eF=0, E=np.array([0,0])):
     N = e.shape[0]
     ddarr = np.zeros(int(N*(N-1)/2))
     edarr = np.zeros(int(N*(N-1)/2))
     k = 0
     for i in range(N):
+        ei = e[i] - coms[i].dot(E)
         for j in range(i):
-            edarr[k] = np.abs(e[i]-eF) + np.abs(e[j]-eF) + np.abs(e[i] - e[j])
+            ej = e[j] - coms[j].dot(E)
+            edarr[k] = np.abs(ei-eF) + np.abs(ej-eF) + np.abs(ei - ej)
             ddarr[k] = 2*np.linalg.norm(coms[i]-coms[j])/a0
             k += 1
     return edarr, ddarr

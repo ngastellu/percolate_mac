@@ -50,10 +50,13 @@ R = set((gamR > gamR_tol).nonzero()[0])
 
 # ******* 4: Pre-compute distances *******
 centres, ee, ii = generate_site_list(pos,M,L,R,energies,nbins=100)
+dV = 1.0
+dX = np.max(centres[:,0]) - np.min(centres[:,0])
+E = np.array([dV/dX,0])
 np.save('cc.npy',centres)
 np.save('ee.npy',ee)
 np.save('ii.npy', ii)
-edArr, rdArr = diff_arrs(ee, centres, a0=30, eF=0)
+edArr, rdArr = diff_arrs(ee, centres, a0=30, eF=0, E=E)
 
 cgamL = gamL[ii]
 cgamR = gamR[ii]

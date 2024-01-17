@@ -82,19 +82,24 @@ print(f'{biggaR_inds.shape[0]} MOs strongly coupled to right lead.')
 
 
 # ******* 4: Get a sense of the distance distribution *******
-centres, ee, ii = generate_site_list(pos,M,biggaL_inds,biggaR_inds,energies)
+# centres, ee, ii = generate_site_list(pos,M,biggaL_inds,biggaR_inds,energies)
 
-centres = np.load('cc.npy')
-ee = np.load('ee.npy')
-ii = np.load('ii.npy')
+centres = np.load(percdir + 'cc.npy')
+ee = np.load(percdir + 'ee.npy')
+ii = np.load(percdir + 'ii.npy')
 
 print(ii)
 
 cgamL = gamL[ii]
 cgamR = gamR[ii]
 
+
+dV = 1.0
+dX = np.max(centres[:,0]) - np.min(centres[:,0])
+E = np.array([dV/dX,0])
+
 for T in Ts:
-    edArr, rdArr = diff_arrs(ee, centres, a0=30, eF=0)
+    edArr, rdArr = diff_arrs(ee, centres, a0=30, eF=0, E = E)
     # ******* 5: Get spanning cluster *******
     conduction_clusters, dcrit, A = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr))
 
