@@ -15,7 +15,7 @@ module TestInitFullDevice
     eL = 0
     eR = 0
     T = 300
-    E0 = 1.0
+    E0 = 0.00
     rcut = a
 
     pos2 = create_2d_lattice(Nx,Ny,a;full_device=true)

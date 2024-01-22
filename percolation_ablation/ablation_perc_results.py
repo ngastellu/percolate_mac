@@ -48,11 +48,11 @@ print(nstructures)
 
 dcrits = get_dcrits(gr_inds,temps, datadir)
 
-nsamples = np.arange(10,120,5)
+nsamples = np.arange(10,175,5)
 for n in nsamples:
     print(n)
     sample_inds = rng.choice(range(nstructures),size=n,replace=False)
     dcrits_sampled = dcrits[sample_inds,:]
     sigmas = [get_sigma(dc) for dc in dcrits_sampled.T]
     data = np.vstack((temps, sigmas))
-    np.save(f'data_100x100_gridMOs/sigma_v_T-{n}samples.npy',data)
+    np.save(f'data_100x100_gridMOs_1V/sigma_v_T-{n}samples.npy',data)

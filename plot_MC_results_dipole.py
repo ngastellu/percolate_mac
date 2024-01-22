@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -14,13 +15,13 @@ from qcnico.plt_utils import setup_tex
 tpercdir = "/Users/nico/Desktop/simulation_outputs/percolation/40x40/monte_carlo/marcus/percolation_times_dipole/MC_1000/"
 strucdir = "/Users/nico/Desktop/simulation_outputs/percolation/40x40/structures/"
 struc = remove_dangling_carbons(read_xsf(strucdir+'bigMAC-150_relaxed.xsf')[0],1.8)
+omega0 = 1e11
 dX = np.max(struc[:,0]) - np.min(struc[:,0])
 E = 1.0/dX
 temps = np.arange(70,505,5,dtype=np.float64)
-
-times = np.zeros_like(temps)
-sample_ind = 150
-dat = np.load(tpercdir + 'dipole_perc_times-150_Jdiv100.npy')
+T_inv = 1000/temps
+plot_T_inds = ((T_inv >= 2.5) * (T_inv <= 5.5)).nonzero()[0]
+dat = np.array([np.load(npy) for npy in glob(tpercdir + 'dipole_perc_times-*.npy')])
 times = np.mean(dat,axis=0)
 print(times.shape)
 sigma = np.std(dat,axis=0)
@@ -36,24 +37,34 @@ sigma = np.std(dat,axis=0)
 # plt.show()
 
 
-rho = (E*times)/dX
-setup_tex()
-rcParams['font.size'] = 20
+kB = 8.617e-5
+rho = (E*np.mean(times,axis=0))/dX
+prop_constant = kB * temps / omega0
+rho = rho * prop_constant
+
+print(rho.shape)
+
+setup_tex(fontsize=20)
+rcParams['figure.figsize'] = [5.8,4.8]
 
 # Arrhenius plot
 x = 1000/temps
-y = np.log(rho) + 18
+y = np.log(1.0/rho)
+x = x[plot_T_inds]
+y = y[plot_T_inds]
+print(y.shape)
 slope, intercept, r, *_ = linregress(x,y)
 plt.figure()
 plt.plot(x,y, 'ko')
 plt.plot(x,y, 'k-', lw=0.8)
 plt.plot(x, x*slope + intercept,'r-')
 plt.xlabel("$1000/T$ [K]")
-plt.ylabel("$\log\\rho$")
+plt.ylabel("$\log\sigma$ [$\log\\text{S}$]")
 plt.suptitle('Activated hopping $\\rho\sim e^{E_a/k_BT}$')
 plt.show()
 
-print(slope)
+
+print(f"Ea = {-slope*kB*1000} eV")
 
 
 #Power law plot

@@ -217,7 +217,7 @@ module YSSMBSolver
             conv[cntr, 1] = maximum(ΔP)
             conv[cntr,2] = sum(ΔP)/N
             conv[cntr,3] = argmax(ΔP)
-            println("[max(ΔP), ⟨ΔP⟩, argmax(ΔP)] = $(conv[cntr,:])")
+            println("$cntr  [max(ΔP), ⟨ΔP⟩, argmax(ΔP)] = $(conv[cntr,:])")
             # println("\n")
             if cntr > 1
                 if conv[cntr,1] > conv[cntr-1,1]

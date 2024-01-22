@@ -25,7 +25,7 @@ using Random, PyCall, .RunFullDevice
             dos_type = "gaussian"
             save_each = 1
             
-            energies, pos, current, Pinits, Pfinals, conv, Pt = run_full_device_lattice(lattice_dims,ΔV,T,dos_type,ν; rcut_ratio=sqrt(3),save_each=1,maxiter=100)
+            energies, pos, current, Pinits, Pfinals, conv = run_full_device_lattice(lattice_dims,ΔV,T,dos_type,ν; rcut_ratio=sqrt(3),save_each=-1,maxiter=10000)
     
             py"""import numpy as np
             nn= $rnseed
@@ -36,7 +36,7 @@ using Random, PyCall, .RunFullDevice
             np.save(f'full_device_test/{dd}d/Pinits-{nn}.npy', $(PyObject(Pinits)))
             np.save(f'full_device_test/{dd}d/Pfinals-{nn}.npy', $(PyObject(Pfinals)))
             np.save(f'full_device_test/{dd}d/conv-{nn}.npy', $(PyObject(conv)))
-            np.save(f'full_device_test/{dd}d/Pt-{nn}.npy', $(PyObject(Pt)))
+            #np.save(f'full_device_test/{dd}d/Pt-{nn}.npy', $(PyObject(Pt)))
             """   
         end
 end

@@ -20,7 +20,9 @@ def get_activation_energy(Ts,sigmas):
 
 
 
-datadir = 'data_100x100_gridMOs'
+# datadir = 'data_100x100_gridMOs_1V'
+# nsamples = np.hstack((np.arange(10,170,5), [173]))
+datadir = 'data_100x100_gridMOs_0V'
 nsamples = np.hstack((np.arange(10,120,5), [116]))
 sigmas = np.zeros((nsamples.shape[0], 40))
 Eas = np.zeros(nsamples.shape[0])

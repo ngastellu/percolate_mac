@@ -6,12 +6,12 @@ from matplotlib import rcParams
 from scipy.stats import linregress
 from qcnico import plt_utils
 
-
+kB = 8.617e-5
 first_ind = 14
 omega0 = 1e11
 # first_ind = 0
 temps, sigmas = np.load('sigma_v_T-100x100gridMOs.npy')[:,first_ind:]
-y = np.log(sigmas*omega0)
+y = np.log(sigmas*omega0/(kB*temps))
 
 print(temps[0])
 print(temps[-1])
@@ -37,12 +37,11 @@ print(f'**** 0D Mott VRH (Arrhenius law) ****\n slope = {slope}, r^2 = {r**2}')
 plt.plot(x,y,'ko',ms=5.0)
 plt.plot(x, x*slope + intercept,'r-')
 plt.xlabel("$1000/T$ [K$^{-1}$]")
-plt.ylabel("$\log \sigma$ [$\log\\text{s}^{-1}$]")
+plt.ylabel("$\log \sigma$ [$\log\\text{S}$]")
 plt.show()
 #ax.set_yscale('log')
 #axs[0].set_title(f'Mott $d=0$ [$r^2 = $ {r**2}]')
 
-kB = 8.617e-5
 
 print(f"Ea = {-slope*kB*1000} eV")
 

@@ -52,7 +52,7 @@ def get_dcrits(run_inds,temps,datadir):
 
     return dcrits
 
-datadir=path.expanduser("~/Desktop/simulation_outputs/percolation/40x40/percolate_output")
+datadir=path.expanduser("~/Desktop/simulation_outputs/percolation/40x40/percolate_output/100x100_gridMOs")
 fgood_runs = path.join(datadir, 'good_runs.txt')
 with open(fgood_runs) as fo:
     lines = fo.readlines()
