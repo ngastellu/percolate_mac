@@ -7,21 +7,10 @@ from pyscf import gto, lo, scf
 from pyscf.tools import molden
 # from qcnico.coords_io import read_xsf
 from qcnico.qcffpi_io import read_MO_file
+from qcnico.qcplots import plot_MO
 
 
-
-# nsample = 150
-# posdir = path.expanduser("~/Desktop/simulation_outputs/percolation/40x40/structures/")
-# posfile = posdir + f"bigMAC-{nsample}_relaxed.xsf"
-
-# modir = path.expanduser("~/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/") 
-# M = np.load(modir + f"MOs_ARPACK_bigMAC-{nsample}.npy")
-
-# posfile = "/Users/nico/Desktop/simulation_outputs/MAC_structures/kMC/kMC_10x10.xsf"
-
-# pos,_ = read_xsf(posfile)
-
-pos, M = read_MO_file("/Users/nico/Desktop/simulation_outputs/qcffpi_data/MO_coefs/MOs_kMC_MAC_20x40-178l.dat")
+pos, M = read_MO_file("/Users/nico/Desktop/simulation_outputs/qcffpi_data/MO_coefs/MOs_pCNN_MAC_102x102.dat")
 print(pos.shape)
 print(M.shape)
 
@@ -29,18 +18,29 @@ N = pos.shape[0]
 
 mol = gto.Mole()
 mol.atom = [['C', tuple(r)] for r in pos]
-mol.build(basis='toy_aos')
+mol.basis = {'C': gto.basis.parse("""
+C    S
+2.9412494   0.15591627
+0.6834831   0.60768372
+0.2222899   0.39195739
+""")}
+mol.build()
 
-print(mol)
+print(mol.basis)
 
 # mf = scf.hf.SCF(mol).build()
-# mf.mo_coeff = M
+mol.mo_coeff = M
 
 
 
 #print(lo.orth.orth_ao(mol,method='lowdin',pre_orth_ao=np.eye(N),s=np.eye(N)))
-loc_orb = lo.Boys(mol, M[:,:20]).kernel()
-print(type(loc_orb))
+loc_orb = lo.Boys(mol, M[:,190:200]).kernel()
+print(loc_orb)
+
+for n in range(190,195):
+    plot_MO(pos, M, n)
+    plot_MO(pos, loc_orb, n-190, cmap='viridis')
+
 
 
 
@@ -75,11 +75,4 @@ print(type(loc_orb))
 
 
 # loc_orb = lo.Boys(mol, mf.mo_coeff[:,:3]).kernel()
-# print(loc_orb.shape)
-
-
-
-
-
-
-
+# print(loc_orb)
