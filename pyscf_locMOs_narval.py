@@ -13,12 +13,12 @@ from qcnico.remove_dangling_carbons import remove_dangling_carbons
 nn = sys.argv[1]
 rCC = 1.8
 
-strucfile = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/structures/bigMAC-{nn}_relaxed.xsf'
-MOfile = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/MOs_ARPACK_bigMAC-{nn}.npy'
+strucfile = path.expanduser(f'~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures/bigMAC-{nn}_relaxed.xsf')
+MOfile = path.expanduser(f'~/scratch/ArpackMAC/40x40/sample-{nn}/MOs_ARPACK_bigMAC-{nn}.npy')
+
 pos, _ = read_xsf(strucfile)
 pos = remove_dangling_carbons(pos,rCC)
 M = np.load(MOfile)
-print(M.shape)
 
 N = pos.shape[0]
 
@@ -47,8 +47,8 @@ N = pos.shape[0]
 
 print("Localising orbitals...")
 start = perf_counter()
-loc_orb = lo.Boys(mol).kernel(mo_coeff=M[:,:3])
+loc_orb = lo.Boys(mol, M).kernel()
 end = perf_counter()
 print(f"Done localising! [{end-start}s]")
 
-np.save(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/boyz_ARPACK/boyz_bigMAC-{nn}.npy', loc_orb)
+np.save('boyz_MOs_102x102.npy', loc_orb)
