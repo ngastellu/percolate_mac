@@ -1,24 +1,26 @@
 #!/usr/bin/env python
 
-import sys
 from os import path
 import numpy as np
 from time import perf_counter
 from pyscf import gto, lo
-from qcnico.coords_io import read_xsf
-from qcnico.remove_dangling_carbons import remove_dangling_carbons
+# from qcnico.coords_io import read_xsf
+# from qcnico.remove_dangling_carbons import remove_dangling_carbons
+from qcnico.qcffpi_io import read_MO_file
 
 
 
-nn = sys.argv[1]
 rCC = 1.8
 
-strucfile = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/structures/bigMAC-{nn}_relaxed.xsf'
-MOfile = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/MOs_ARPACK_bigMAC-{nn}.npy'
-pos, _ = read_xsf(strucfile)
-pos = remove_dangling_carbons(pos,rCC)
-M = np.load(MOfile)
-print(M.shape)
+# strucfile = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/structures/bigMAC-{nn}_relaxed.xsf'
+# MOfile = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/MOs_ARPACK_bigMAC-{nn}.npy'
+# pos, _ = read_xsf(strucfile)
+# pos = remove_dangling_carbons(pos,rCC)
+# M = np.load(MOfile)
+# print(M.shape)
+
+MOfile = '/Users/nico/Desktop/simulation_outputs/qcffpi_data/MO_coefs/MOs_kMC_MAC_20x40-224r.dat'
+pos, M = read_MO_file(MOfile)
 
 N = pos.shape[0]
 
@@ -47,8 +49,6 @@ N = pos.shape[0]
 
 print("Localising orbitals...")
 start = perf_counter()
-loc_orb = lo.Boys(mol).kernel(mo_coeff=M[:,:3])
+loc_orb = lo.Boys(mol).kernel(mo_coeff=M)
 end = perf_counter()
 print(f"Done localising! [{end-start}s]")
-
-np.save(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/boyz_ARPACK/boyz_bigMAC-{nn}.npy', loc_orb)

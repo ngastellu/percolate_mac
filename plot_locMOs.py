@@ -7,8 +7,8 @@ from qcnico.remove_dangling_carbons import remove_dangling_carbons
 
 
 
-MOfile = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/MOs_ARPACK_bigMAC-10.npy'
-boyzfile = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/boyz_ARPACK/boyz_bigMAC-10.npy' 
+MOfile = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/virtual/MOs_ARPACK_bigMAC-10.npy'
+boyzfile = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/boyz_ARPACK/virtual/boyz_MOs_bigMAC-10.npy' 
 
 strucfile = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/structures/bigMAC-10_relaxed.xsf'
 pos, _ = read_xsf(strucfile)

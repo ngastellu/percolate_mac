@@ -10,7 +10,7 @@ kB = 8.617e-5
 first_ind = 14
 omega0 = 1e11
 # first_ind = 0
-temps, sigmas = np.load('sigma_v_T-100x100gridMOs.npy')[:,first_ind:]
+temps, sigmas = np.load('sigma_v_T-100x100gridMOs_1V.npy')[:,first_ind:]
 y = np.log(sigmas*omega0/(kB*temps))
 
 print(temps[0])
