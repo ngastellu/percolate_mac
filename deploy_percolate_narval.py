@@ -39,6 +39,7 @@ energies = np.load(energy_path)
 M =  np.load(mo_path)
 pos, _ = read_xsf(pos_path)  
 pos = remove_dangling_carbons(pos,rCC)
+pos = pos[:,:2]
 
 
 # ******* 2: Get gammas ******* 
@@ -65,8 +66,14 @@ if np.abs(dV) > 0:
     dX = np.max(centres[:,0]) - np.min(centres[:,0])
     E = np.array([dV/dX,0])
 else:
-    E = 0
-edArr, rdArr = diff_arrs(energies, centres, a0=30, eF=0, E=E)
+    E = np.array([0.0,0.0])
+if mo_type == 'lo':
+    eF = np.max(energies)
+elif mo_type == 'hi':
+    eF = np.min(energies)
+else:
+    eF = 0.0
+edArr, rdArr = diff_arrs(energies, centres, a0=30, eF=eF, E=E)
 
 
 for T in all_Ts:
