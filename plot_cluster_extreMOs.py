@@ -66,6 +66,6 @@ for nn in [3,10,11,16]:
         check_dists(A,centres,energies,dcrit,T)
         fig, ax = plt.subplots()
         plot_cluster_brute_force(c,pos,M,A,show_densities=True, dotsize=2.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax))
-        ax.set_title('Typical spanning cluster')
+        ax.set_title(f'MAC sample {nn}, $T = {T}$K')
         plt.show()
 
