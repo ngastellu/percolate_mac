@@ -45,7 +45,7 @@ percdir = path.join(datadir, f'percolate_output/extremal_MOs/{mo_type}50')
 plt_utils.setup_tex()
 rcParams['font.size'] = 20
 
-for nn in [3,10,11,16]:
+for nn in [16]:
     for T in [100,200,300,400]:
         print(f'***** {T} *****')
         posfile = path.join(posdir,f'bigMAC-{nn}_relaxed.xsf')

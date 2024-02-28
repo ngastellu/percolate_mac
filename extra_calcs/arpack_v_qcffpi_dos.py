@@ -27,5 +27,8 @@ setup_tex()
 
 fig, ax = plt.subplots()
 
-histogram(energies_arpack_10x10,normalised=True,xlabel='$E$ [eV]',plt_objs=(fig,ax),plt_kwargs={'color': 'b', 'alpha':0.5, 'label': '10$\\times$10'},show=False)
-histogram(energies_arpack_40x40,normalised=True,xlabel='$E$ [eV]',plt_objs=(fig,ax),plt_kwargs={'color': 'r', 'alpha':0.5, 'label': '40$\\times$40'})
+histogram(energies_arpack_10x10,normalised=True,xlabel='$E$ [eV]',plt_objs=(fig,ax),plt_kwargs={'color': 'b', 'alpha':0.5, 'label': '10$\\times$10 (ARPACK)'},show=False)
+histogram(energies_arpack_40x40,normalised=True,xlabel='$E$ [eV]',plt_objs=(fig,ax),plt_kwargs={'color': 'r', 'alpha':0.5, 'label': '40$\\times$40 (ARPACK)'}, show=False)
+
+plt.legend()
+plt.show()
