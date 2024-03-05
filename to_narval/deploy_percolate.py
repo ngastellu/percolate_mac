@@ -6,10 +6,11 @@ from os import path
 import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
-from percolate import diff_arrs, percolate, generate_site_list
+from qcnico.remove_dangling_carbons import remove_dangling_carbons
+from .percolate import diff_arrs, percolate, generate_site_list
+from utils_arpackMAC import remove_redundant_eigenpairs
 
 def load_data(sample_index, structype, motype,compute_gammas=True):
-
     """ Loads atomic positions, energies, MOs, and coupling matrices of a given MAC structure.
     This function aims to be be common to all percolation runs (gridMOs or not, etc.). """
 
@@ -29,22 +30,25 @@ def load_data(sample_index, structype, motype,compute_gammas=True):
 
     mo_file = f'MOs_ARPACK_bigMAC-{sample_index}.npy'
     energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
-
     mo_path = path.join(arpackdir,'MOs',motype,mo_file)
     energy_path = path.join(arpackdir,'energies',motype,energy_file)
-    pos_path = path.join(pos_dir,posfile)
 
     energies = np.load(energy_path)
     M =  np.load(mo_path)
-    pos, _ = read_xsf(pos_path)  
+    
+    pos_path = path.join(pos_dir,posfile)
+    pos, _ = read_xsf(pos_path)
 
+    rCC = 1.8
+    pos = remove_dangling_carbons(pos, rCC)
+    
     # ******* 2: Get gammas *******
     if compute_gammas:
         gamma = 0.1
         agaL, agaR = qcm.AO_gammas(pos, gamma)
         gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-        gamL = np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
-        gamR = np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
+        np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
+        np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
 
     else:
         try:
@@ -55,13 +59,76 @@ def load_data(sample_index, structype, motype,compute_gammas=True):
             gamma = 0.1
             agaL, agaR = qcm.AO_gammas(pos, gamma)
             gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-            gamL = np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
-            gamR = np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
+            np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
+            np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
     
     return pos, energies, M, gamL, gamR
 
 
-def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_centres=True, eF=0):
+def load_data_multi(sample_index, structype, motypes, e_file_names=None, MO_file_names=None,compute_gammas=True):
+    """Same as `load_data`, but this time loads data from multiple diagonalisation runs to 
+    use more eigenpairs for percolation calculation."""
+
+    if structype == 'pCNN':
+            arpackdir = path.expanduser('~/scratch/ArpackMAC/40x40')
+            pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
+
+            posfile = f'bigMAC-{sample_index}_relaxed.xsf'
+    else:
+            arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
+            pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
+
+            posfile = f'{structype}n{sample_index}_relaxed.xsf'
+
+    if MO_file_names is None:
+        mo_files = [f'MOs_ARPACK_bigMAC-{sample_index}.npy'] * len(motypes)
+    else:
+        mo_files = [mfn + f'-{sample_index}.npy' for mfn in MO_file_names]
+
+    if e_file_names is None:
+        energy_files = [f'eARPACK_bigMAC-{sample_index}.npy'] * len(motypes)
+    else:
+        energy_files = [efn + f'-{sample_index}.npy' for efn in e_file_names]
+
+
+    mo_paths = [path.join(arpackdir,'MOs',motype,mo_file) for (motype, mo_file) in zip(motypes, mo_files)]
+    energy_paths = [path.join(arpackdir,'energies',motype, energy_file) for (motype, energy_file) in zip(motypes, energy_files)]
+
+    energies = np.hstack([np.load(energy_path) for energy_path in energy_paths])
+    M =  np.hstack([np.load(mo_path) for mo_path in mo_paths])
+
+    energies, M = remove_redundant_eigenpairs(energies, M)
+    
+    pos_path = path.join(pos_dir,posfile)
+    pos, _ = read_xsf(pos_path)  
+    
+    rCC = 1.8
+    pos = remove_dangling_carbons(pos, rCC)
+
+    # ******* 2: Get gammas *******
+    if compute_gammas:
+        gamma = 0.1
+        agaL, agaR = qcm.AO_gammas(pos, gamma)
+        gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
+        np.save(f'gamL_40x40-{sample_index}.npy', gamL)
+        np.save(f'gamR_40x40-{sample_index}.npy', gamR)
+
+    else:
+        try:
+            gamL = np.load(f'gamL_40x40-{sample_index}.npy')
+            gamR = np.load(f'gamR_40x40-{sample_index}.npy')
+        except FileNotFoundError:
+            print('Gamma files not found. Re-computing gammas.')
+            gamma = 0.1
+            agaL, agaR = qcm.AO_gammas(pos, gamma)
+            gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
+            np.save(f'gamL_40x40-{sample_index}.npy', gamL)
+            np.save(f'gamR_40x40-{sample_index}.npy', gamR)
+    
+    return pos, energies, M, gamL, gamR
+
+
+def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_centres=True, eF=0, nbins=100):
     # ******* Define strongly-coupled MOs *******
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
@@ -83,7 +150,7 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
             ii = np.load('ii.npy')
         except FileNotFoundError:
             print('Hopping centre files not found. Recomputing...')
-            centres, ee, ii = generate_site_list(pos,M,L,R,energies,nbins=100)
+            centres, ee, ii = generate_site_list(pos,M,L,R,energies,nbins=nbins)
             np.save(f'cc.npy',centres)
             np.save(f'ee.npy',ee)
             np.save(f'ii.npy', ii)
