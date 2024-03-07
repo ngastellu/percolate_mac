@@ -28,11 +28,13 @@ def sigma_errorbar(dcrits):
     return sigmas_full, err
 
 kB = 8.617e-5
-temps = np.arange(40,440,10)[14:]
+# temps = np.arange(40,440,10)[14:]
+temps = np.arange(200,435,5)
 
-tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/'
-pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/100x100_gridMOs/'
-t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs/'
+tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/finer_T_grid/'
+pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/100x100_gridMOs/finer_T_grid/'
+t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs/finer_T_grid/'
+
 
 
 tdot25_lbls = list(set(range(30)) - {0, 5, 8, 18, 20, 21, 25, 26})

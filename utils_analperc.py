@@ -38,6 +38,22 @@ def saddle_pt_sigma(dcrits,nbins=30):
         sigmas[k] = np.max(f)
     return sigmas
 
+def rough_integral_sigma(dcrits,nbins=30):
+    """Extracts the sigma(T) curve from a set of critical distances `dcrits`,
+    a (Ns x Nt) array (Ns = nb. of samples, Nt = nb. of temperatures), using a very
+    rough integration scheme: bin the dcrits into a histogram of `nbins` bins, and
+    let h_i and x_i respectively denote the height and center of the ith bin,
+    we then approximate sigma as follows: sigma = \int du e^{-u}*P(u) ~ \sum_i h_i*dx_i*e^{-x_i}"""
+    sigmas = np.zeros(dcrits.shape[1])
+    for k, ds in enumerate(dcrits.T):
+        hist, bin_edges = np.histogram(ds,bins=nbins,density=True)
+        bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+        dx = bin_edges[1:] - bin_edges[:-1]
+        sigmas[k] = np.sum(hist*np.exp(-bin_centers)*dx)
+    return sigmas
+    
+
+
 def arrhenius_fit(T, sigma, w0=1.0, inv_T_scale=1.0, return_for_plotting=False, x_start=0,x_end=None,return_err=False):
     x = inv_T_scale / T # T is sorted in increasing order --> 1/T is in decreasing order
     y = np.log(w0*sigma/(kB*T))
