@@ -113,8 +113,12 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
     #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
     peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
 
-    if shift_centers:
+    if shift_centers: #this will return real-space coords of peaks by default
         shifted_centers = shift_MO_loc_centers(peak_inds,rho,xedges,yedges)
+        if return_gridify:
+            return shifted_centers, rho, xedges, yedges
+        else:
+            return shifted_centers
     else:
         if return_realspace and return_gridify:
             return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges
