@@ -31,7 +31,15 @@ ax.set_title('Testing new method of estimating $\sigma(T)$')
 plt.legend()
 plt.show()
 
-dcrit_hists(dcrits, temps, 30, plot_inds=[0,10,30,39])
+fig, ax = plt.subplots()
+
+# fig, ax = dcrit_hists(dcrits, temps, 30, plot_inds=[0,10,30,39], plt_objs=(fig,ax), show=False)
+
+u = np.unique(np.sort(dcrits.flatten()))
+ax.plot(u, np.exp(-u),'k-', lw=0.8,label='$e^{-u}$')
+plt.legend()
+plt.show()
+
 
 
 

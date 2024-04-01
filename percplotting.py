@@ -23,12 +23,13 @@ def dcrit_hists(dcrits,temps,nbins,plot_inds=None,colormap='coolwarm',alpha=0.6,
         fig, ax = plt_objs
 
     for k in plot_inds:
-        plt_utils.histogram(dcrits[:,k],nbins=nbins,show=False, normalised=False, plt_objs=(fig,ax),
+        plt_utils.histogram(dcrits[:,k],nbins=nbins,show=False, density=True, plt_objs=(fig,ax),
             plt_kwargs={'alpha': alpha, 'color': Tcm[k], 'label': f'$T = {temps[k]}$K'})
     
-    ax.set_xlabel('Critical distance $d_{c}$')
-    plt.legend()
+    ax.set_xlabel('Critical distance $u_{c}$')
+    ax.set_ylabel('$P(u)$')
     if show:
+        plt.legend()
         plt.show()
     else:
         return fig, ax
