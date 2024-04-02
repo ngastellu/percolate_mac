@@ -1,6 +1,7 @@
+from itertools import combinations_with_replacement
 import numpy as np
 from scipy.signal import find_peaks
-from numba import njit
+from numba import njit, jit
 from qcnico import qchemMAC as qcm
 
 """
@@ -70,15 +71,14 @@ def bin_centers(peak_inds,xedges,yedges):
         centers[k,:] = bin_center(i,j,xedges,yedges)
     return centers
 
+# @jit
 def bin_center(i,j,xedges,yedges):
-    x = 0.5*(xedges[i]+xedges[i+1])
-    y = 0.5*(yedges[j]+yedges[j+1])
-    return np.array([x,y])
+    return np.array([0.5 * (xedges[i] + xedges[i+1]), 0.5 * (yedges[j] + yedges[j+1])])
 
 
 
-def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True,return_gridify=False,shift_centers=True):
-    rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins, return_edges=True)
+def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True,return_gridify=False,shift_centers='none'):
+    rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins, padded_rho, return_edges=True)
     if padded_rho:
         nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
@@ -112,9 +112,16 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
 
     #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
     peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
+    print(peak_inds.dtype)
 
-    if shift_centers: #this will return real-space coords of peaks by default
-        shifted_centers = shift_MO_loc_centers(peak_inds,rho,xedges,yedges)
+    if shift_centers == 'density': #this will return real-space coords of peaks by default
+        shifted_centers = shift_MO_loc_centers_rho(peak_inds,rho,xedges,yedges,pxl_cutoff=1)
+        if return_gridify:
+            return shifted_centers, rho, xedges, yedges
+        else:
+            return shifted_centers
+    elif shift_centers == 'random': #this will return real-space coords of peaks by default
+        shifted_centers = shift_MO_loc_centers_random(peak_inds,xedges,yedges)
         if return_gridify:
             return shifted_centers, rho, xedges, yedges
         else:
@@ -129,31 +136,51 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
         else:
             return peak_inds
 
-@njit   
-def shift_MO_loc_centers(peak_inds, rho, xedges, yedges):
+# @njit   
+def shift_MO_loc_centers_rho(peak_inds, rho, xedges, yedges, pxl_cutoff=1):
+    l = np.min([xedges[1]-xedges[0], yedges[1]-yedges[0]]) #* 0.5
     npeaks = peak_inds.shape[0]
-    neighbours = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
+    # neighbours = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
+    neighbours = combinations_with_replacement(np.arange(-pxl_cutoff, pxl_cutoff+1),2)
     shifted_centers = np.zeros((npeaks,2))
     for n in range(npeaks):
         dr = np.zeros(2)
-        i,j = peak_inds 
+        i,j = peak_inds[n] 
         R0 = bin_center(i,j,xedges,yedges)
+        # R0_normd = l * R0 / np.linalg.norm(R0)
         psiM = rho[j,i]
-        for m in range(8):
-            neighb = neighbours[m,:]
+        print(f'**** (i,j) = ({i,j}) -->  R0 = {R0} ; psiM = {psiM} ****')
+        n_neighbs = 0
+        for neighb in neighbours:
+            neighb = np.array(neighb)
             k = i + neighb[0]
             l = j + neighb[1]
+            print('(k,l) = ', (k,l))    
             psim = rho[l,k]
-            R1 = bin_center(k,l,xedges,yedges)
-            dr += (psim * R1 - psiM*R0)/(psim + psiM)
-        shifted_centers[n,:] = R0 + (dr/8)
+            print(psim)
+            # R1 = bin_center(k,l,xedges,yedges)
+            # R1 = l * R1 / np.linalg.norm(R1)
+            # print('R1 = ', R1)
+            print('psim = ', psim)
+            dr += np.cbrt(psim/psiM)*neighb*l/np.linalg.norm(neighb)
+            n_neighbs += 1
+        shifted_centers[n,:] = R0 + dr/(n_neighbs)
+        print(f'--- R shifted = {shifted_centers[n,:]} ---\n')
     return shifted_centers
         
 
-    
-    
+def shift_MO_loc_centers_random(peak_inds, xedges, yedges): 
+    l = np.min([xedges[1]-xedges[0], yedges[1]-yedges[0]]) * 0.5
+    npeaks = peak_inds.shape[0]
+    dr = np.random.rand(npeaks, 2) * 2*l - l
+    shifted_centers = np.zeros((npeaks,2))
+    for n in range(npeaks):
+        i,j = peak_inds[n]
+        R0 = bin_center(i,j,xedges,yedges)
+        shifted_centers[n,:] = R0 + dr[n,:]
+    return shifted_centers
 
-def correct_peaks(sites, pos, rho, xedges, yedges, side, shift=False):
+def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers='none'):
     x = pos[:,0]
     length = np.max(x) - np.min(x)
     midx = length/2
@@ -175,8 +202,10 @@ def correct_peaks(sites, pos, rho, xedges, yedges, side, shift=False):
             edge_ind = -3
         peak_ind = np.argmax(rho[:,edge_ind]) -1 
 
-        if shift:
-            shift_MO_loc_centers(peak_ind,rho,xedges,yedges)
+        if shift_centers == 'density':
+            shift_MO_loc_centers_rho(peak_ind,rho,xedges,yedges,pxl_cutoff=1)
+        elif shift_centers == 'random':
+            shift_MO_loc_centers_random(peak_ind,xedges,yedges)
         else:
             sites = bin_centers([(edge_ind,peak_ind)],xedges,yedges)
     
