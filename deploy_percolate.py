@@ -10,28 +10,44 @@ from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from .percolate import diff_arrs, percolate, generate_site_list
 from utils_arpackMAC import remove_redundant_eigenpairs
 
-def load_data(sample_index, structype, motype,compute_gammas=True):
+def load_data(sample_index, structype, motype,compute_gammas=True,run_location='narval',save_gammas=False,gamma_dir='.'):
     """ Loads atomic positions, energies, MOs, and coupling matrices of a given MAC structure.
     This function aims to be be common to all percolation runs (gridMOs or not, etc.). """
+    
+    valid_run_locs = ['narval', 'local']
+    assert run_location in valid_run_locs, f'Invalid value of argument run_location. 
+                                                Valid values:\n {'\n'.join(valid_run_locs)}'
 
-    if structype == 'pCNN':
+    if run_location == 'narval':
+        if structype == 'pCNN':
 
-            arpackdir = path.expanduser('~/scratch/ArpackMAC/40x40')
-            pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
+                arpackdir = path.expanduser('~/scratch/ArpackMAC/40x40')
+                pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
 
-            posfile = f'bigMAC-{sample_index}_relaxed.xsf'
+                posfile = f'bigMAC-{sample_index}_relaxed.xsf'
 
-    else:
+        else:
+                arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
+                pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
+                posfile = f'{structype}n{sample_index}_relaxed.xsf'
+        mo_dir = path.join(arpackdir,'MOs')
+        e_dir = path.join(arpackdir,'energies')
 
-            arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
-            pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
-
-            posfile = f'{structype}n{sample_index}_relaxed.xsf'
+    
+    else: #running things locally
+        percdir = path.expanduser('~/Desktop/simulation_outputs/percolation/')
+        strucsize = '10x10'
+        if structype == 'pCNN':
+            mo_dir = path.join(percdir, strucsize,'MOs_ARPACK')
+            e_dir = path.join(percdir, strucsize, 'eARPACK')
+        else:
+            print('not implemented. returning 0. if running locally, structype must be "pCNN".')
+            return 0
 
     mo_file = f'MOs_ARPACK_bigMAC-{sample_index}.npy'
     energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
-    mo_path = path.join(arpackdir,'MOs',motype,mo_file)
-    energy_path = path.join(arpackdir,'energies',motype,energy_file)
+    mo_path = path.join(mo_dir,motype,mo_file)
+    energy_path = path.join(e_dir,motype,energy_file)
 
     energies = np.load(energy_path)
     M =  np.load(mo_path)
@@ -47,13 +63,14 @@ def load_data(sample_index, structype, motype,compute_gammas=True):
         gamma = 0.1
         agaL, agaR = qcm.AO_gammas(pos, gamma)
         gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-        np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
-        np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
+        if save_gammas:
+            np.save(path.join(gamma_dir, f'gamL_40x40-{sample_index}_{motype}.npy', gamL))
+            np.save(path.join(gamma_dir, f'gamR_40x40-{sample_index}_{motype}.npy', gamR))
 
     else:
         try:
-            gamL = np.load(f'gamL_40x40-{sample_index}_{motype}.npy')
-            gamR = np.load(f'gamR_40x40-{sample_index}_{motype}.npy')
+            gamL = np.load(path.join(gamma_dir, f'gamL_40x40-{sample_index}_{motype}.npy'))
+            gamR = np.load(path.join(gamma_dir, f'gamR_40x40-{sample_index}_{motype}.npy'))
         except FileNotFoundError:
             print('Gamma files not found. Re-computing gammas.')
             gamma = 0.1
