@@ -33,7 +33,7 @@ def diff_arrs(e, coms, a0, eF=0, E=np.array([0,0]),detailed_balance=False):
         ei = e[i] - coms[i].dot(E)
         for j in range(i):
             ej = e[j] - coms[j].dot(E)
-            edarr[k] = np.abs(ei-eF) + np.abs(ej-eF) + np.abs(ei - ej)
+            edarr[k] = (np.abs(ei-eF) + np.abs(ej-eF) + np.abs(ei - ej)) * 0.5
             ddarr[k] = 2*np.linalg.norm(coms[i]-coms[j])/a0
             k += 1
     return edarr, ddarr
@@ -180,7 +180,37 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
     else:
         return spanning_clusters, d
 
+
+@njit
+def avg_nb_neighbours(energies, dists, erange, urange):
+    ebins = np.searchsorted(erange, energies) # figure out where the structure's energies fall in erange
+    print('ebins = ', ebins)
+    n_e = erange.shape[0]
+    n_u = urange.shape[0]
+    B = np.zeros((n_e,n_u))
+
+    for k in range(n_u):
+        u = urange[k]
+        n_accessible = (dists <= u).sum(axis=1) 
+        
+        for n in range(n_e):
+            imatch = (ebins == n).nonzero()[0]
+            noccurences = imatch.shape[0]
+            
+            if noccurences == 0:
+                # if no energies from the strcuture at hand fall into the nth energy bin, keep going
+                continue
+            B[n,k] = n_accessible[imatch].sum() / noccurences
+    return B
+
+
+
+
     
+
+
+
+
 
 
 

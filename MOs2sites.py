@@ -112,7 +112,6 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
 
     #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
     peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
-    print(peak_inds.dtype)
 
     if shift_centers == 'density': #this will return real-space coords of peaks by default
         shifted_centers = shift_MO_loc_centers_rho(peak_inds,rho,xedges,yedges,pxl_cutoff=1)
