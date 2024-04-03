@@ -24,7 +24,7 @@ def log_miller_abrahams_distance(ei, ej, ri, rj, mu, T, a0):
     return ((np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T)) + 2*np.linalg.norm(ri - rj)/a0
 
 @njit
-def diff_arrs(e, coms, a0, eF=0, E=np.array([0,0]),detailed_balance=False):
+def diff_arrs(e, coms, a0, eF=0, E=np.array([0,0])):
     N = e.shape[0]
     ddarr = np.zeros(int(N*(N-1)/2))
     edarr = np.zeros(int(N*(N-1)/2))
@@ -102,48 +102,49 @@ def pair_inds(n,N):
 def k_ind(i,j): return int(i*(i-1)/2 + j)
 
     
-def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None, 
-                gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
-                distance='miller_abrahams', 
-                return_adjmat=False):
+def percolate(darr, L, R, return_adjmat=False): 
+    """
+    This function actually runs the percolation theory calculation.
     
-    assert distance in ['energy', 'miller_abrahams', 'logMA'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
-    if distance == 'energy':
-        darr = dArray_energy(e,T, eF)
-    elif distance == 'miller_abrahams':
-        MO_coms = qcm.MO_com(pos, M)
-        darr = dArray_MA(e, MO_coms, T, a0, eF)
-    elif distance == 'logMA' and dArrs is None:
-        MO_coms = qcm.MO_com(pos,M)
-        darr = dArray_logMA(e, MO_coms, T, a0, eF)
-    else:
-        kB = 8.617e-5
-        edarr, ddarr = dArrs
-        darr = ddarr  + (edarr / (kB*T))
-    # np.save('darr.npy', darr)
-    if MOgams is None:
-        agaL, agaR = qcm.AO_gammas(pos,gamma)
-        gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-    else:
-        gamLs, gamRs = MOgams
-    if coupled_MO_sets is None:
-        L = set((gamLs > gamL_tol).nonzero()[0])
-        R = set((gamRs > gamR_tol).nonzero()[0])
-    else:
-        L, R = coupled_MO_sets
-    N = e.size
+    !!! *** VERY IMPORTANT *** !!!
+    Only properties relative to the hopping sites (i.e. not the MOs,if we're gridifying the MOs to get sites out
+    of them) should enter this function.
 
+    Parameters
+    ----------
+    darr: `np.ndarray`, shape = (N*(N-1)/2,), dtype = `float`
+        Flattened array of of pairwise 'distances' (usually log Miller-Abrahams rates) between sites
+    L: `set` of `ints`
+        Set of indices of sites strongly coupled to the left lead
+    R: `set` of `int`s
+        Set of indices of sites strongly coupled to the left lead
+    return_adjmat: `bool` default=False
+        If `True`, this function will return the adjacency matrix of the hopping sites once percolation is achieved 
+        (useful for plotting the final clusters after the run).
+    
+    Returns
+    -------
+        spanning_clusters: `list` of `set`s of `int`s
+            List of sets of indices of sites which form the spanning clusters. 1 set <--> 1 cluster
+        d: `float`
+            Percolation threshold distance
+        adjmat: `np.ndarray`, shape = (N,N), dtype=`bool`
+            Adjacency matrix of the sites at the percolation threshold. Returned only if `return_adjmat = True`.
+    """
+    
     percolated = False
     darr_sorted = np.sort(darr)
-    adj_mat = np.zeros((N,N),dtype=bool)
+    ndists = darr.shape[0]
+    n = int( (1+np.sqrt(1 + 8*ndists))/2 )
+    adj_mat = np.zeros((n,n),dtype=bool)
     spanning_clusters = []
     d_ind = 0
-    while (not percolated) and (d_ind < N*(N-1)//2):
+    while (not percolated) and (d_ind < ndists):
         d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
         print('d = ', d)       
         connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
         print('Nb. of connected pairs = ', len(connected_inds))
-        ij = pair_inds(connected_inds,N)
+        ij = pair_inds(connected_inds,n)
         print(ij)
         adj_mat[ij] = True
         adj_mat  += adj_mat.T
@@ -171,8 +172,8 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
         # d = darr_sorted[d_ind]
         # first_try = False
     
-    if d_ind == (N*(N-1)//2)-1:
-        print(f'No spanning clusters found at T = {T}K.')
+    if d_ind == ndists-1:
+        print(f'No spanning clusters found!')
         return clusters, d, adj_mat
     
     if return_adjmat:
@@ -202,16 +203,6 @@ def avg_nb_neighbours(energies, dists, erange, urange):
                 continue
             B[n,k] = n_accessible[imatch].sum() / noccurences
     return B
-
-
-
-
-    
-
-
-
-
-
 
 
 if __name__ == '__main__':
