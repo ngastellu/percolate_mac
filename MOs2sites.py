@@ -219,11 +219,11 @@ def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_c
         cc, rho, xedges, yedges = get_MO_loc_centers(pos,M,n,nbins,threshold_ratio,return_gridify=True,shift_centers=shift_centers)
         if n in L:
             print(n)
-            cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift=shift_centers)
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
         
         elif n in R:
             print(n)
-            cc = correct_peaks(cc, pos, rho, xedges, yedges,'R',shift=shift_centers)
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'R',shift_centers=shift_centers)
         
 
         centres = np.vstack([centres,cc])

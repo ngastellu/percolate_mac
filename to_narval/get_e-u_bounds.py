@@ -49,6 +49,7 @@ print('Done!\n')
 # np.save(f'extreme_energies-{nn}.npy', np.array([np.min(energies), np.max(energies)]))
 
 eF = 0.5 * (energies[N//2 -1] + energies[N//2])
+energies -= eF
 
 print('Getting gammas...')
 agL, agR = qcm.AO_gammas(pos, gamma)

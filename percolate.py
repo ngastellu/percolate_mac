@@ -24,7 +24,7 @@ def log_miller_abrahams_distance(ei, ej, ri, rj, mu, T, a0):
     return ((np.abs(ei-mu) + np.abs(ej-mu) + np.abs(ej-ei)) / (2*kB*T)) + 2*np.linalg.norm(ri - rj)/a0
 
 @njit
-def diff_arrs(e, coms, a0, eF=0, E=np.array([0,0])):
+def diff_arrs(e, coms, a0, eF=0, E=np.array([0.0,0.0])):
     N = e.shape[0]
     ddarr = np.zeros(int(N*(N-1)/2))
     edarr = np.zeros(int(N*(N-1)/2))
@@ -191,8 +191,11 @@ def avg_nb_neighbours(energies, dists, erange, urange):
     B = np.zeros((n_e,n_u))
 
     for k in range(n_u):
+        print(k)
         u = urange[k]
+        print(dists <= u)
         n_accessible = (dists <= u).sum(axis=1) 
+        print(n_accessible, flush=True)
         
         for n in range(n_e):
             imatch = (ebins == n).nonzero()[0]
@@ -201,6 +204,7 @@ def avg_nb_neighbours(energies, dists, erange, urange):
             if noccurences == 0:
                 # if no energies from the strcuture at hand fall into the nth energy bin, keep going
                 continue
+            # B[n,k] = np.array([n_accessible[i] for i in imatch]).sum() / noccurences
             B[n,k] = n_accessible[imatch].sum() / noccurences
     return B
 

@@ -7,7 +7,7 @@ import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
-from .percolate import diff_arrs, percolate, generate_site_list
+from percolate import diff_arrs, percolate, generate_site_list
 from utils_arpackMAC import remove_redundant_eigenpairs
 
 def load_data(sample_index, structype, motype,compute_gammas=True,run_location='narval',save_gammas=False,gamma_dir='.'):
@@ -15,8 +15,7 @@ def load_data(sample_index, structype, motype,compute_gammas=True,run_location='
     This function aims to be be common to all percolation runs (gridMOs or not, etc.). """
     
     valid_run_locs = ['narval', 'local']
-    assert run_location in valid_run_locs, f'Invalid value of argument run_location. 
-                                                Valid values:\n {'\n'.join(valid_run_locs)}'
+    assert run_location in valid_run_locs, f'Invalid value of argument run_location. Valid values:\n {valid_run_locs}'
 
     if run_location == 'narval':
         if structype == 'pCNN':
@@ -36,7 +35,7 @@ def load_data(sample_index, structype, motype,compute_gammas=True,run_location='
     
     else: #running things locally
         percdir = path.expanduser('~/Desktop/simulation_outputs/percolation/')
-        strucsize = '10x10'
+        strucsize = '40x40'
         if structype == 'pCNN':
             mo_dir = path.join(percdir, strucsize,'MOs_ARPACK')
             e_dir = path.join(percdir, strucsize, 'eARPACK')
@@ -200,7 +199,7 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
     edArr, rdArr = diff_arrs(sites_energies, sites_pos, a0=a0, eF=eF, E=E)
     for T in all_Ts:
         print(f'******* T = {T} K *******')
-        darr = rdArr + (edArr / kB * T)
+        darr = rdArr + (edArr / (kB * T))
         conduction_clusters, dcrit, A = percolate(darr,L,R,return_adjmat=True)
         print('\nDone! Saving to pkl file...')
 
@@ -232,7 +231,7 @@ def run_percolate_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.
     edArr, rdArr = diff_arrs(energies, centres, a0=a, eF=eF, E=E)
     for T in all_Ts:
         print(f'******* T = {T} K *******')
-        darr = rdArr + (edArr / kB * T)
+        darr = rdArr + (edArr / (kB * T))
         conduction_clusters, dcrit, A = percolate(darr,L,R,return_adjmat=True)
         print('\nDone! Saving to pkl file...')
 
