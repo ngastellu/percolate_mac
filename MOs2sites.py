@@ -1,7 +1,7 @@
 from itertools import combinations_with_replacement
 import numpy as np
 from scipy.signal import find_peaks
-from numba import njit, jit
+from numba import njit, jit, int32, float64, objmode
 from qcnico import qchemMAC as qcm
 
 """
@@ -63,7 +63,7 @@ def LR_MOs(gamL, gamR, tolscal=3.0):
     return LMOs, RMOs
 
 
-
+@njit
 def bin_centers(peak_inds,xedges,yedges):
     centers = np.zeros((len(peak_inds),2))
     for k, ij in enumerate(peak_inds):
@@ -71,13 +71,50 @@ def bin_centers(peak_inds,xedges,yedges):
         centers[k,:] = bin_center(i,j,xedges,yedges)
     return centers
 
-# @jit
+@njit
 def bin_center(i,j,xedges,yedges):
     return np.array([0.5 * (xedges[i] + xedges[i+1]), 0.5 * (yedges[j] + yedges[j+1])])
 
+@njit
+def gridifyMO_opt(pos,M,n,nbins):
+    x = pos.T[0]
+    y = pos.T[1]
+    psi = np.abs(M[:,n])**2
+    #_, xedges, yedges = np.histogram2d(x,y,nbins)
+    xedges = np.linspace(np.min(x)-0.1,np.max(x)+0.1,nbins+1)
+    yedges = np.linspace(np.min(y)-0.1,np.max(y)+0.1,nbins+1)
+    rho = np.zeros((nbins,nbins))
+    for c, r in zip(psi,pos):
+        x, y, _ = r
+        i = np.sum(x > xedges) - 1
+        j = np.sum(y > yedges) - 1
+        rho[j,i] += c # <----- !!!! caution, 1st index labels y, 2nd labels x
+    
+    # Pad rho with zeros to detect peaks on the edges (hacky, I know)
+    padded_rho = np.zeros((nbins+2,nbins+2))
+    padded_rho[1:-1,1:-1] = rho
+    rho_out = padded_rho
 
+    # Make sure the bin edges are also updated
+    dx = np.diff(xedges)[0] #all dxs should be the same since xedges is created using np.linspace
+    dy = np.diff(yedges)[0] #idem for dys
+    xedges_padded = np.zeros(xedges.shape[0]+2)
+    yedges_padded = np.zeros(yedges.shape[0]+2)
+    xedges_padded[0] = xedges[0] - dx
+    xedges_padded[-1] = xedges[-1] + dx
+    yedges_padded[0] = yedges[0] - dy
+    yedges_padded[-1] = yedges[-1] + dy
+    xedges_padded[1:-1] = xedges
+    yedges_padded[1:-1] = yedges
+
+    xedges = xedges_padded
+    yedges = yedges_padded
+
+    return rho_out, xedges, yedges
 
 def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True,return_gridify=False,shift_centers='none'):
+    """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
+    This version of the function is the 'original', a version made for Numba and for the purposes of using it on the full spectrum of a large MAC structure can be found below."""
     rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins, padded_rho, return_edges=True)
     if padded_rho:
         nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
@@ -135,7 +172,62 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
         else:
             return peak_inds
 
-# @njit   
+
+@njit
+def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_centers='none'):
+    """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
+    This version of the function is Numba-compatible, made for running on sets of >1000 MOs."""
+    rho, xedges, yedges = gridifyMO_opt(pos, M, n, nbins)
+    nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
+    
+    # Loop over gridified MO, identify peaks
+    all_peaks = {}
+    for i in range(1,nbins-1):
+        data = rho[i,:]
+        with objmode(peak_inds='intp[:]'):
+            print('\n\n\n')
+            print(data.dtype, flush=True)
+            peak_inds, _ = find_peaks(data)
+            print('\n\n\n')
+        # peak_inds, _ = _find_peaks_numba_wrapper(data)
+        for j in peak_inds:
+            peak_val = data[j]
+            if peak_val > 1e-4: all_peaks[(i,j)] = peak_val
+
+    threshold = max(all_peaks.values())*threshold_ratio
+    peaks = {key:val for key,val in all_peaks.items() if val >= threshold}
+
+    # Some peaks still occupy several neighbouring pixels; keep only the most prominent pixel
+    # so that we have 1 peak <---> 1 pixel.
+    pk_inds = set(peaks.keys())
+    shift = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
+    
+    while pk_inds:
+        ij = pk_inds.pop()
+        # nns = [(0,0)] * shift.shape[0]
+        # for 
+        nns = set([tuple(nm) for nm in ij + shift])
+        intersect = nns & pk_inds
+        for nm in intersect:
+            if peaks[nm] <= peaks[ij]:
+                #print(nm, peaks[nm])
+                peaks[nm] = 0
+            else:
+                peaks[ij] = 0
+
+    #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
+    peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
+
+    if shift_centers == 'density': #this will return real-space coords of peaks by default
+        shifted_centers = shift_MO_loc_centers_rho(peak_inds,rho,xedges,yedges,pxl_cutoff=1)
+        return shifted_centers, rho, xedges, yedges
+    elif shift_centers == 'random': #this will return real-space coords of peaks by default
+        shifted_centers = shift_MO_loc_centers_random(peak_inds,xedges,yedges)
+        return shifted_centers, rho, xedges, yedges
+    else:
+        return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges
+    
+@njit   
 def shift_MO_loc_centers_rho(peak_inds, rho, xedges, yedges, pxl_cutoff=1):
     l = np.min([xedges[1]-xedges[0], yedges[1]-yedges[0]]) #* 0.5
     npeaks = peak_inds.shape[0]
@@ -167,7 +259,7 @@ def shift_MO_loc_centers_rho(peak_inds, rho, xedges, yedges, pxl_cutoff=1):
         print(f'--- R shifted = {shifted_centers[n,:]} ---\n')
     return shifted_centers
         
-
+@njit
 def shift_MO_loc_centers_random(peak_inds, xedges, yedges): 
     l = np.min([xedges[1]-xedges[0], yedges[1]-yedges[0]]) * 0.5
     npeaks = peak_inds.shape[0]
@@ -179,6 +271,7 @@ def shift_MO_loc_centers_random(peak_inds, xedges, yedges):
         shifted_centers[n,:] = R0 + dr[n,:]
     return shifted_centers
 
+@njit
 def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers='none'):
     x = pos[:,0]
     length = np.max(x) - np.min(x)
@@ -211,12 +304,34 @@ def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers='none'):
     
     return sites
 
+# @njit
 def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_centers=False):
     centres = np.zeros(2) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     ee = []
     inds = []
     for n in range(M.shape[1]):
         cc, rho, xedges, yedges = get_MO_loc_centers(pos,M,n,nbins,threshold_ratio,return_gridify=True,shift_centers=shift_centers)
+        if n in L:
+            print(n)
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
+        
+        elif n in R:
+            print(n)
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'R',shift_centers=shift_centers)
+        
+
+        centres = np.vstack([centres,cc])
+        ee.extend([energies[n]]*cc.shape[0])
+        inds.extend([n]*cc.shape[0]) #this will help us keep track of which centers belong to which MOs
+    return centres[1:,:], np.array(ee), np.array(inds) #get rid of initial [0,0] entry in centres
+
+@njit
+def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_centers=False):
+    centres = np.zeros(2) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
+    ee = []
+    inds = []
+    for n in range(M.shape[1]):
+        cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,shift_centers=shift_centers)
         if n in L:
             print(n)
             cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)

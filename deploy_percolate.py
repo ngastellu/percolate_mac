@@ -7,7 +7,7 @@ import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
-from percolate import diff_arrs, percolate, generate_site_list
+from percolate import diff_arrs, percolate, generate_site_list_opt
 from utils_arpackMAC import remove_redundant_eigenpairs
 
 def load_data(sample_index, structype, motype,compute_gammas=True,run_location='narval',save_gammas=False,gamma_dir='.'):
@@ -158,7 +158,7 @@ def setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, tolscal=3.0, nbins
     # ******* Pre-compute distances *******
     if compute_centres:
         
-        centres, ee, ii = generate_site_list(pos,M,L_mos,R_mos,energies,nbins=100)
+        centres, ee, ii = generate_site_list_opt(pos,M,L_mos,R_mos,energies,nbins=100)
         if save_centers:
             np.save(path.join(f'cc.npy',centres))
             np.save(path.join(f'ee.npy',ee))
@@ -170,7 +170,7 @@ def setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, tolscal=3.0, nbins
             ii = np.load(path.join(datapath, 'ii.npy'))
         except FileNotFoundError:
             print('Hopping centre files not found. Recomputing...')
-            centres, ee, ii = generate_site_list(pos,M,L,R,energies,nbins=nbins)
+            centres, ee, ii = generate_site_list_opt(pos,M,L_mos,R_mos,energies,nbins=nbins)
             np.save(path.join(datapath, f'cc.npy',centres))
             np.save(path.join(datapath, f'ee.npy',ee))
             np.save(path.join(datapath, f'ii.npy', ii))
