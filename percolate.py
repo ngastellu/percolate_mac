@@ -185,17 +185,16 @@ def percolate(darr, L, R, return_adjmat=False):
 @njit
 def avg_nb_neighbours(energies, dists, erange, urange):
     ebins = np.searchsorted(erange, energies) # figure out where the structure's energies fall in erange
-    print('ebins = ', ebins)
-    n_e = erange.shape[0]
+    print('ebins     = ', ebins)
+    n_e = erange.shape[0] + 1 # add 1 in case elements of energies are greater than max(erange)
     n_u = urange.shape[0]
     B = np.zeros((n_e,n_u))
 
     for k in range(n_u):
         print(k)
         u = urange[k]
-        print(dists <= u)
         n_accessible = (dists <= u).sum(axis=1) 
-        print(n_accessible, flush=True)
+        print(n_accessible)
         
         for n in range(n_e):
             imatch = (ebins == n).nonzero()[0]
