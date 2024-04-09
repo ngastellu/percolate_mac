@@ -38,6 +38,25 @@ def diff_arrs(e, coms, a0, eF=0, E=np.array([0.0,0.0])):
             k += 1
     return edarr, ddarr
 
+@njit
+def diff_arrs_w_inds(e, coms, a0, eF=0, E=np.array([0.0,0.0])):
+    N = e.shape[0]
+    ddarr = np.zeros(int(N*(N-1)/2))
+    edarr = np.zeros(int(N*(N-1)/2))
+    inds = np.zeros((int(N*(N-1)/2),2), dtype='int')
+    k = 0
+    for i in range(N):
+        ei = e[i] - coms[i].dot(E)
+        for j in range(i):
+            ej = e[j] - coms[j].dot(E)
+            edarr[k] = (np.abs(ei-eF) + np.abs(ej-eF) + np.abs(ei - ej)) * 0.5
+            ddarr[k] = 2*np.linalg.norm(coms[i]-coms[j])/a0
+            inds[k,0] = i
+            inds[k,1] = j
+            k += 1
+    return edarr, ddarr, inds
+
+
 
 
 @njit

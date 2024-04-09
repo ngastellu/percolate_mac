@@ -174,7 +174,7 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
 
 
 @njit
-def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_centers='none'):
+def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_centers=True):
     """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
     This version of the function is Numba-compatible, made for running on sets of >1000 MOs."""
     rho, xedges, yedges = gridifyMO_opt(pos, M, n, nbins)
@@ -185,11 +185,7 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     for i in range(1,nbins-1):
         data = rho[i,:]
         with objmode(peak_inds='intp[:]'):
-            print('\n\n\n')
-            print(data.dtype, flush=True)
             peak_inds, _ = find_peaks(data)
-            print('\n\n\n')
-        # peak_inds, _ = _find_peaks_numba_wrapper(data)
         for j in peak_inds:
             peak_val = data[j]
             if peak_val > 1e-4: all_peaks[(i,j)] = peak_val
@@ -204,24 +200,27 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     
     while pk_inds:
         ij = pk_inds.pop()
-        # nns = [(0,0)] * shift.shape[0]
-        # for 
-        nns = set([tuple(nm) for nm in ij + shift])
+        nns = [(0,0)] * shift.shape[0]
+        for k in range(shift.shape[0]):
+            nns[k] = (ij[0] + shift[k,0], ij[1] + shift[k,1])        
+        nns = set(nns)
         intersect = nns & pk_inds
         for nm in intersect:
             if peaks[nm] <= peaks[ij]:
-                #print(nm, peaks[nm])
                 peaks[nm] = 0
             else:
                 peaks[ij] = 0
 
     #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
-    peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
+    peak_inds = np.array([key for key in peaks.keys() if peaks[key] > 0])
+    temp = np.zeros(2,dtype='int')
+    for k in range(peak_inds.shape[0]):
+        temp[0] = peak_inds[k,1]
+        temp[1] = peak_inds[k,0]
+        peak_inds[k,:] = temp[:]
 
-    if shift_centers == 'density': #this will return real-space coords of peaks by default
-        shifted_centers = shift_MO_loc_centers_rho(peak_inds,rho,xedges,yedges,pxl_cutoff=1)
-        return shifted_centers, rho, xedges, yedges
-    elif shift_centers == 'random': #this will return real-space coords of peaks by default
+
+    if shift_centers: #this will return real-space coords of peaks by default
         shifted_centers = shift_MO_loc_centers_random(peak_inds,xedges,yedges)
         return shifted_centers, rho, xedges, yedges
     else:
@@ -261,7 +260,7 @@ def shift_MO_loc_centers_rho(peak_inds, rho, xedges, yedges, pxl_cutoff=1):
         
 @njit
 def shift_MO_loc_centers_random(peak_inds, xedges, yedges): 
-    l = np.min([xedges[1]-xedges[0], yedges[1]-yedges[0]]) * 0.5
+    l = np.min(np.array([xedges[1]-xedges[0], yedges[1]-yedges[0]])) * 0.5
     npeaks = peak_inds.shape[0]
     dr = np.random.rand(npeaks, 2) * 2*l - l
     shifted_centers = np.zeros((npeaks,2))
@@ -272,7 +271,7 @@ def shift_MO_loc_centers_random(peak_inds, xedges, yedges):
     return shifted_centers
 
 @njit
-def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers='none'):
+def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers=True):
     x = pos[:,0]
     length = np.max(x) - np.min(x)
     midx = length/2
@@ -294,14 +293,10 @@ def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers='none'):
             edge_ind = -3
         peak_ind = np.argmax(rho[:,edge_ind]) -1 
 
-        if shift_centers == 'density':
-            shift_MO_loc_centers_rho(peak_ind,rho,xedges,yedges,pxl_cutoff=1)
-        elif shift_centers == 'random':
-            shift_MO_loc_centers_random(peak_ind,xedges,yedges)
+        if shift_centers:
+            shift_MO_loc_centers_random(np.array([[edge_ind, peak_ind]] ),xedges,yedges)
         else:
             sites = bin_centers([(edge_ind,peak_ind)],xedges,yedges)
-    
-    
     return sites
 
 # @njit
@@ -327,21 +322,46 @@ def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_c
 
 @njit
 def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_centers=False):
-    centres = np.zeros(2) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
-    ee = []
-    inds = []
+    # Assume 10 sites per MO; if we run out of space, extend site energy and position arrays
+    out_size = 10*M.shape[1]
+    centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
+    ee = np.zeros(out_size) 
+    inds = np.zeros(out_size, dtype='int')
+    nsites = 0
     for n in range(M.shape[1]):
         cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,shift_centers=shift_centers)
         if n in L:
-            print(n)
             cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
         
         elif n in R:
-            print(n)
             cc = correct_peaks(cc, pos, rho, xedges, yedges,'R',shift_centers=shift_centers)
         
+        n_new = cc.shape[0]
 
-        centres = np.vstack([centres,cc])
-        ee.extend([energies[n]]*cc.shape[0])
-        inds.extend([n]*cc.shape[0]) #this will help us keep track of which centers belong to which MOs
-    return centres[1:,:], np.array(ee), np.array(inds) #get rid of initial [0,0] entry in centres
+        # If arrays are about to overflow, copy everything into bigger arrays
+        if nsites + n_new > out_size:
+            print("~~~!!!!! Site arrays about to overflow; increasing output size !!!!!~~~")
+            out_size += 10*M.shape[1]
+
+            new_centres = np.zeros((out_size,2))
+            new_centres[:nsites,:] = centres[:nsites,:]
+            centres = new_centres
+            
+            new_ee = np.zeros(out_size)
+            new_ee[:nsites] = ee[:nsites]
+            ee = new_ee
+            
+            new_inds = np.zeros(out_size,dtype='int')
+            new_inds[:nsites] = inds[:nsites]
+            inds = new_inds
+
+        centres[nsites:nsites+n_new,:] = cc
+        ee[nsites:nsites+n_new] = np.ones(n_new) * energies[n]
+        inds[nsites:nsites+n_new] = np.ones(n_new,dtype='int') * n
+
+        nsites += n_new
+        print(nsites)
+
+        
+
+    return centres[:nsites,:], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays

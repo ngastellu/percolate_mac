@@ -7,7 +7,7 @@ from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from qcnico.qchemMAC import AO_gammas, MO_gammas
 from deploy_percolate import setup_hopping_sites_gridMOs
-from percolate import diff_arrs, avg_nb_neighbours, pair_inds
+from percolate import diff_arrs, avg_nb_neighbours, pair_inds, diff_arrs_w_inds
 from os import path
 from time import perf_counter
 
@@ -77,15 +77,15 @@ eF = 0.5 * (energies[N//2 -1] + energies[N//2])
 
 print("Getting energy and position difference arrays...")
 d_start = perf_counter()
-edArr, rdArr = diff_arrs(ee, rr, a0=2, eF=eF, E=np.array([0.0,0.0]))
+edArr, rdArr, ij = diff_arrs_w_inds(ee, rr, a0=2, eF=eF, E=np.array([0.0,0.0]))
 d_end = perf_counter()
 print(f'Done! [{d_end - d_start} seconds]\n')
 
-print("Getting pair inds...")
-i_start = perf_counter()
-ij = np.vstack(pair_inds(np.arange(rdArr.shape[0]),nsites)).T
-i_end = perf_counter()
-print(f'Done! [{i_end - i_start} seconds]\n')
+# print("Getting pair inds...")
+# i_start = perf_counter()
+# ij = np.vstack(pair_inds(np.arange(rdArr.shape[0]),nsites)).T
+# i_end = perf_counter()
+# print(f'Done! [{i_end - i_start} seconds]\n')
 temps = [40,400]
 
 Bs = [] 
@@ -97,7 +97,7 @@ for T in temps:
     dgrid = np.linspace(np.min(dists)-0.1, np.max(dgrid)+0.1, 1000)
     print(dists)
     dmat = np.zeros((nsites,nsites))
-    print(ij)
+    # print(ij)
     for IJ, d in zip(ij, dists):
         I,J = IJ
         dmat[I,J] = d
