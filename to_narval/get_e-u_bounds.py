@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
 import sys
+from time import perf_counter
 from os import path
 import numpy as np
 from scipy.linalg import eigh
 from percolate import diff_arrs
+from deploy_percolate import setup_hopping_sites_gridMOs
 from MOs2sites import generate_site_list
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
@@ -21,68 +23,71 @@ tolscal_gamma = 3.0
 Tmin = 40
 Tmax = 430
 
-datadir = path.expanduser('~/Desktop/simulation_outputs/percolation/10x10/')
-arpackdir = path.join(datadir,'Hao_ARPACK')
-strucdir = path.join(datadir, 'structures')
+posdir = path.expanduser('~/scratch/clean_bigMAC/20x20/relax/relaxed_structures/')
+edir = path.expanduser('~/scratch/ArpackMAC/20x20/dense_tb_eigvals/')
+Mdir = path.expanduser('~/scratch/ArpackMAC/20x20/dense_tb_eigvecs/')
 
-# Get atomic positions
-print('Loading pos...')
-pos, _ = read_xsf(path.join(strucdir,f'bigMAC-{nn}_relaxed.xsf'))
-print('Done!')
-print('Removing dangling Cs...')
-pos = remove_dangling_carbons(pos,rCC)
-print('Done!\n')
+
+
+pos, _ = read_xsf(posdir + f'bigMAC-{nn}_relaxed.xsf')
+pos = remove_dangling_carbons(pos, rCC)
 N = pos.shape[0]
 
-print('Loading H...')
-hvals = np.load(path.join(arpackdir,'hvals', f'hvals-{nn}.npy'))
-ii = np.load(path.join(arpackdir,'inds', f'ii-{nn}.npy'))
-jj = np.load(path.join(arpackdir,'inds', f'jj-{nn}.npy'))
-H = np.zeros((N,N))
-H[ii-1,jj-1] = hvals
-H += H.T
+M = np.load(Mdir + f'eigvecs-{nn}.npy')
+energies = np.load(edir + f'eigvals-{nn}.npy')
+
+print('Getting AO gammas...')
+ag_start = perf_counter()
+agL, agR = qcm.AO_gammas(pos,gamma)
+ag_end = perf_counter()
+print(f'Done! [{ag_end - ag_start} seconds]\n')
 print('Done!\n')
 
-print('Diagonalising...')
-energies, M = eigh(H) 
-print('Done!\n')
-# np.save(f'extreme_energies-{nn}.npy', np.array([np.min(energies), np.max(energies)]))
+print('Getting MO gammas...')
+mg_start = perf_counter()
+gamL, gamR = qcm.MO_gammas(M, agL, agR,return_diag=True)
+mg_end = perf_counter()
+print(f'Done! [{mg_end - mg_start} seconds]\n')
+
+# M = M[:,:10]
+# energies = energies[:10]
+# gamL = gamL[:10]
+# gamR = gamR[:10]
+
+print('eshape 2: = ', energies.shape[0])
+
+print("Getting hopping sites...")
+sites_start = perf_counter()
+rr, ee, *_ = setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, nbins=10, save_centers=False)
+sites_end = perf_counter()
+print(f'Done! [{sites_end - sites_start} seconds]\n')
+
+nsites = ee.shape[0]
+
+print("N = ", N)
+print("N // 2 = ", N//2)
 
 eF = 0.5 * (energies[N//2 -1] + energies[N//2])
 energies -= eF
 
-print('Getting gammas...')
-agL, agR = qcm.AO_gammas(pos, gamma)
-gamL, gamR = qcm.MO_gammas(pos, agL, agR, return_diag=True)
-# np.save(f'gamL_40x40-{nn}.npy', gamL)
-# np.save(f'gamR_40x40-{nn}.npy', gamR)
+print("Getting energy and position difference arrays...")
+d_start = perf_counter()
+dE, dR = diff_arrs(ee, rr, a0=30, eF=0, E=np.array([0.0,0.0]))
+d_end = perf_counter()
+print(f'Done! [{d_end - d_start} seconds]\n')
 
-# ******* Define strongly-coupled MOs *******
-gamL_tol = np.mean(gamL) + tolscal_gamma*np.std(gamL)
-gamR_tol = np.mean(gamR) + tolscal_gamma*np.std(gamR)
 
-L = set((gamL > gamL_tol).nonzero()[0])
-R = set((gamR > gamR_tol).nonzero()[0])
-print('Done!\n')
-
-print('Getting centres...')
-centres, ee, ii = generate_site_list(pos,M,L,R,energies,nbins=100)
-# np.save(f'cc.npy',centres)
-# np.save(f'ee.npy',ee)
-# np.save(f'ii.npy', ii)    
-print('Done!\n')
-
-print('Computing difference arrays...')
-dE, dR = diff_arrs(ee, centres, eF=eF, a0=30,E=np.array([0.0,0.0]))
-print('Done!\n')
 
 print('Getting max/min dists...')
-dsave = np.zeros(2)
 dists = (dE/(kB*Tmin)) + dR
-dsave[0] = np.max(dists)
 
-dists = (dE/(kB*Tmax)) + dR
+dsave = np.zeros(2)
 dsave[0] = np.min(dists)
+dsave[1]= np.max(dists)
+
+esave = np.zeros(2)
+esave[0] = np.min(energies)
+esave[1]= np.max(energies)
 
 np.save(f'extreme_dists-{nn}.npy', dsave)
 print('Done!\n')
