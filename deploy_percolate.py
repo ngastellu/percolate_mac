@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
-import sys
 import pickle
+from time import perf_counter
 from os import path
 import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
-from percolate import diff_arrs, percolate, generate_site_list_opt
+from percolate import diff_arrs, percolate, generate_site_list_opt,\
+        diff_arrs_w_inds, jitted_percolate
+
 from utils_arpackMAC import remove_redundant_eigenpairs
 
 def load_data(sample_index, structype, motype,compute_gammas=True,run_location='narval',save_gammas=False,gamma_dir='.'):
@@ -39,6 +41,8 @@ def load_data(sample_index, structype, motype,compute_gammas=True,run_location='
         if structype == 'pCNN':
             mo_dir = path.join(percdir, strucsize,'MOs_ARPACK')
             e_dir = path.join(percdir, strucsize, 'eARPACK')
+            pos_dir = path.join(percdir, strucsize, 'structures')
+            posfile = f'bigMAC-{sample_index}_relaxed.xsf'
         else:
             print('not implemented. returning 0. if running locally, structype must be "pCNN".')
             return 0
@@ -75,8 +79,8 @@ def load_data(sample_index, structype, motype,compute_gammas=True,run_location='
             gamma = 0.1
             agaL, agaR = qcm.AO_gammas(pos, gamma)
             gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-            np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
-            np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
+            np.save(path.join(gamma_dir, f'gamL_40x40-{sample_index}_{motype}.npy'), gamL)
+            np.save(path.join(gamma_dir, f'gamR_40x40-{sample_index}_{motype}.npy'), gamR)
     
     return pos, energies, M, gamL, gamR
 
@@ -160,9 +164,9 @@ def setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, tolscal=3.0, nbins
         
         centres, ee, ii = generate_site_list_opt(pos,M,L_mos,R_mos,energies,nbins=100)
         if save_centers:
-            np.save(path.join(f'cc.npy',centres))
-            np.save(path.join(f'ee.npy',ee))
-            np.save(path.join(f'ii.npy', ii))
+            np.save(path.join(datapath,f'cc.npy'),centres)
+            np.save(path.join(datapath,f'ee.npy'),ee)
+            np.save(path.join(datapath,f'ii.npy'), ii)
     else:
         try:
             centres = np.load(path.join(datapath, 'cc.npy'))
@@ -186,7 +190,7 @@ def setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, tolscal=3.0, nbins
     else:
         return centres, ee, L_sites, R_sites
 
-def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_dir='.'):
+def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_dir='.',jitted=False):
     """Once the hopping sites have been defined, run `percolate` under the array of desired conditions (temperature, external field).
     This function returns nothing; it writes the results of each call to `percolate` to a pickle file located in `pkl_dir`."""
     kB = 8.617333262 #eV / K
@@ -195,17 +199,30 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
         E = np.array([dV/dX,0])
     else:
         E = np.array([0.0,0.0])
-
-    edArr, rdArr = diff_arrs(sites_energies, sites_pos, a0=a0, eF=eF, E=E)
+    
+    edArr, rdArr, ij = diff_arrs_w_inds(sites_energies, sites_pos, a0=a0, eF=eF, E=E)
+    
+    k=0
     for T in all_Ts:
         print(f'******* T = {T} K *******')
         darr = rdArr + (edArr / (kB * T))
-        conduction_clusters, dcrit, A = percolate(darr,L,R,return_adjmat=True)
-        print('\nDone! Saving to pkl file...')
+        start = perf_counter()
+        if jitted:
+            conduction_clusters, dcrit, A = jitted_percolate(darr,ij,L,R)
+        else:
+            conduction_clusters, dcrit, A = percolate(darr,ij,L,R,return_adjmat=True)
+        end = perf_counter()
+        if k >0: # don't time first call to percolate (avoid measuring compilation time)
+            print(f'\n~~~Done! [{end-start} seconds]~~~\n Saving to pkl file...~~~')
 
-        with open(path.join(pkl_dir, f'out_percolate-{T}K.pkl'), 'wb') as fo:
+        if jitted:
+            pkl_name = f'out_jitted_percolate-{T}K.pkl'
+        else:
+            pkl_name = f'out_percolate-{T}K.pkl'
+        with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
         print('Saved successfully.\n')
+        k+=1
 
 
 def run_percolate_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0, pkl_dir='.'):

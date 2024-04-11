@@ -7,6 +7,7 @@ from numba import njit
 import qcnico.qchemMAC as qcm
 from qcnico.graph_tools import components
 from MOs2sites import *
+from scipy import sparse
 
 @njit
 def energy_distance(ei, ej, mu, T):
@@ -120,8 +121,8 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
 
-    
-def percolate(darr, L, R, return_adjmat=False): 
+# @njit
+def percolate(darr, dpair_inds, L, R, return_adjmat=False): 
     """
     This function actually runs the percolation theory calculation.
     
@@ -163,9 +164,10 @@ def percolate(darr, L, R, return_adjmat=False):
         print('d = ', d)       
         connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
         print('Nb. of connected pairs = ', len(connected_inds))
-        ij = pair_inds(connected_inds,n)
-        print(ij)
-        adj_mat[ij] = True
+        # ij = pair_inds(connected_inds,n)
+        # print(ij)
+        ij = dpair_inds[connected_inds,:]
+        adj_mat[ij[:,0],ij[:,1]] = True
         adj_mat  += adj_mat.T
         print(adj_mat.astype(int))
         print('\n')
@@ -174,7 +176,8 @@ def percolate(darr, L, R, return_adjmat=False):
         coupledR = not R.isdisjoint(relevant_MOs)
         if coupledL and coupledR:
             print('Getting clusters...')
-            clusters = components(adj_mat)
+            LR_connected_inds = (L|R) & relevant_MOs 
+            clusters = components(adj_mat, seed_nodes=LR_connected_inds) #seed only at edges of connected cluster
             print('Done! Now looping over clusters...')
             print(f'Nb. of clusters with more than 1 MO = {np.sum(np.array([len(c) for c in clusters])>1)}')
             for c in clusters:
@@ -227,6 +230,109 @@ def avg_nb_neighbours(energies, dists, erange, urange):
     return B
 
 
+# ------------------------ Jitted copies of percolation code here (above is obsolete) ------------------------
+
+@njit
+def jitted_components(M, seed_nodes=None):
+    '''The same function as `components` in `qcnico.graph_tools`, but modified to work with Numba: now only works with dense matrix arrays.'''
+
+    N = M.shape[0]
+    seen = set()
+    clusters = []
+    if seed_nodes is None:
+        seed_nodes = set(range(N)) #if no seed nodes are given, initiate cluster search over the entire graph
+    for i in seed_nodes:
+        if i not in seen:
+            # do a breadth-first search starting from each unseen node
+            c = set()
+            nextlevel = {i}
+            while nextlevel:
+                thislevel = nextlevel
+                nextlevel = set()
+                for j in thislevel:
+                    if j not in c:
+                        c.add(j)
+                        nextlevel.update(M[j,:].nonzero()[0])
+            seen.update(c)
+            clusters.append(c)
+    return clusters
+
+
+@njit
+def jitted_percolate(darr, dpair_inds, L, R): 
+    """
+    This function actually runs the percolation theory calculation.
+    It is a modified version of the above function `percolate`, massaged into working with Numba. Should
+    also be more memory-efficient.
+    
+    !!! *** VERY IMPORTANT *** !!!
+    Only properties relative to the hopping sites (i.e. not the MOs,if we're gridifying the MOs to get sites out
+    of them) should enter this function.
+
+    Parameters
+    ----------
+    darr: `np.ndarray`, shape = (N*(N-1)/2,), dtype = `float`
+        Flattened array of of pairwise 'distances' (usually log Miller-Abrahams rates) between sites
+    L: `set` of `ints`
+        Set of indices of sites strongly coupled to the left lead
+    R: `set` of `int`s
+        Set of indices of sites strongly coupled to the left lead
+    return_adjmat: `bool` default=False
+        If `True`, this function will return the adjacency matrix of the hopping sites once percolation is achieved 
+        (useful for plotting the final clusters after the run).
+    
+    Returns
+    -------
+        spanning_clusters: `list` of `set`s of `int`s
+            List of sets of indices of sites which form the spanning clusters. 1 set <--> 1 cluster
+        d: `float`
+            Percolation threshold distance
+        adjmat: `np.ndarray`, shape = (N,N), dtype=`bool`
+            Adjacency matrix of the sites at the percolation threshold. Returned only if `return_adjmat = True`.
+    """
+
+    percolated = False
+    darr_sorted = np.sort(darr)
+    ndists = darr.shape[0]
+    n = int( (1+np.sqrt(1 + 8*ndists))/2 )
+    adj_mat = np.zeros((n,n),dtype='bool')
+    spanning_clusters = []
+    d_ind = 0
+    while (not percolated) and (d_ind < ndists):
+        d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
+        print('d = ', d)       
+        connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
+        print('Nb. of connected pairs = ', len(connected_inds))
+        ij = dpair_inds[connected_inds,:]
+        for n in range(ij.shape[0]):
+            i,j = ij[n,:]
+            adj_mat[i,j] = True
+            adj_mat[j,i] = True
+        # print(adj_mat.astype(int))
+        # print('\n')
+        relevant_MOs = set(np.unique(ij))
+        coupledL = not L.isdisjoint(relevant_MOs)
+        coupledR = not R.isdisjoint(relevant_MOs)
+        if coupledL and coupledR:
+            print('Getting clusters...')
+            LR_connected_inds = (L|R) & relevant_MOs 
+            clusters = jitted_components(adj_mat, seed_nodes=LR_connected_inds) #seed only at edges of connected cluster
+            print('Done! Now looping over clusters...')
+            print(f'Nb. of clusters with more than 1 MO = {np.sum(np.array([len(c) for c in clusters])>1)}')
+            for c in clusters:
+                if (not c.isdisjoint(L)) and (not c.isdisjoint(R)):
+                    spanning_clusters.append(c)
+                    percolated = True
+            print('Done with clusters loop!')
+        
+        d_ind += 1
+    
+    if d_ind == ndists-1:
+        print(f'No spanning clusters found!')
+        return clusters, d, adj_mat
+    
+    return spanning_clusters, d, adj_mat
+
 if __name__ == '__main__':
     from os import path
     import sys
@@ -262,4 +368,4 @@ if __name__ == '__main__':
     np.save(ds, f'ds_frames_{n1}-{n2}-{step}.npy')
     with open('clusters_frames_{n1}-{n2}-{step}.pkl', 'wb') as fo:
         pickle.dump(cluster_list, fo)
-    
+
