@@ -25,6 +25,9 @@ def load_data(sample_index, structype, motype='',compute_gammas=True,run_locatio
         if structype == '40x40':
                 pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
                 posfile = f'bigMAC-{sample_index}_relaxed.xsf'
+        elif structype == '20x20':
+                pos_dir = path.expanduser('~/scratch/clean_bigMAC/20x20/relax/relaxed_structures')
+                posfile = f'bigMAC-{sample_index}_relaxed.xsf'
 
         else:
                 arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
