@@ -269,6 +269,9 @@ def jitted_percolate(darr, dpair_inds, L, R):
     Only properties relative to the hopping sites (i.e. not the MOs,if we're gridifying the MOs to get sites out
     of them) should enter this function.
 
+    ~~~ Possible improvement ~~~
+    Instead of scanning over each distance in ascending order, perform a binary search.
+
     Parameters
     ----------
     darr: `np.ndarray`, shape = (N*(N-1)/2,), dtype = `float`
@@ -300,30 +303,22 @@ def jitted_percolate(darr, dpair_inds, L, R):
     d_ind = 0
     while (not percolated) and (d_ind < ndists):
         d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
-        print('d = ', d)       
         connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
-        print('Nb. of connected pairs = ', len(connected_inds))
         ij = dpair_inds[connected_inds,:]
         for n in range(ij.shape[0]):
             i,j = ij[n,:]
             adj_mat[i,j] = True
             adj_mat[j,i] = True
-        # print(adj_mat.astype(int))
-        # print('\n')
         relevant_MOs = set(np.unique(ij))
         coupledL = not L.isdisjoint(relevant_MOs)
         coupledR = not R.isdisjoint(relevant_MOs)
         if coupledL and coupledR:
-            print('Getting clusters...')
             LR_connected_inds = (L|R) & relevant_MOs 
             clusters = jitted_components(adj_mat, seed_nodes=LR_connected_inds) #seed only at edges of connected cluster
-            print('Done! Now looping over clusters...')
-            print(f'Nb. of clusters with more than 1 MO = {np.sum(np.array([len(c) for c in clusters])>1)}')
             for c in clusters:
                 if (not c.isdisjoint(L)) and (not c.isdisjoint(R)):
                     spanning_clusters.append(c)
                     percolated = True
-            print('Done with clusters loop!')
         
         d_ind += 1
     

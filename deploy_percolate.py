@@ -12,7 +12,7 @@ from percolate import diff_arrs, percolate, generate_site_list_opt,\
 
 from utils_arpackMAC import remove_redundant_eigenpairs
 
-def load_data(sample_index, structype, motype,compute_gammas=True,run_location='narval',save_gammas=False,gamma_dir='.'):
+def load_data(sample_index, structype, motype='',compute_gammas=True,run_location='narval',save_gammas=False,gamma_dir='.',full_spectrum=False):
     """ Loads atomic positions, energies, MOs, and coupling matrices of a given MAC structure.
     This function aims to be be common to all percolation runs (gridMOs or not, etc.). """
     
@@ -20,19 +20,23 @@ def load_data(sample_index, structype, motype,compute_gammas=True,run_location='
     assert run_location in valid_run_locs, f'Invalid value of argument run_location. Valid values:\n {valid_run_locs}'
 
     if run_location == 'narval':
-        if structype == 'pCNN':
+        arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
 
-                arpackdir = path.expanduser('~/scratch/ArpackMAC/40x40')
+        if structype == '40x40':
                 pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
-
                 posfile = f'bigMAC-{sample_index}_relaxed.xsf'
 
         else:
                 arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
                 pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
                 posfile = f'{structype}n{sample_index}_relaxed.xsf'
-        mo_dir = path.join(arpackdir,'MOs')
-        e_dir = path.join(arpackdir,'energies')
+        
+        if full_spectrum:
+            mo_dir = path.join(arpackdir,'dense_tb_eigvecs')
+            e_dir = path.join(arpackdir,'dense_tb_eigvals')
+        else:
+            mo_dir = path.join(arpackdir,'MOs')
+            e_dir = path.join(arpackdir,'energies')
 
     
     else: #running things locally
@@ -47,8 +51,12 @@ def load_data(sample_index, structype, motype,compute_gammas=True,run_location='
             print('not implemented. returning 0. if running locally, structype must be "pCNN".')
             return 0
 
-    mo_file = f'MOs_ARPACK_bigMAC-{sample_index}.npy'
-    energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
+    if full_spectrum:
+        mo_file = f'eigvecs-{sample_index}.npy'
+        energy_file = f'eigvals-{sample_index}.npy'
+    else:
+        mo_file = f'MOs_ARPACK_bigMAC-{sample_index}.npy'
+        energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
     mo_path = path.join(mo_dir,motype,mo_file)
     energy_path = path.join(e_dir,motype,energy_file)
 
@@ -213,7 +221,7 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
             conduction_clusters, dcrit, A = percolate(darr,ij,L,R,return_adjmat=True)
         end = perf_counter()
         if k >0: # don't time first call to percolate (avoid measuring compilation time)
-            print(f'\n~~~Done! [{end-start} seconds]~~~\n Saving to pkl file...~~~')
+            print(f'\n~~~Done! [{end-start} seconds]~~~\n Saving to pkl file...~~~',flush=True)
 
         if jitted:
             pkl_name = f'out_jitted_percolate-{T}K.pkl'
@@ -221,7 +229,7 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
             pkl_name = f'out_percolate-{T}K.pkl'
         with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
-        print('Saved successfully.\n')
+        print('Saved successfully.\n', flush=True)
         k+=1
 
 
