@@ -262,11 +262,11 @@ def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60):
         inds.extend([n]*cc.shape[0]) #this will help us keep track of which centers belong to which MOs
     return centres[1:,:], np.array(ee), np.array(inds) #get rid of initial [0,0] entry in centres
 
-    
+
 def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None, 
                 gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
                 distance='miller_abrahams', 
-                return_adjmat=False):
+                return_adjmat=False, prev_d_ind=0):
     
     assert distance in ['energy', 'miller_abrahams', 'logMA'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
     if distance == 'energy':
@@ -298,7 +298,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
     darr_sorted = np.sort(darr)
     adj_mat = np.zeros((N,N),dtype=bool)
     spanning_clusters = []
-    d_ind = 0
+    d_ind = prev_d_ind
     while (not percolated) and (d_ind < N*(N-1)//2):
         d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
         print('d = ', d)       
@@ -337,7 +337,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
         return clusters, d, adj_mat
     
     if return_adjmat:
-        return spanning_clusters, d, adj_mat
+        return spanning_clusters, d, adj_mat, d_ind-1
     else:
         return spanning_clusters, d
 

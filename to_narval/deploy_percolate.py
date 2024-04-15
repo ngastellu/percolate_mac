@@ -166,9 +166,12 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
     cgamL = gamL[ii]
     cgamR = gamR[ii]
 
+    all_Ts = np.flip(np.sort(all_Ts))
+    d_prev_ind = 0
     for T in all_Ts:
         # ******* 5: Get spanning cluster *******
-        conduction_clusters, dcrit, A = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr))
+        conduction_clusters, dcrit, A, iidprev = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr),prev_d_ind=d_prev_ind)
+        d_prev_ind = iidprev
 
         with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)

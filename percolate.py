@@ -105,7 +105,7 @@ def k_ind(i,j): return int(i*(i-1)/2 + j)
 def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None, 
                 gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
                 distance='miller_abrahams', 
-                return_adjmat=False):
+                return_adjmat=False, prev_d_ind=0):
     
     assert distance in ['energy', 'miller_abrahams', 'logMA'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
     if distance == 'energy':
@@ -137,7 +137,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
     darr_sorted = np.sort(darr)
     adj_mat = np.zeros((N,N),dtype=bool)
     spanning_clusters = []
-    d_ind = 0
+    d_ind = prev_d_ind
     while (not percolated) and (d_ind < N*(N-1)//2):
         d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
         print('d = ', d)       
@@ -176,7 +176,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
         return clusters, d, adj_mat
     
     if return_adjmat:
-        return spanning_clusters, d, adj_mat
+        return spanning_clusters, d, adj_mat, d_ind-1
     else:
         return spanning_clusters, d
 
