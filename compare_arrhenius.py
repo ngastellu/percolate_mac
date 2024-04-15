@@ -28,12 +28,13 @@ def sigma_errorbar(dcrits):
     return sigmas_full, err
 
 kB = 8.617e-5
-# temps = np.arange(40,440,10)[14:]
-temps = np.arange(200,435,5)
+temps = np.arange(40,440,10)[14:]
+# temps = np.arange(200,435,5)
 
-tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/finer_T_grid/'
-pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/100x100_gridMOs/finer_T_grid/'
-t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs/finer_T_grid/'
+tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/'
+pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/100x100_gridMOs/'
+t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs/'
+tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs/'
 
 
 
@@ -45,32 +46,37 @@ with open(pCNNdir + 'good_runs.txt') as fo:
 with open(t1dir + 'good_runs.txt') as fo:
     t1_lbls = [int(l.strip()) for l in fo.readlines()]
 
+with open(tempdot6_dir + 'good_runs.txt') as fo:
+    tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
+
 dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
 
 ring_data_tdot25 = np.load(dd_rings + 'avg_ring_counts_tdot25_relaxed.npy')
 ring_data_t1 = np.load(dd_rings + 'avg_ring_counts_t1_relaxed.npy')
 ring_data_pCNN = np.load(dd_rings + 'avg_ring_counts_normalised.npy')
+ring_data_tempdot6 = np.load(dd_rings + 'avg_ring_counts_tempdot6_new_model_relaxed.npy')
 
 p6c_tdot25 = ring_data_tdot25[3] / ring_data_tdot25.sum()
 p6c_t1 = ring_data_t1[3] / ring_data_t1.sum()
+p6c_tempdot6 = ring_data_tempdot6[4] / ring_data_tempdot6.sum()
 p6c_pCNN = ring_data_pCNN[3]
-p6c = np.array([p6c_tdot25, p6c_pCNN,p6c_t1])
+p6c = np.array([p6c_tdot25, p6c_pCNN,p6c_t1,p6c_tempdot6])
 
 clrs = get_cm(p6c, 'inferno')
-ddirs = [tdot25dir, pCNNdir, t1dir]
-run_lbls = [tdot25_lbls,pCNN_lbls,t1_lbls]
-curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 1$']
+ddirs = [tdot25dir, pCNNdir, t1dir, tempdot6_dir]
+run_lbls = [tdot25_lbls,pCNN_lbls,t1_lbls,tdot6_lbls]
+curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 1$', '$\\tilde{T} = 0.6$']
 
 setup_tex()
 fig, ax = plt.subplots()
 
-eas = np.zeros(3)
-errs_lr = np.zeros(3)
+eas = np.zeros(4)
+errs_lr = np.zeros(4)
 
-eas2 = np.zeros(3)
-errs_cf = np.zeros(3)
+eas2 = np.zeros(4)
+errs_cf = np.zeros(4)
 
-for k, dd, ll, cc, cl in zip(range(3), ddirs, run_lbls, clrs, curve_lbls):
+for k, dd, ll, cc, cl in zip(range(4), ddirs, run_lbls, clrs, curve_lbls):
     # if k == 1: continue
 
     dcrits = get_dcrits(ll, temps, dd)
@@ -85,6 +91,7 @@ for k, dd, ll, cc, cl in zip(range(3), ddirs, run_lbls, clrs, curve_lbls):
 
     print(f'\n*** {cl} ***')
     print(f'linregress ---> {eas[k]} ± {errs_lr[k]} meV; slope err = {interr_lr}')
+    print(np.sort(dcrits)[[0,-1]])
     print(np.max(sigmas_err))
 
     # ax.plot(x,y,'o',c=cc,label=cl,ms=5.0)
