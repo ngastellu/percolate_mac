@@ -85,7 +85,7 @@ run_lbls = [pCNN_lbls,tdot6_lbls]
 # curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 1$', '$\\tilde{T} = 0.6$']
 # curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 0.6$']
 # curve_lbls = [f'$p_{{6c}} = {p*100:.2f}\,\%$' for p in p6c]
-curve_lbls = ['Ensemble A', 'Ensemble B']
+curve_lbls = ['sAMC-500', 'sAMC-300']
 
 setup_tex()
 fig, ax = plt.subplots()
@@ -116,15 +116,15 @@ for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
     # print(np.sort(dcrits)[[0,-1]])
     # print(np.max(sigmas_err))
 
-    ax.plot(x,np.exp(y),'-o',label=cl,ms=5.0, c=cc)
+    ax.plot(x,np.exp(y),'o',label=cl,ms=5.0, c=cc)
     # ax.errorbar(1000/temps,sigmas,yerr=sigmas_err,fmt='-o',c=cc,label=cl,ms=5.0)
-    ax.plot(x, x*slope+intercept,'-',c=cc,lw=0.8)
+    ax.plot(x, np.exp(x*slope+intercept),'-',c=cc,lw=0.8)
 
   
 ax.set_yscale('log')
 ax.set_xlabel('$1000/T$ [K$^{-1}$]')
 ax.set_ylabel('$\sigma$ [S/m]')
-ax.set_title('Virtual near-$E_F$ MOs')
+#ax.set_title('Virtual near-$E_F$ MOs')
 
 plt.legend()
 plt.show()
