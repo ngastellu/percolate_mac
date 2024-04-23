@@ -96,6 +96,8 @@ errs_lr = np.zeros(2)
 eas2 = np.zeros(2)
 errs_cf = np.zeros(2)
 
+sigs = []
+
 # for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
 for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
     # if k == 1: continue
@@ -107,12 +109,13 @@ for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
 
  
     slope, intercept, x, y, err_lr, interr_lr  = arrhenius_fit(temps, sigmas, inv_T_scale=1000.0, return_for_plotting=True, return_err=True, w0=conv_factor)
+    sigs.append(y)
     print(sigmas_err.shape)
     eas[k] = -slope * kB * 1e6 # in meV
     errs_lr[k] = err_lr * kB * 1e6 #error in Ea estimate from `arrhenius_fit`, in meV
 
     print(f'\n*** {cl} ***')
-    print(f'linregress ---> {eas[k]} ± {errs_lr[k]} meV; slope err = {interr_lr}')
+    print(f'linregress ---> {eas[k]} ± {errs_lr[k]} meV; sigma_0 = {np.exp(intercept)} [S/m] ; slope err = {interr_lr}')
     # print(np.sort(dcrits)[[0,-1]])
     # print(np.max(sigmas_err))
 
@@ -129,6 +132,9 @@ ax.set_ylabel('$\sigma$ [S/m]')
 plt.legend()
 plt.show()
 
+
+print(p6c)
+
 ii = np.argsort(p6c)
 
 fig, ax = plt.subplots()
@@ -140,4 +146,7 @@ ax.errorbar(p6c[ii],eas[ii],yerr=errs_lr[ii],fmt='-o',label='linregress')
 ax.set_xlabel('Proprtion of crystalline hexagons $p_{6c}$')
 ax.set_ylabel('$E_{a}$ [meV]')
 # plt.legend()
+plt.show()
+
+plt.plot(x,sigs[1]/sigs[0],'-o')
 plt.show()
