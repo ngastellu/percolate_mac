@@ -7,7 +7,7 @@ import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
-from percolate import diff_arrs, percolate, generate_site_list_opt,\
+from percolate import diff_arrs, percolate, generate_site_list_opt, generate_site_list,\
         diff_arrs_w_inds, jitted_percolate
 
 from utils_arpackMAC import remove_redundant_eigenpairs
@@ -159,7 +159,7 @@ def load_data_multi(sample_index, structype, motypes, e_file_names=None, MO_file
     return pos, energies, M, gamL, gamR
 
 
-def setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, tolscal=3.0, nbins=100, compute_centres=True, datapath='.', save_centers=True, return_ii=False):
+def setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, tolscal=3.0, nbins=100, compute_centres=True, datapath='.', save_centers=True, return_ii=False,opt=True):
     """Once all of the data relevant to a MAC structure has been loaded (atomic positions, MOs, energies, lead-coupled MOs), this function obtains the hopping sites,
     either by calling `generate_site_list`, or by reading NPY files in the folder specified by `datapath`."""
     # ******* Define strongly-coupled MOs *******
@@ -173,7 +173,10 @@ def setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, tolscal=3.0, nbins
     # ******* Pre-compute distances *******
     if compute_centres:
         
-        centres, ee, ii = generate_site_list_opt(pos,M,L_mos,R_mos,energies,nbins=100)
+        if opt:
+            centres, ee, ii = generate_site_list_opt(pos,M,L_mos,R_mos,energies,nbins=100)
+        else:
+            centres, ee, ii = generate_site_list(pos,M,L_mos,R_mos,energies,nbins=100)
         if save_centers:
             np.save(path.join(datapath,f'cc.npy'),centres)
             np.save(path.join(datapath,f'ee.npy'),ee)

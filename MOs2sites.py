@@ -116,6 +116,9 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
     """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
     This version of the function is the 'original', a version made for Numba and for the purposes of using it on the full spectrum of a large MAC structure can be found below."""
     rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins, padded_rho, return_edges=True)
+    np.save(f'rho_rollback-{n}.npy', rho)
+    np.save(f'xedges_rollback-{n}.npy', xedges)
+    np.save(f'yedges_rollback-{n}.npy', yedges)
     if padded_rho:
         nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
@@ -178,6 +181,10 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
     This version of the function is Numba-compatible, made for running on sets of >1000 MOs."""
     rho, xedges, yedges = gridifyMO_opt(pos, M, n, nbins)
+    with objmode():
+        np.save(f'rho-{n}.npy', rho)
+        np.save(f'xedges-{n}.npy', xedges)
+        np.save(f'yedges-{n}.npy', yedges)
     nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
     # Loop over gridified MO, identify peaks
