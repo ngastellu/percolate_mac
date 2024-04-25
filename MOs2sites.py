@@ -164,7 +164,7 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
             return shifted_centers
     else:
         if return_realspace and return_gridify:
-            return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges
+            return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges, peak_inds
         elif return_realspace and (not return_gridify):
             return bin_centers(peak_inds,xedges,yedges)
         elif return_gridify and (not return_realspace):
@@ -222,9 +222,9 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
 
     if shift_centers: #this will return real-space coords of peaks by default
         shifted_centers = shift_MO_loc_centers_random(peak_inds,xedges,yedges)
-        return shifted_centers, rho, xedges, yedges
+        return shifted_centers, rho, xedges, yedges, peak_inds
     else:
-        return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges
+        return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges, peak_inds
     
 @njit   
 def shift_MO_loc_centers_rho(peak_inds, rho, xedges, yedges, pxl_cutoff=1):
@@ -271,7 +271,7 @@ def shift_MO_loc_centers_random(peak_inds, xedges, yedges):
     return shifted_centers
 
 @njit
-def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers=True):
+def correct_peaks(sites, pos, rho, xedges, yedges, side, pk_inds, shift_centers=True):
     x = pos[:,0]
     length = np.max(x) - np.min(x)
     midx = length/2
@@ -283,6 +283,7 @@ def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers=True):
     
     # First, remove bad sites
     sites = sites[goodbools]
+    pk_inds = pk_inds[goodbools]
 
     # Check if any sites are left, if not, add peak on the right edge, at the pixel with the highest density
     if not np.any(goodbools):
@@ -292,49 +293,53 @@ def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers=True):
         else: # <==> side == 'R' 
             edge_ind = -3
         peak_ind = np.argmax(rho[:,edge_ind]) -1 
+        pk_inds = np.array([[edge_ind, peak_ind]])
 
         if shift_centers:
             shift_MO_loc_centers_random(np.array([[edge_ind, peak_ind]] ),xedges,yedges)
         else:
             sites = bin_centers([(edge_ind,peak_ind)],xedges,yedges)
-    return sites
+    return sites, pk_inds
 
 # @njit
 def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_centers=False):
     centres = np.zeros(2) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     ee = []
     inds = []
+    all_pk_inds = np.ones(2,dtype='int')*1000
     for n in range(M.shape[1]):
-        cc, rho, xedges, yedges = get_MO_loc_centers(pos,M,n,nbins,threshold_ratio,return_gridify=True,shift_centers=shift_centers)
+        cc, rho, xedges, yedges, pk_inds = get_MO_loc_centers(pos,M,n,nbins,threshold_ratio,return_gridify=True,shift_centers=shift_centers)
         if n in L:
             print(n)
-            cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
+            cc, pk_inds = correct_peaks(cc, pos, rho, xedges, yedges,'L',pk_inds,shift_centers=shift_centers)
         
         elif n in R:
             print(n)
-            cc = correct_peaks(cc, pos, rho, xedges, yedges,'R',shift_centers=shift_centers)
+            cc, pk_inds = correct_peaks(cc, pos, rho, xedges, yedges,'R',pk_inds,shift_centers=shift_centers)
         
 
         centres = np.vstack([centres,cc])
+        all_pk_inds = np.vstack([all_pk_inds,pk_inds])
         ee.extend([energies[n]]*cc.shape[0])
         inds.extend([n]*cc.shape[0]) #this will help us keep track of which centers belong to which MOs
-    return centres[1:,:], np.array(ee), np.array(inds) #get rid of initial [0,0] entry in centres
+    return centres[1:,:], np.array(ee), np.array(inds), pk_inds #get rid of initial [0,0] entry in centres
 
 @njit
 def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_centers=False):
     # Assume 10 sites per MO; if we run out of space, extend site energy and position arrays
     out_size = 10*M.shape[1]
     centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
+    all_pk_inds = np.zeros((out_size,2),dtype='int') #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     ee = np.zeros(out_size) 
     inds = np.zeros(out_size, dtype='int')
     nsites = 0
     for n in range(M.shape[1]):
-        cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,shift_centers=shift_centers)
+        cc, rho, xedges, yedges, pk_inds = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,shift_centers=shift_centers)
         if n in L:
-            cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
+            cc, pk_inds = correct_peaks(cc, pos, rho, xedges, yedges,'L',pk_inds,shift_centers=shift_centers)
         
         elif n in R:
-            cc = correct_peaks(cc, pos, rho, xedges, yedges,'R',shift_centers=shift_centers)
+            cc, pk_inds = correct_peaks(cc, pos, rho, xedges, yedges,'R',pk_inds,shift_centers=shift_centers)
         
         n_new = cc.shape[0]
 
@@ -355,13 +360,18 @@ def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shi
             new_inds[:nsites] = inds[:nsites]
             inds = new_inds
 
+            new_all_pk_inds = np.zeros((out_size,2),dtype='int')
+            new_all_pk_inds[:nsites,:] = all_pk_inds[:nsites,:]
+            all_pk_inds = new_all_pk_inds
+
         centres[nsites:nsites+n_new,:] = cc
         ee[nsites:nsites+n_new] = np.ones(n_new) * energies[n]
         inds[nsites:nsites+n_new] = np.ones(n_new,dtype='int') * n
+        all_pk_inds[nsites:nsites+n_new] = pk_inds
 
         nsites += n_new
         print(nsites)
 
         
 
-    return centres[:nsites,:], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
+    return centres[:nsites,:], ee[:nsites], inds[:nsites], all_pk_inds[:nsites,:] #get rid of 'empty' values in output arrays
