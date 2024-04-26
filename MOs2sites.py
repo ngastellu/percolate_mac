@@ -322,7 +322,7 @@ def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_c
         all_pk_inds = np.vstack([all_pk_inds,pk_inds])
         ee.extend([energies[n]]*cc.shape[0])
         inds.extend([n]*cc.shape[0]) #this will help us keep track of which centers belong to which MOs
-    return centres[1:,:], np.array(ee), np.array(inds), pk_inds #get rid of initial [0,0] entry in centres
+    return centres[1:,:], np.array(ee), np.array(inds), all_pk_inds #get rid of initial [0,0] entry in centres
 
 @njit
 def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_centers=False):
