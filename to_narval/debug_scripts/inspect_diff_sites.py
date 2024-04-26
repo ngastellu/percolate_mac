@@ -31,6 +31,16 @@ for k, ns in enumerate(new_sites):
     i = np.argmin(dd)
     closest_os = old_sites[i,:]
     if dd[i] == 0:
-        print(f'{ns} <---> {closest_os}')
+        print(f'{ns}\t({inew[k]})\t<--->\t{closest_os}\t({iold[i]}_')
     else: 
-        print(f'*** No match found! {ns} <---> {closest_os} ***')
+        print(f'*** No match found! {ns}\t({inew[k]})\t<--->\t{closest_os}\t({iold[i]}) ***')
+
+print('\n----------------------------\nLooping over new_sites...')
+for k, ols in enumerate(old_sites):
+    dd = dists[:,k]
+    i = np.argmin(dd)
+    closest_ns = new_sites[i,:]
+    if dd[i] == 0:
+        print(f'{ols}\t({iold[k]})\t<--->\t{closest_ns}\t({inew[i]})')
+    else: 
+        print(f'*** No match found! {ols}\t({iold[k]})\t<--->\t{closest_ns}\t({inew[i]})***')
