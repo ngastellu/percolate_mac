@@ -44,6 +44,7 @@ tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t
 pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/100x100_gridMOs/'
 t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs/'
 tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs/'
+tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs/'
 
 
 
@@ -57,6 +58,8 @@ with open(t1dir + 'good_runs.txt') as fo:
 
 with open(tempdot6_dir + 'good_runs.txt') as fo:
     tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
+
+tdot5_lbls = range(32)
 
 dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
 
@@ -76,30 +79,33 @@ p6c = np.array([p6c_pCNN,p6c_tempdot6])
 
 
 cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
-clrs = [d['color'] for d in list(cyc[0:2])]
+clrs = [d['color'] for d in list(cyc[0:3])]
 
 # ddirs = [tdot25dir, pCNNdir, t1dir, tempdot6_dir]
-ddirs = [pCNNdir, tempdot6_dir]
+ddirs = [pCNNdir, tempdot6_dir, tempdot5_dir]
 # run_lbls = [tdot25_lbls,pCNN_lbls,t1_lbls,tdot6_lbls]
-run_lbls = [pCNN_lbls,tdot6_lbls]
+run_lbls = [pCNN_lbls,tdot6_lbls,tdot5_lbls]
 # curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 1$', '$\\tilde{T} = 0.6$']
 # curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 0.6$']
 # curve_lbls = [f'$p_{{6c}} = {p*100:.2f}\,\%$' for p in p6c]
-curve_lbls = ['sAMC-500', 'sAMC-300']
+# curve_lbls = ['sAMC-500', 'sAMC-300', 'tdot5']
+curve_lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
+
+ndatasets = len(ddirs)
 
 setup_tex()
 fig, ax = plt.subplots()
 
-eas = np.zeros(2)
-errs_lr = np.zeros(2)
+eas = np.zeros(ndatasets)
+errs_lr = np.zeros(ndatasets)
 
-eas2 = np.zeros(2)
-errs_cf = np.zeros(2)
+eas2 = np.zeros(ndatasets)
+errs_cf = np.zeros(ndatasets)
 
 sigs = []
 
 # for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
-for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
+for k, dd, ll, cc, cl in zip(range(3), ddirs, run_lbls, clrs, curve_lbls):
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
     dcrits = get_dcrits(ll, temps, dd)
