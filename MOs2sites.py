@@ -3,6 +3,7 @@ import numpy as np
 from scipy.signal import find_peaks
 from numba import njit, jit, int32, float64, objmode
 from qcnico import qchemMAC as qcm
+from sklearn.cluster import MiniBatchKMeans
 
 """
 Author: Nico Gastellu
@@ -365,3 +366,24 @@ def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shi
         
 
     return centres[:nsites,:], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
+
+
+def assign_AOs(pos, cc, psi=None,init_cc=True):
+    """Assigns carbon atoms to localisation centers obtained from `get_MO_loc_centers` using K-means clustering."""
+    nclusters = cc.shape[0]
+    if init_cc:
+        kmeans = MiniBatchKMeans(nclusters,init=cc)
+    else:
+        kmeans = MiniBatchKMeans(nclusters,init='k-means++')
+    
+    if psi is not None:
+        kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**2)
+    else:
+        kmeans = kmeans.fit(pos)
+
+    cluster_cc = kmeans.cluster_centers_
+    labels = kmeans.labels_
+
+    return cluster_cc, labels
+
+
