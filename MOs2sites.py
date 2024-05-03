@@ -78,6 +78,7 @@ def bin_center(i,j,xedges,yedges):
 
 @njit
 def gridifyMO_opt(pos,M,n,nbins):
+    pos = pos[:,:2]
     x = pos.T[0]
     y = pos.T[1]
     psi = np.abs(M[:,n])**2
@@ -86,7 +87,7 @@ def gridifyMO_opt(pos,M,n,nbins):
     yedges = np.linspace(np.min(y)-0.1,np.max(y)+0.1,nbins+1)
     rho = np.zeros((nbins,nbins))
     for c, r in zip(psi,pos):
-        x, y, _ = r
+        x, y = r
         i = np.sum(x > xedges) - 1
         j = np.sum(y > yedges) - 1
         rho[j,i] += c # <----- !!!! caution, 1st index labels y, 2nd labels x
@@ -113,7 +114,7 @@ def gridifyMO_opt(pos,M,n,nbins):
 
     return rho_out, xedges, yedges
 
-def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspace=True,padded_rho=True,return_gridify=False,shift_centers='none'):
+def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.50,return_realspace=True,padded_rho=True,return_gridify=False,shift_centers='none'):
     """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
     This version of the function is the 'original', a version made for Numba and for the purposes of using it on the full spectrum of a large MAC structure can be found below."""
     rho, xedges, yedges = qcm.gridifyMO(pos, M, n, nbins, padded_rho, return_edges=True)
@@ -175,10 +176,16 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.60,return_realspac
 
 
 @njit
-def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_centers=True):
+def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_centers=True,min_distance=10):
     """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
-    This version of the function is Numba-compatible, made for running on sets of >1000 MOs."""
+    This version of the function is Numba-compatible, made for running on sets of >1000 MOs.
+    
+    min_distance is in ANGSTROMS"""
+
     rho, xedges, yedges = gridifyMO_opt(pos, M, n, nbins)
+    dy = yedges[1] - yedges[0]
+    min_distance_pixel = int(min_distance/dy)
+    
     nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
     # Loop over gridified MO, identify peaks
@@ -186,7 +193,7 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     for i in range(1,nbins-1):
         data = rho[i,:]
         with objmode(peak_inds='intp[:]'):
-            peak_inds, _ = find_peaks(data)
+            peak_inds, _ = find_peaks(data,distance=min_distance_pixel) #about 12 angstroms
         for j in peak_inds:
             peak_val = data[j]
             if peak_val > 1e-4: all_peaks[(i,j)] = peak_val
@@ -197,7 +204,8 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     # Some peaks still occupy several neighbouring pixels; keep only the most prominent pixel
     # so that we have 1 peak <---> 1 pixel.
     pk_inds = set(peaks.keys())
-    shift = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
+    # shift = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
+    shift = combinations_with_replacement(np.arange(-min_distance_pixel, min_distance_pixel+1),2)
     
     while pk_inds:
         ij = pk_inds.pop()
@@ -386,4 +394,5 @@ def assign_AOs(pos, cc, psi=None,init_cc=True):
 
     return cluster_cc, labels
 
-
+def clean_centers(cc,rho,min_dist=20):
+    """"This function removes sites that are too close to eachother (and therefore likely belong to the same localisation pocket)."""
