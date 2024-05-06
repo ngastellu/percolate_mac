@@ -205,13 +205,15 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     # so that we have 1 peak <---> 1 pixel.
     pk_inds = set(peaks.keys())
     # shift = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
-    shift = combinations_with_replacement(np.arange(-min_distance_pixel, min_distance_pixel+1),2)
+    with objmode(shift='intp[:,:]'):
+        shift = np.array(list(combinations_with_replacement(np.arange(-min_distance_pixel, min_distance_pixel+1),2)))
+        print(shift,flush=True)
     
     while pk_inds:
         ij = pk_inds.pop()
         nns = [(0,0)] * shift.shape[0]
         for k in range(shift.shape[0]):
-            nns[k] = (ij[0] + shift[k,0], ij[1] + shift[k,1])        
+            nns[k] = (ij[0] + shift[k,0], ij[1] + shift[k,1])
         nns = set(nns)
         intersect = nns & pk_inds
         for nm in intersect:
@@ -379,6 +381,7 @@ def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shi
 def assign_AOs(pos, cc, psi=None,init_cc=True):
     """Assigns carbon atoms to localisation centers obtained from `get_MO_loc_centers` using K-means clustering."""
     nclusters = cc.shape[0]
+    print('nclusts = ',nclusters)
     if init_cc:
         kmeans = MiniBatchKMeans(nclusters,init=cc)
     else:

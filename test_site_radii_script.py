@@ -24,32 +24,46 @@ MO_inds = np.unique(ii)[MO_inds]
 MO_inds = [3]
 print(MO_inds)
 
-for n in MO_inds:
-    site_inds = (ii == n).nonzero()[0]
-    print(site_inds)
-    sites = cc[site_inds]
-    
-    fig,ax = plt.subplots()
+pos = pos[:,:2]
+sites, rho, xedges, yedges = get_MO_loc_centers_opt(pos, M, 3, nbins=100,threshold_ratio=0.4, shift_centers=False,min_distance=20)
+nsites = sites.shape[0]
+print('nsites = ',nsites)
 
-    fig, ax = plot_MO(pos,M,n,dotsize=0.5,show=False,plt_objs=(fig,ax),usetex=True,scale_up=50)
-    ax.scatter(sites[:,0],sites[:,1],marker='*',color='r',s=80,edgecolors='k',label='hopping sites')
-    plt.legend()
-    plt.show()
+# for n in MO_inds:
+#     # site_inds = (ii == n).nonzero()[0]
+#     # print(site_inds)
+#     # sites = cc[site_inds]
+    
+#     fig,ax = plt.subplots()
+
+#     fig, ax = plot_MO(pos,M,n,dotsize=0.5,show=False,plt_objs=(fig,ax),usetex=True,scale_up=50)
+#     ax.scatter(sites[:,0],sites[:,1],marker='*',color='r',s=80,edgecolors='k',label='hopping sites')
+#     plt.legend()
+#     plt.show()
 
 cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
+print(len(cyc))
 
-pos = pos[:,:2]
 
 for n in MO_inds:
-    site_inds = (ii == n).nonzero()[0]
-    nsites  = site_inds.shape[0]
-    sites = cc[site_inds]
+    # site_inds = (ii == n).nonzero()[0]
+    # nsites  = site_inds.shape[0]
+    # sites = cc[site_inds]
+    print('nsites = ',nsites)
     colors = [d['color'] for d in list(cyc[0:nsites])]
+    print('len(colors) = ', len(colors))
     psi = M[:,n]
 
     cluster_centers,labels = assign_AOs(pos,sites,psi=psi)
+    print(labels.shape)
+    print(np.max(labels))
 
-    atom_clrs  = [colors[k] for k in labels]
+    # atom_clrs  = [colors[k] for k in labels]
+    atom_clrs = [0] * labels.shape[0]
+    print(len(atom_clrs))
+    for k,l in enumerate(labels):
+        # print(k,l)
+        atom_clrs[k] = colors[l]
     cluster_clrs = colors
     cc_clrs = colors
     
@@ -73,3 +87,4 @@ for n in MO_inds:
     ax.set_title(f'MO \# {n}')
     plt.legend()
     plt.show()
+
