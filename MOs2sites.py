@@ -3,6 +3,7 @@ import numpy as np
 from scipy.signal import find_peaks
 from numba import njit, jit, int32, float64, objmode
 from qcnico import qchemMAC as qcm
+from qcnico.graph_tools import components
 from sklearn.cluster import MiniBatchKMeans
 
 """
@@ -207,7 +208,7 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     # shift = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
     with objmode(shift='intp[:,:]'):
         shift = np.array(list(combinations_with_replacement(np.arange(-min_distance_pixel, min_distance_pixel+1),2)))
-        print(shift,flush=True)
+        # print(shift,flush=True)
     
     while pk_inds:
         ij = pk_inds.pop()
@@ -233,9 +234,9 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
 
     if shift_centers: #this will return real-space coords of peaks by default
         shifted_centers = shift_MO_loc_centers_random(peak_inds,xedges,yedges)
-        return shifted_centers, rho, xedges, yedges
+        return shifted_centers, rho, xedges, yedges, peak_inds
     else:
-        return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges
+        return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges, peak_inds
     
 @njit   
 def shift_MO_loc_centers_rho(peak_inds, rho, xedges, yedges, pxl_cutoff=1):
@@ -383,12 +384,12 @@ def assign_AOs(pos, cc, psi=None,init_cc=True):
     nclusters = cc.shape[0]
     print('nclusts = ',nclusters)
     if init_cc:
-        kmeans = MiniBatchKMeans(nclusters,init=cc)
+        kmeans = MiniBatchKMeans(nclusters,init=cc,random_state=64)
     else:
-        kmeans = MiniBatchKMeans(nclusters,init='k-means++')
+        kmeans = MiniBatchKMeans(nclusters,init='k-means++',random_state=64)
     
     if psi is not None:
-        kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**2)
+        kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**4)
     else:
         kmeans = kmeans.fit(pos)
 
@@ -397,5 +398,20 @@ def assign_AOs(pos, cc, psi=None,init_cc=True):
 
     return cluster_cc, labels
 
-def clean_centers(cc,rho,min_dist=20):
+def clean_centers(cc,ipeaks,grid_rho,min_dist=30):
+    ipeaks = np.roll(ipeaks, shift=1, axis=1)
     """"This function removes sites that are too close to eachother (and therefore likely belong to the same localisation pocket)."""
+    cc_dists = np.linalg.norm(cc[:,None,:] - cc, axis=2)
+    np.fill_diagonal(cc_dists,np.max(cc_dists)*1000)
+    adj_mat = (cc_dists < min_dist)
+    if np.any(adj_mat):
+        connected_sets = components(adj_mat) # find set of sites that are all within each other's neighbourhood
+        site_densities = grid_rho[tuple(ipeaks.T)]
+        ikeep = np.zeros(len(connected_sets),dtype='int')
+        for k, c in enumerate(connected_sets):
+            c = list(c)
+            densities = site_densities[c]
+            ikeep[k] = c[np.argmax(densities)]
+        return cc[ikeep,:]
+    else:
+        return cc
