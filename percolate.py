@@ -134,6 +134,9 @@ def percolate(darr, dpair_inds, L, R, return_adjmat=False):
     ----------
     darr: `np.ndarray`, shape = (N*(N-1)/2,), dtype = `float`
         Flattened array of of pairwise 'distances' (usually log Miller-Abrahams rates) between sites
+    dpair_inds: `np.ndarray`, shape = (N*(N-1)/2,2), dtype = `int`
+        Indices of sites whose distances are stored in `darr`: `darr[k]` is the distance between sites `i` and `j`
+        where  `(i,j) = dpair_inds[k,:]`
     L: `set` of `ints`
         Set of indices of sites strongly coupled to the left lead
     R: `set` of `int`s

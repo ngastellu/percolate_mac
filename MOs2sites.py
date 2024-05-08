@@ -3,7 +3,8 @@ import numpy as np
 from scipy.signal import find_peaks
 from numba import njit, jit, int32, float64, objmode
 from qcnico import qchemMAC as qcm
-from qcnico.graph_tools import components
+# from qcnico.graph_tools import components
+from percolate import jitted_components
 from sklearn.cluster import MiniBatchKMeans
 
 """
@@ -69,13 +70,16 @@ def LR_MOs(gamL, gamR, tolscal=3.0):
 def bin_centers(peak_inds,xedges,yedges):
     centers = np.zeros((len(peak_inds),2))
     for k, ij in enumerate(peak_inds):
-        i,j = ij
+    # !!! indices of 2d array are swapped with respect to coords!! j = 1st ind = row (y-coord); 2nd ind = column (x-coord) !!!
+        i,j = ij 
         centers[k,:] = bin_center(i,j,xedges,yedges)
     return centers
 
 @njit
 def bin_center(i,j,xedges,yedges):
-    return np.array([0.5 * (xedges[i] + xedges[i+1]), 0.5 * (yedges[j] + yedges[j+1])])
+    # !!! indices of 2d array are swapped with respect to Cartesian coords!!
+    # i = 1st ind = row (y-coord); j = 2nd ind = column (x-coord) !!!
+    return np.array([0.5 * (xedges[j] + xedges[j+1]), 0.5 * (yedges[i] + yedges[i+1])])
 
 @njit
 def gridifyMO_opt(pos,M,n,nbins):
@@ -151,7 +155,7 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.50,return_realspac
                 peaks[ij] = 0
 
     #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
-    peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
+    # peak_inds = np.roll([key for key in peaks.keys() if peaks[key] > 0],shift=1,axis=1)
 
     if shift_centers == 'density': #this will return real-space coords of peaks by default
         shifted_centers = shift_MO_loc_centers_rho(peak_inds,rho,xedges,yedges,pxl_cutoff=1)
@@ -177,7 +181,7 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.50,return_realspac
 
 
 @njit
-def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_centers=True,min_distance=10):
+def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_centers=True,min_distance=30.0):
     """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
     This version of the function is Numba-compatible, made for running on sets of >1000 MOs.
     
@@ -186,7 +190,6 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     rho, xedges, yedges = gridifyMO_opt(pos, M, n, nbins)
     dy = yedges[1] - yedges[0]
     min_distance_pixel = int(min_distance/dy)
-    
     nbins = nbins+2 #nbins describes over how many bins the actual MO is discretized; doesn't account for padding
     
     # Loop over gridified MO, identify peaks
@@ -202,42 +205,25 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     threshold = max(all_peaks.values())*threshold_ratio
     peaks = {key:val for key,val in all_peaks.items() if val >= threshold}
 
-    # Some peaks still occupy several neighbouring pixels; keep only the most prominent pixel
-    # so that we have 1 peak <---> 1 pixel.
-    pk_inds = set(peaks.keys())
-    # shift = np.array([[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]])
-    with objmode(shift='intp[:,:]'):
-        shift = np.array(list(combinations_with_replacement(np.arange(-min_distance_pixel, min_distance_pixel+1),2)))
-        # print(shift,flush=True)
-    
-    while pk_inds:
-        ij = pk_inds.pop()
-        nns = [(0,0)] * shift.shape[0]
-        for k in range(shift.shape[0]):
-            nns[k] = (ij[0] + shift[k,0], ij[1] + shift[k,1])
-        nns = set(nns)
-        intersect = nns & pk_inds
-        for nm in intersect:
-            if peaks[nm] <= peaks[ij]:
-                peaks[nm] = 0
-            else:
-                peaks[ij] = 0
-
-    #need to swap indices of peak position; 1st index actually labels y and 2nd labels x
     peak_inds = np.array([key for key in peaks.keys() if peaks[key] > 0])
-    temp = np.zeros(2,dtype='int')
-    for k in range(peak_inds.shape[0]):
-        temp[0] = peak_inds[k,1]
-        temp[1] = peak_inds[k,0]
-        peak_inds[k,:] = temp[:]
 
+    centers = bin_centers(peak_inds,xedges,yedges)
+    centers = clean_centers(centers,peak_inds,rho,min_dist=min_distance)
+    if shift_centers:
+        centers = shift_MO_loc_centers_random(peak_inds,xedges,yedges)
+    return centers, rho, xedges, yedges, peak_inds
 
-    if shift_centers: #this will return real-space coords of peaks by default
-        shifted_centers = shift_MO_loc_centers_random(peak_inds,xedges,yedges)
-        return shifted_centers, rho, xedges, yedges, peak_inds
-    else:
-        return bin_centers(peak_inds,xedges,yedges), rho, xedges, yedges, peak_inds
-    
+@njit
+def jitted_swap_columns(arr,i,j):
+    "Exchanges columns `i` and `j` of array `arr`."
+    temp = np.zeros(arr.shape[1],dtype='int')
+    for k in range(arr.shape[0]):
+        temp = arr[k,:]
+        temp[i] = arr[k,j]
+        temp[j] = arr[k,i]
+        arr[k,:] = temp[:]
+    return arr
+
 @njit   
 def shift_MO_loc_centers_rho(peak_inds, rho, xedges, yedges, pxl_cutoff=1):
     l = np.min([xedges[1]-xedges[0], yedges[1]-yedges[0]]) #* 0.5
@@ -277,6 +263,7 @@ def shift_MO_loc_centers_random(peak_inds, xedges, yedges):
     dr = np.random.rand(npeaks, 2) * 2*l - l
     shifted_centers = np.zeros((npeaks,2))
     for n in range(npeaks):
+        # !!! indices of 2d array are swapped with respect to coords!! j = 1st ind = row (y-coord); 2nd ind = column (x-coord) !!!
         i,j = peak_inds[n]
         R0 = bin_center(i,j,xedges,yedges)
         shifted_centers[n,:] = R0 + dr[n,:]
@@ -306,9 +293,9 @@ def correct_peaks(sites, pos, rho, xedges, yedges, side, shift_centers=True):
         peak_ind = np.argmax(rho[:,edge_ind]) -1 
 
         if shift_centers:
-            shift_MO_loc_centers_random(np.array([[edge_ind, peak_ind]] ),xedges,yedges)
+            shift_MO_loc_centers_random(np.array([[peak_ind, edge_ind]] ),xedges,yedges)
         else:
-            sites = bin_centers([(edge_ind,peak_ind)],xedges,yedges)
+            sites = bin_centers([(peak_ind,edge_ind)],xedges,yedges)
     return sites
 
 # @njit
@@ -398,19 +385,41 @@ def assign_AOs(pos, cc, psi=None,init_cc=True):
 
     return cluster_cc, labels
 
-def clean_centers(cc,ipeaks,grid_rho,min_dist=30):
-    ipeaks = np.roll(ipeaks, shift=1, axis=1)
+@njit
+def pair_dists_w_inds(points):
+    N = points.shape[0]
+    ndists = N*(N-1) // 2
+    dists = np.zeros(ndists)
+    inds = np.zeros((ndists,2),dtype='int')
+    k = 0
+    for i in range(N):
+        for j in range(i):
+            dists[k] = np.linalg.norm(points[i,:] - points[j,:])
+            inds[k,0] = i
+            inds[k,1] = j
+            k += 1
+    return dists, inds
+
+
+@njit
+def clean_centers(cc,ipeaks,grid_rho,min_dist=30.0):
     """"This function removes sites that are too close to eachother (and therefore likely belong to the same localisation pocket)."""
-    cc_dists = np.linalg.norm(cc[:,None,:] - cc, axis=2)
+    N = cc.shape[0]
+    cc_dists_flat, ij = pair_dists_w_inds(cc)
+    cc_dists = np.zeros((N,N))
+    for d, ij in zip(cc_dists_flat,ij):
+        i,j = ij
+        cc_dists[i,j] = d
+        cc_dists[j,i] = d
     np.fill_diagonal(cc_dists,np.max(cc_dists)*1000)
     adj_mat = (cc_dists < min_dist)
     if np.any(adj_mat):
-        connected_sets = components(adj_mat) # find set of sites that are all within each other's neighbourhood
-        site_densities = grid_rho[tuple(ipeaks.T)]
+        connected_sets = jitted_components(adj_mat) # find set of sites that are all within each other's neighbourhood
+        site_densities = np.array([grid_rho[i,j] for (i,j) in ipeaks])
         ikeep = np.zeros(len(connected_sets),dtype='int')
         for k, c in enumerate(connected_sets):
             c = list(c)
-            densities = site_densities[c]
+            densities = np.array([site_densities[n] for n in c])
             ikeep[k] = c[np.argmax(densities)]
         return cc[ikeep,:]
     else:
