@@ -408,16 +408,16 @@ def site_radii(pos, M, n, labels, hyperlocal=False):
     centers = np.zeros((nsites,2))
     radii = np.zeros(nsites)
     for k, l in enumerate(unique_labels):
-        mask = ~(labels==l)
-        print(f'# of atoms in cluster {l}: ', pos.shape[0] - mask.sum())
-        masked_M = np.copy(M)
-        masked_M[mask,:] = 0
+        mask = (labels==l)
+        print(f'# of atoms in cluster {l}: ', mask.sum())
+        # masked_M = np.copy(M)
+        # masked_M[mask,:] = 0
         if hyperlocal:
-            centers[k,:] = qcm.MO_com_hyperlocal(pos,masked_M,n)
-            radii[k] = qcm.MO_rgyr_hyperlocal(pos, masked_M, n)
+            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)
+            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)
         else:
-            centers[k,:] = qcm.MO_com(pos,masked_M,n)
-            radii[k] = qcm.MO_rgyr(pos, masked_M, n,center_of_mass=centers[k,:])
+            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)
+            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, center_of_mass=centers[k,:],renormalise=True)
     return centers, radii
 
 
