@@ -1,11 +1,11 @@
 from itertools import combinations_with_replacement
 import numpy as np
 from scipy.signal import find_peaks
+from sklearn.cluster import MiniBatchKMeans
 from numba import njit, jit, int32, float64, objmode
 from qcnico import qchemMAC as qcm
 # from qcnico.graph_tools import components
 from percolate import jitted_components
-from sklearn.cluster import MiniBatchKMeans
 
 """
 Author: Nico Gastellu
@@ -63,7 +63,7 @@ def LR_MOs(gamL, gamR, tolscal=3.0):
     LMOs = (gamL > gamL_tol).nonzero()[0]
     RMOs = (gamR > gamR_tol).nonzero()[0]
 
-    return LMOs, RMOs
+    return set(LMOs), set(RMOs)
 
 
 @njit
@@ -181,7 +181,7 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.50,return_realspac
 
 
 @njit
-def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_centers=True,min_distance=30.0):
+def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.50,shift_centers=True,min_distance=30.0):
     """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
     This version of the function is Numba-compatible, made for running on sets of >1000 MOs.
     
@@ -208,10 +208,14 @@ def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.60,shift_cente
     peak_inds = np.array([key for key in peaks.keys() if peaks[key] > 0])
 
     centers = bin_centers(peak_inds,xedges,yedges)
-    centers = clean_centers(centers,peak_inds,rho,min_dist=min_distance)
+    ncenters = centers.shape[0]
+    if ncenters > 1:
+        ikeep = clean_centers(centers,peak_inds,rho,min_dist=min_distance)
+        centers = centers[ikeep,:]
+        peak_inds = peak_inds[ikeep,:]
     if shift_centers:
         centers = shift_MO_loc_centers_random(peak_inds,xedges,yedges)
-    return centers, rho, xedges, yedges, peak_inds
+    return centers, rho, xedges, yedges
 
 @njit
 def jitted_swap_columns(arr,i,j):
@@ -320,7 +324,7 @@ def generate_site_list(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_c
     return centres[1:,:], np.array(ee), np.array(inds) #get rid of initial [0,0] entry in centres
 
 @njit
-def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shift_centers=False):
+def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.50, minimum_distance=30.0, shift_centers=False):
     # Assume 10 sites per MO; if we run out of space, extend site energy and position arrays
     out_size = 10*M.shape[1]
     centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
@@ -328,7 +332,7 @@ def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.60, shi
     inds = np.zeros(out_size, dtype='int')
     nsites = 0
     for n in range(M.shape[1]):
-        cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,shift_centers=shift_centers)
+        cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,min_distance=minimum_distance,shift_centers=shift_centers)
         if n in L:
             cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
         
@@ -376,7 +380,7 @@ def assign_AOs(pos, cc, psi=None,init_cc=True):
         kmeans = MiniBatchKMeans(nclusters,init='k-means++',random_state=64)
     
     if psi is not None:
-        kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**4)
+        kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**2)
     else:
         kmeans = kmeans.fit(pos)
 
@@ -384,6 +388,38 @@ def assign_AOs(pos, cc, psi=None,init_cc=True):
     labels = kmeans.labels_
 
     return cluster_cc, labels
+
+
+def assign_AOs_naive(pos, cc):
+    N = pos.shape[0]
+    min_dists = np.ones(N) * np.inf
+    labels = np.zeros(N,dtype='int')
+    for k, r in enumerate(cc):
+        sq_dists = ((pos - r[None,:])**2).sum(axis=1)
+        smaller_bools = (sq_dists < min_dists).nonzero()[0]
+        min_dists[smaller_bools] = sq_dists[smaller_bools]
+        labels[smaller_bools] = k
+
+    return labels
+
+def site_radii(pos, M, n, labels, hyperlocal=False):
+    unique_labels = np.unique(labels)
+    nsites = unique_labels.shape[0]
+    centers = np.zeros((nsites,2))
+    radii = np.zeros(nsites)
+    for k, l in enumerate(unique_labels):
+        mask = ~(labels==l)
+        print(f'# of atoms in cluster {l}: ', pos.shape[0] - mask.sum())
+        masked_M = np.copy(M)
+        masked_M[mask,:] = 0
+        if hyperlocal:
+            centers[k,:] = qcm.MO_com_hyperlocal(pos,masked_M,n)
+            radii[k] = qcm.MO_rgyr_hyperlocal(pos, masked_M, n)
+        else:
+            centers[k,:] = qcm.MO_com(pos,masked_M,n)
+            radii[k] = qcm.MO_rgyr(pos, masked_M, n,center_of_mass=centers[k,:])
+    return centers, radii
+
 
 @njit
 def pair_dists_w_inds(points):
@@ -403,7 +439,8 @@ def pair_dists_w_inds(points):
 
 @njit
 def clean_centers(cc,ipeaks,grid_rho,min_dist=30.0):
-    """"This function removes sites that are too close to eachother (and therefore likely belong to the same localisation pocket)."""
+    """"This function removes sites that are too close to eachother (and therefore likely belong to the same localisation pocket).
+        N.B. This function returns INDICES of centers, not the centers themselves."""
     N = cc.shape[0]
     cc_dists_flat, ij = pair_dists_w_inds(cc)
     cc_dists = np.zeros((N,N))
@@ -421,6 +458,6 @@ def clean_centers(cc,ipeaks,grid_rho,min_dist=30.0):
             c = list(c)
             densities = np.array([site_densities[n] for n in c])
             ikeep[k] = c[np.argmax(densities)]
-        return cc[ikeep,:]
+        return ikeep
     else:
-        return cc
+        return np.arange(N)
