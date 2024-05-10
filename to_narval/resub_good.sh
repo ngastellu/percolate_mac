@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --account=ctb-simine
-#SBATCH --time=0-01:00
+#SBATCH --time=0-12:00
 #SBATCH --mem-per-cpu=4G
-#SBATCH --array=38-131
+#SBATCH --array=0-15
 #SBATCH --output=slurm_%a.out
 #SBATCH --error=slurm_%a.err
 
@@ -12,7 +12,14 @@ source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index --upgrade pip
 pip install --no-index -r requirements.txt
 
-nn=$SLURM_ARRAY_TASK_ID
+inds=()
+
+while IFS= read -r line; do
+	inds+=(" $line" )
+done < 'good_runs.txt'
+
+n=$SLURM_ARRAY_TASK_ID
+nn=${inds[n]}
 
 if [[ ! -d sample-${nn} ]]; then
 	mkdir sample-${nn}
@@ -26,5 +33,5 @@ fi
 cp run_gMOs.py sample-${nn}
 cd sample-${nn}
 
-python run_gMOs.py $nn 
+python run_gMOs.py $nn 'tempdot6' 'virtual'
 
