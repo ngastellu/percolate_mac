@@ -35,7 +35,7 @@ for MO_ind in MO_inds:
 
     print(f'********** {MO_ind} **********')
 
-    sites, *_ = get_MO_loc_centers_opt(pos, M, MO_ind, nbins=100, threshold_ratio=0.3,shift_centers=True,min_distance=30.0)
+    sites, *_ = get_MO_loc_centers_opt(pos, M, MO_ind, nbins=100, threshold_ratio=0.2,shift_centers=True,min_distance=20.0)
 
     if sites.shape[0] == 2:
         continue
@@ -61,7 +61,7 @@ for MO_ind in MO_inds:
         print(f'{r} --> {a}')
 
     print('----------')
-    fig,axs = plt.subplots(1,2) 
+    fig,axs = plt.subplots(1,2,sharex=True,sharey=True) 
     fig, axs[0] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[0]),usetex=True,scale_up=50,title=f'Partition of $|\psi_{{{MO_ind}}}\\rangle$ (k-means)',show_cbar=False)
     axs[0].scatter(*centers_kmeans.T,marker='^',c='r',edgecolors='k',s=60.0,zorder=2,label='cluster centres')
     if sites.shape[0] > 1:
@@ -118,7 +118,7 @@ for MO_ind in MO_inds:
     sites_naive_hl, radii_naive_hl = site_radii(pos, M, MO_ind, labels_naive, hyperlocal=True)
 
     # fig,ax = plt.subplots()
-    fig, axs[1] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[1]),usetex=True,scale_up=50,title=f'Partition MO $|\psi_{{{MO_ind}}}\\rangle$ (Voronoi)')
+    fig, axs[1] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[1]),usetex=True,scale_up=50,title=f'Partition MO $|\psi_{{{MO_ind}}}\\rangle$ (Voronoi)',show_cbar=False)
     axs[1].scatter(*sites.T,marker='*',c='r',edgecolors='k',s=60.0,zorder=3,label='hopping sites')
     if sites.shape[0] > 1:
         vor = Voronoi(sites)
