@@ -406,7 +406,12 @@ def assign_AOs_naive(pos, cc):
 
     return labels
 
-def site_radii(pos, M, n, labels, hyperlocal=False, density_threshold=0):
+def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0):
+    valid_hl_types = ['sites', 'radii', 'all', 'none']
+    if hyperlocal not in valid_hl_types:
+        print(f'''[sites_radii] WARNING: specified `hyperlocal` arg \'{hyperlocal}\'is invalid; 
+              should be one of the following options: {valid_hl_types}.\n Reverting to default setting: \'sites\'.''')
+        hyperlocal = 'sites'
     unique_labels = np.unique(labels)
     nsites = unique_labels.shape[0]
     centers = np.zeros((nsites,2))
@@ -420,8 +425,14 @@ def site_radii(pos, M, n, labels, hyperlocal=False, density_threshold=0):
         # print(f'# of atoms in cluster {l}: ', mask.sum())
         # masked_M = np.copy(M)
         # masked_M[mask,:] = 0
-        if hyperlocal:
+        if hyperlocal == 'all':
             centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)
+            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)
+        elif hyperlocal == 'sites':
+            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)
+            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, renormalise=True)
+        elif hyperlocal == 'radii':
+            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)
             radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)
         else:
             centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)

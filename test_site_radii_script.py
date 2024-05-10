@@ -47,10 +47,10 @@ for MO_ind in MO_inds:
     labels_naive = assign_AOs_naive(pos,sites)
 
     sites_kmeans, radii_kmeans = site_radii(pos, M, MO_ind, labels_kmeans)
-    sites_kmeans_hl, radii_kmeans_hl = site_radii(pos, M, MO_ind, labels_kmeans, hyperlocal=True)
+    # sites_kmeans_hl, radii_kmeans_hl = site_radii(pos, M, MO_ind, labels_kmeans, hyperlocal=True)
 
-    sites_kmeans_threshold, radii_kmeans_threshold = site_radii(pos, M, MO_ind, labels_kmeans_threshold)
-    sites_kmeans_threshold_hl, radii_kmeans_threshold_hl = site_radii(pos, M, MO_ind, labels_kmeans_threshold, hyperlocal=True)
+    # sites_kmeans_threshold, radii_kmeans_threshold = site_radii(pos, M, MO_ind, labels_kmeans_threshold)
+    # sites_kmeans_threshold_hl, radii_kmeans_threshold_hl = site_radii(pos, M, MO_ind, labels_kmeans_threshold, hyperlocal=True)
 
     # ------ k-means approach: no threshold -------
 
@@ -70,14 +70,14 @@ for MO_ind in MO_inds:
     else:
         print('!!!! Skipping Voronoi; only 1 site !!!!')
     axs[0].scatter(*sites_kmeans.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
-    axs[0].scatter(*sites_kmeans_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
+    # axs[0].scatter(*sites_kmeans_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
     for k in range(sites_kmeans.shape[0]): 
         print(sites_kmeans[k,:])
-        print(sites_kmeans_hl[k,:])
+        # print(sites_kmeans_hl[k,:])
         loc_circle = plt.Circle(sites_kmeans[k,:], radii_kmeans[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
         axs[0].add_patch(loc_circle)
-        loc_circle = plt.Circle(sites_kmeans_hl[k], radii_kmeans_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
-        axs[0].add_patch(loc_circle)
+        # loc_circle = plt.Circle(sites_kmeans_hl[k], radii_kmeans_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
+        # axs[0].add_patch(loc_circle)
     axs[0].set_xlim([0,400])
     axs[0].set_ylim([0,400])
     # plt.legend()
@@ -115,7 +115,7 @@ for MO_ind in MO_inds:
 
 
     sites_naive, radii_naive = site_radii(pos, M, MO_ind, labels_naive)
-    sites_naive_hl, radii_naive_hl = site_radii(pos, M, MO_ind, labels_naive, hyperlocal=True)
+    # sites_naive_hl, radii_naive_hl = site_radii(pos, M, MO_ind, labels_naive, hyperlocal=True)
 
     # fig,ax = plt.subplots()
     fig, axs[1] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[1]),usetex=True,scale_up=50,title=f'Partition MO $|\psi_{{{MO_ind}}}\\rangle$ (Voronoi)',show_cbar=False)
@@ -126,12 +126,12 @@ for MO_ind in MO_inds:
     else:
         print('!!!! Skipping Voronoi; only 1 site !!!!')
     axs[1].scatter(*sites_naive.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
-    axs[1].scatter(*sites_naive_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
+    # axs[1].scatter(*sites_naive_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
     for k in range(sites_naive.shape[0]): 
         loc_circle = plt.Circle(sites_naive[k,:], radii_naive[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
         axs[1].add_patch(loc_circle)
-        loc_circle = plt.Circle(sites_naive_hl[k], radii_naive_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
-        axs[1].add_patch(loc_circle)
+        # # loc_circle = plt.Circle(sites_naive_hl[k], radii_naive_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
+        # axs[1].add_patch(loc_circle)
     axs[1].set_xlim([0,400])
     axs[1].set_ylim([0,400])
     # plt.legend()
