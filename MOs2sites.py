@@ -370,7 +370,7 @@ def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.50, min
     return centres[:nsites,:], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
 
 
-def assign_AOs(pos, cc, psi=None,init_cc=True):
+def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2):
     """Assigns carbon atoms to localisation centers obtained from `get_MO_loc_centers` using K-means clustering."""
     nclusters = cc.shape[0]
     print('nclusts = ',nclusters)
@@ -380,7 +380,7 @@ def assign_AOs(pos, cc, psi=None,init_cc=True):
         kmeans = MiniBatchKMeans(nclusters,init='k-means++',random_state=64)
     
     if psi is not None:
-        kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**2)
+        kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**psi_pow)
     else:
         kmeans = kmeans.fit(pos)
 
