@@ -370,16 +370,20 @@ def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.50, min
     return centres[:nsites,:], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
 
 
-def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2):
+def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2,density_threshold=0):
     """Assigns carbon atoms to localisation centers obtained from `get_MO_loc_centers` using K-means clustering."""
     nclusters = cc.shape[0]
-    print('nclusts = ',nclusters)
+    # print('nclusts = ',nclusters)
     if init_cc:
         kmeans = MiniBatchKMeans(nclusters,init=cc,random_state=64)
     else:
         kmeans = MiniBatchKMeans(nclusters,init='k-means++',random_state=64)
     
     if psi is not None:
+        density = np.abs(psi)**2
+        too_low = (density < density_threshold).nonzero()[0]
+        print(f'K-means: ignoring {too_low.shape[0]} / {pos.shape[0]} carbons (eps = {density_threshold})')
+        psi[too_low] = 0
         kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**psi_pow)
     else:
         kmeans = kmeans.fit(pos)
@@ -402,14 +406,18 @@ def assign_AOs_naive(pos, cc):
 
     return labels
 
-def site_radii(pos, M, n, labels, hyperlocal=False):
+def site_radii(pos, M, n, labels, hyperlocal=False, density_threshold=0):
     unique_labels = np.unique(labels)
     nsites = unique_labels.shape[0]
     centers = np.zeros((nsites,2))
     radii = np.zeros(nsites)
     for k, l in enumerate(unique_labels):
-        mask = (labels==l)
-        print(f'# of atoms in cluster {l}: ', mask.sum())
+        mask = (labels==l)  
+        if density_threshold > 0:
+            density = np.abs(M[:,n])**2
+            density_mask = (density > density_threshold) 
+            mask *= density_mask
+        # print(f'# of atoms in cluster {l}: ', mask.sum())
         # masked_M = np.copy(M)
         # masked_M[mask,:] = 0
         if hyperlocal:
@@ -418,7 +426,11 @@ def site_radii(pos, M, n, labels, hyperlocal=False):
         else:
             centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)
             radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, center_of_mass=centers[k,:],renormalise=True)
-    return centers, radii
+        
+    # filter nans induced be wavefunction re-normalisation
+    inan = np.any(np.isnan(centers),axis=1) + np.isnan(radii)
+
+    return centers[~inan,:], radii[~inan]
 
 
 @njit

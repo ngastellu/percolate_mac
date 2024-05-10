@@ -24,112 +24,144 @@ M = np.load(Mdir + f'MOs_ARPACK_bigMAC-{nsample}.npy')
 pos,_ = read_xsf(posdir + f'tempdot6n{nsample}_relaxed.xsf')
 
 # MO_inds = np.unique(ii)[MO_inds]
-MO_ind = 173
+# MO_inds = [58,122,173]
 # print(MO_inds)
 
 pos = pos[:,:2]
-sites, rho, xedges, yedges = get_MO_loc_centers_opt(pos, M, MO_ind, nbins=100,threshold_ratio=0.3, shift_centers=False,min_distance=30)
-nsites = sites.shape[0]
-print('nsites = ',nsites)
 
-    
-fig,ax = plt.subplots()
+MO_inds = np.random.randint(M.shape[1], size=10)
 
-fig, ax = plot_MO(pos,M,MO_ind,dotsize=0.3,show=False,plt_objs=(fig,ax),usetex=True,scale_up=50)
-ax.scatter(sites[:,0],sites[:,1],marker='*',color='r',s=80,edgecolors='k',label='hopping sites')
-plt.legend()
-plt.show()
+for MO_ind in MO_inds:
 
-cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
-print(len(cyc))
+    print(f'********** {MO_ind} **********')
 
+    sites, *_ = get_MO_loc_centers_opt(pos, M, MO_ind, nbins=100, threshold_ratio=0.3,shift_centers=True,min_distance=30.0)
 
-if nsites <= 10:
-    colors = [d['color'] for d in list(cyc[0:nsites])]
-else:
-    colors = get_cm(np.arange(nsites),'hsv',max_val=0.8)
-        
-print('len(colors) = ', len(colors))
-psi = M[:,MO_ind]
+    if sites.shape[0] == 2:
+        continue
 
-cluster_centers,labels = assign_AOs(pos,sites,psi=psi)
-labels2 = assign_AOs_naive(pos, sites)
+    psi = M[:,MO_ind]
+    centers_kmeans, labels_kmeans = assign_AOs(pos, sites, psi,psi_pow=4)
+    centers_kmeans_threshold, labels_kmeans_threshold = assign_AOs(pos, sites, psi,psi_pow=4,density_threshold=0.001)
 
-centers_kmeans, radii_kmeans = site_radii(pos, M, MO_ind, labels)
+    labels_naive = assign_AOs_naive(pos,sites)
 
-print(labels.shape)
-print(np.max(labels))
+    sites_kmeans, radii_kmeans = site_radii(pos, M, MO_ind, labels_kmeans)
+    sites_kmeans_hl, radii_kmeans_hl = site_radii(pos, M, MO_ind, labels_kmeans, hyperlocal=True)
 
-# atom_clrs  = [colors[k] for k in labels]
-atom_clrs = [0] * labels.shape[0]
-print(len(atom_clrs))
-for k,l in enumerate(labels):
-    # print(k,l)
-    atom_clrs[k] = colors[l]
-cluster_clrs = colors
-cc_clrs = colors
+    sites_kmeans_threshold, radii_kmeans_threshold = site_radii(pos, M, MO_ind, labels_kmeans_threshold)
+    sites_kmeans_threshold_hl, radii_kmeans_threshold_hl = site_radii(pos, M, MO_ind, labels_kmeans_threshold, hyperlocal=True)
 
-print('cc_clrs = ',cc_clrs)
-print('cluster_clrs = ',cluster_clrs)
-
-fig,ax = plt.subplots()
-
-fig, ax = plot_atoms(pos,dotsize=0.1,show=False,plt_objs=(fig,ax),usetex=False,colour=atom_clrs,zorder=1)
-ax.scatter(*cluster_centers.T,marker='^',c=cluster_clrs,edgecolors='k',s=60.0,zorder=2,label='cluster centres')
-ax.scatter(*sites.T,marker='*',c=cc_clrs,edgecolors='k',s=60.0,zorder=3,label='hopping sites')
-ax.set_title(f'MO \# {MO_ind}')
-plt.legend()
-plt.show()
+    # ------ k-means approach: no threshold -------
 
 
-if nsites > 1:
+    # print('k-means cluster centers = ', centers_kmeans[np.argsort(np.linalg.norm(centers_kmeans,axis=1)),:])
+    print('Final localisation sites and radii (k-means, no threshold):')
+    for r, a in zip(sites_kmeans,radii_kmeans):
+        print(f'{r} --> {a}')
 
-    fig,ax = plt.subplots()
+    print('----------')
+    fig,axs = plt.subplots(1,2) 
+    fig, axs[0] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[0]),usetex=True,scale_up=50,title=f'Partition of $|\psi_{{{MO_ind}}}\\rangle$ (k-means)',show_cbar=False)
+    axs[0].scatter(*centers_kmeans.T,marker='^',c='r',edgecolors='k',s=60.0,zorder=2,label='cluster centres')
+    if sites.shape[0] > 1:
+        vor = Voronoi(centers_kmeans)
+        fig = voronoi_plot_2d(vor, axs[0], line_color='white', show_vertices=False, show_points=False)
+    else:
+        print('!!!! Skipping Voronoi; only 1 site !!!!')
+    axs[0].scatter(*sites_kmeans.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
+    axs[0].scatter(*sites_kmeans_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
+    for k in range(sites_kmeans.shape[0]): 
+        print(sites_kmeans[k,:])
+        print(sites_kmeans_hl[k,:])
+        loc_circle = plt.Circle(sites_kmeans[k,:], radii_kmeans[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
+        axs[0].add_patch(loc_circle)
+        loc_circle = plt.Circle(sites_kmeans_hl[k], radii_kmeans_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
+        axs[0].add_patch(loc_circle)
+    axs[0].set_xlim([0,400])
+    axs[0].set_ylim([0,400])
+    # plt.legend()
+    # plt.show()
 
-    vor = Voronoi(cluster_centers)
+    # # ------ k-means approach: with threshold -------
 
-    fig, ax = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,ax),usetex=True,scale_up=50,scale_up_threshold=0.0015)
-    ax.scatter(*cluster_centers.T,marker='^',c='r',edgecolors='k',s=60.0,zorder=2,label='cluster centres')
-    fig = voronoi_plot_2d(vor, ax, line_color='white', show_vertices=False, show_points=False)
-    ax.scatter(*sites.T,marker='*',c='r',edgecolors='k',s=60.0,zorder=3,label='hopping sites')
-    ax.set_title(f'Partition of $|\psi_{{{MO_ind}}}\\rangle$ (k-means)')
-    fig = voronoi_plot_2d(vor, ax, line_color='snow', show_vertices=False, show_points=False)
-    ax.set_xlim([0,400])
-    ax.set_ylim([0,400])
-    plt.legend()
+
+    # # print('k-means cluster centers = ', centers_kmeans_threshold[np.argsort(np.linalg.norm(centers_kmeans_threshold,axis=1)),:])
+    # # print('sites centers = ', sites_kmeans_threshold[np.argsort(np.linalg.norm(sites_kmeans_threshold,axis=1)),:])
+    # # print('----------')
+    # fig,ax = plt.subplots() 
+    # fig, ax = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,ax),usetex=True,scale_up=50,title=f'Partition of $|\psi_{{{MO_ind}}}\\rangle$ (k-means, thresh)')
+    # ax.scatter(*centers_kmeans_threshold.T,marker='^',c='r',edgecolors='k',s=60.0,zorder=2,label='cluster centres')
+    # if sites.shape[0] > 1:
+    #     vor = Voronoi(centers_kmeans_threshold)
+    #     fig = voronoi_plot_2d(vor, ax, line_color='white', show_vertices=False, show_points=False)
+    # else:
+    #     print('!!!! Skipping Voronoi; only 1 site !!!!')
+    # ax.scatter(*sites_kmeans_threshold.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
+    # ax.scatter(*sites_kmeans_threshold_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
+    # for k in range(sites_kmeans_threshold.shape[0]): 
+    #     print(sites_kmeans_threshold[k,:])
+    #     print(sites_kmeans_threshold_hl[k,:])
+    #     loc_circle = plt.Circle(sites_kmeans_threshold[k,:], radii_kmeans_threshold[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
+    #     ax.add_patch(loc_circle)
+    #     loc_circle = plt.Circle(sites_kmeans_threshold_hl[k], radii_kmeans_threshold_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
+    #     ax.add_patch(loc_circle)
+    # ax.set_xlim([0,400])
+    # ax.set_ylim([0,400])
+    # # plt.legend()
+    # plt.show()
+
+    # ------ Voronoi only: 'naive' approach ------
+
+
+    sites_naive, radii_naive = site_radii(pos, M, MO_ind, labels_naive)
+    sites_naive_hl, radii_naive_hl = site_radii(pos, M, MO_ind, labels_naive, hyperlocal=True)
+
+    # fig,ax = plt.subplots()
+    fig, axs[1] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[1]),usetex=True,scale_up=50,title=f'Partition MO $|\psi_{{{MO_ind}}}\\rangle$ (Voronoi)')
+    axs[1].scatter(*sites.T,marker='*',c='r',edgecolors='k',s=60.0,zorder=3,label='hopping sites')
+    if sites.shape[0] > 1:
+        vor = Voronoi(sites)
+        fig = voronoi_plot_2d(vor, axs[1], line_color='white', show_vertices=False, show_points=False)
+    else:
+        print('!!!! Skipping Voronoi; only 1 site !!!!')
+    axs[1].scatter(*sites_naive.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
+    axs[1].scatter(*sites_naive_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
+    for k in range(sites_naive.shape[0]): 
+        loc_circle = plt.Circle(sites_naive[k,:], radii_naive[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
+        axs[1].add_patch(loc_circle)
+        loc_circle = plt.Circle(sites_naive_hl[k], radii_naive_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
+        axs[1].add_patch(loc_circle)
+    axs[1].set_xlim([0,400])
+    axs[1].set_ylim([0,400])
+    # plt.legend()
     plt.show()
 
-    fig,ax = plt.subplots()
+    # ------ Voronoi only: 'naive' approach; with threshold ------
 
-    vor = Voronoi(sites)
+    # sites_naive, radii_naive = site_radii(pos, M, MO_ind, labels_naive,density_threshold=0.001)
+    # sites_naive_hl, radii_naive_hl = site_radii(pos, M, MO_ind, labels_naive, hyperlocal=True,density_threshold=0.001)
 
-    fig, ax = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,ax),usetex=True,scale_up=50)
-    ax.scatter(*cluster_centers.T,marker='^',c='r',edgecolors='k',s=60.0,zorder=2,label='cluster centres')
-    ax.scatter(*sites.T,marker='*',c='r',edgecolors='k',s=60.0,zorder=3,label='hopping sites')
-    fig = voronoi_plot_2d(vor, ax, line_color='snow', show_vertices=False, show_points=False)
-    ax.set_title(f'Partition MO $|\psi_{{{MO_ind}}}\\rangle$ (Voronoi)')
-    ax.set_xlim([0,400])
-    ax.set_ylim([0,400])
-    plt.legend()
-    plt.show()
+    # fig,ax = plt.subplots()
+    # fig, ax = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,ax),usetex=True,scale_up=50,title=f'Partition MO $|\psi_{{{MO_ind}}}\\rangle$ (Voronoi, t)')
+    # ax.scatter(*sites.T,marker='*',c='r',edgecolors='k',s=60.0,zorder=3,label='hopping sites')
+    # if sites.shape[0] > 1:
+    #     vor = Voronoi(sites)
+    #     fig = voronoi_plot_2d(vor, ax, line_color='white', show_vertices=False, show_points=False)
+    # else:
+    #     print('!!!! Skipping Voronoi; only 1 site !!!!')
+    # ax.scatter(*sites_naive.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
+    # ax.scatter(*sites_naive_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
+    # for k in range(sites_naive.shape[0]): 
+    #     loc_circle = plt.Circle(sites_naive[k,:], radii_naive[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
+    #     ax.add_patch(loc_circle)
+    #     loc_circle = plt.Circle(sites_naive_hl[k], radii_naive_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
+    #     ax.add_patch(loc_circle)
+    # ax.set_xlim([0,400])
+    # ax.set_ylim([0,400])
+    # # plt.legend()
+    # plt.show()
 
-# sub_densities = np.zeros(nsites)
-
-
-threshold_ratio_psi = 10.0
-psi = M[:,MO_ind] ** 2
-nbins = 200
-_, bins = np.histogram(psi, bins=nbins)
-centers = 0.5 * (bins[:-1] + bins[1:])
-clrs = get_cm(centers,'plasma')
-fig, ax = plt.subplots() 
-fig, ax = histogram(psi,nbins=nbins,plt_objs=(fig,ax),log_counts=True,show=False,plt_kwargs={'color':clrs})
-# ax.axvline(x=np.mean(psi),ymin=0,ymax=1,c='k',lw=0.8,ls='--')
-# ax.axvline(x=np.mean(psi)+threshold_ratio_psi*np.std(psi),ymin=0,ymax=1,c='k',lw=0.8,ls='--',label='cutoff')
-ax.axvline(x=0.001,ymin=0,ymax=1,c='k',lw=0.8,ls='--',label='cutoff')
-ax.set_xlabel(f'$|\langle\\varphi_n|\psi_{{{MO_ind}}}\\rangle|^2$')
-plt.legend()
-plt.show()
 
 # threshold = np.mean(psi) + threshold_ratio_psi * np.std(psi)
 # psi_cut = np.copy(psi)
