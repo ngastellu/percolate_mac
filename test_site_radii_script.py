@@ -4,24 +4,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 from qcnico.qcplots import plot_atoms, plot_MO
 from qcnico.coords_io import read_xsf
+from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from qcnico.plt_utils import get_cm, histogram
 from MOs2sites import assign_AOs, get_MO_loc_centers_opt, assign_AOs_naive, site_radii
 from matplotlib import rcParams
 from scipy.spatial import Voronoi, voronoi_plot_2d
 
 
-nsample = 127
+nsample = 42
 
-percdir = f'/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs/sample-{nsample}/'
-Mdir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/MOs_ARPACK/virtual/'
-posdir = '/Users/nico/Desktop/simulation_outputs/MAC_structures/Ata_structures/tempdot6/relaxed/'
+# percdir = f'/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs/sample-{nsample}/'
+Mdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/MOs_ARPACK/virtual/'
+posdir = '/Users/nico/Desktop/simulation_outputs/MAC_structures/pCNN/bigMAC_40x40_ensemble/'
 
 # MO_inds = [0,3,-2,-1]
 
 # cc = np.load(percdir + 'cc.npy')
 # ii = np.load(percdir + 'ii.npy')
 M = np.load(Mdir + f'MOs_ARPACK_bigMAC-{nsample}.npy') 
-pos,_ = read_xsf(posdir + f'tempdot6n{nsample}_relaxed.xsf')
+# pos = np.load(posdir + f'coords-{nsample}.npy')
+pos,_ = read_xsf(posdir + f'bigMAC-{nsample}_relaxed.xsf')
+pos = remove_dangling_carbons(pos,1.8)
 
 # MO_inds = np.unique(ii)[MO_inds]
 # MO_inds = [58,122,173]
@@ -29,16 +32,14 @@ pos,_ = read_xsf(posdir + f'tempdot6n{nsample}_relaxed.xsf')
 
 pos = pos[:,:2]
 
-MO_inds = np.random.randint(M.shape[1], size=10)
+# MO_inds = np.random.randint(M.shape[1], size=10)
+MO_inds = [71,79,92]
 
 for MO_ind in MO_inds:
 
     print(f'********** {MO_ind} **********')
 
-    sites, *_ = get_MO_loc_centers_opt(pos, M, MO_ind, nbins=100, threshold_ratio=0.2,shift_centers=True,min_distance=20.0)
-
-    if sites.shape[0] == 2:
-        continue
+    sites, *_ = get_MO_loc_centers_opt(pos, M, MO_ind, nbins=100, threshold_ratio=0.3   ,shift_centers=True,min_distance=20.0)
 
     psi = M[:,MO_ind]
     centers_kmeans, labels_kmeans = assign_AOs(pos, sites, psi,psi_pow=4)
@@ -61,27 +62,28 @@ for MO_ind in MO_inds:
         print(f'{r} --> {a}')
 
     print('----------')
-    fig,axs = plt.subplots(1,2,sharex=True,sharey=True) 
-    fig, axs[0] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[0]),usetex=True,scale_up=50,title=f'Partition of $|\psi_{{{MO_ind}}}\\rangle$ (k-means)',show_cbar=False)
-    axs[0].scatter(*centers_kmeans.T,marker='^',c='r',edgecolors='k',s=60.0,zorder=2,label='cluster centres')
-    if sites.shape[0] > 1:
+    # fig,axs = plt.subplots(1,2,sharex=True,sharey=True) 
+    fig, ax = plt.subplots()
+    fig, ax = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,ax),usetex=True,scale_up=50,title=f'Partition of $|\psi_{{{MO_ind}}}\\rangle$ (k-means)',show_cbar=False)
+    ax.scatter(*centers_kmeans.T,marker='^',c='r',edgecolors='k',s=60.0,zorder=2,label='cluster centres')
+    if sites.shape[0] > 2:
         vor = Voronoi(centers_kmeans)
-        fig = voronoi_plot_2d(vor, axs[0], line_color='white', show_vertices=False, show_points=False)
+        fig = voronoi_plot_2d(vor, ax, line_color='white', show_vertices=False, show_points=False)
     else:
         print('!!!! Skipping Voronoi; only 1 site !!!!')
-    axs[0].scatter(*sites_kmeans.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
-    # axs[0].scatter(*sites_kmeans_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
+    ax.scatter(*sites_kmeans.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='sites')
+    # ax.scatter(*sites_kmeans_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
     for k in range(sites_kmeans.shape[0]): 
         print(sites_kmeans[k,:])
         # print(sites_kmeans_hl[k,:])
         loc_circle = plt.Circle(sites_kmeans[k,:], radii_kmeans[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
-        axs[0].add_patch(loc_circle)
+        ax.add_patch(loc_circle)
         # loc_circle = plt.Circle(sites_kmeans_hl[k], radii_kmeans_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
-        # axs[0].add_patch(loc_circle)
-    axs[0].set_xlim([0,400])
-    axs[0].set_ylim([0,400])
-    # plt.legend()
-    # plt.show()
+        # ax.add_patch(loc_circle)
+    ax.set_xlim([0,400])
+    ax.set_ylim([0,400])
+    plt.legend()
+    plt.show()
 
     # # ------ k-means approach: with threshold -------
 
@@ -114,28 +116,28 @@ for MO_ind in MO_inds:
     # ------ Voronoi only: 'naive' approach ------
 
 
-    sites_naive, radii_naive = site_radii(pos, M, MO_ind, labels_naive)
-    # sites_naive_hl, radii_naive_hl = site_radii(pos, M, MO_ind, labels_naive, hyperlocal=True)
+    # sites_naive, radii_naive = site_radii(pos, M, MO_ind, labels_naive)
+    # # sites_naive_hl, radii_naive_hl = site_radii(pos, M, MO_ind, labels_naive, hyperlocal=True)
 
-    # fig,ax = plt.subplots()
-    fig, axs[1] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[1]),usetex=True,scale_up=50,title=f'Partition MO $|\psi_{{{MO_ind}}}\\rangle$ (Voronoi)',show_cbar=False)
-    axs[1].scatter(*sites.T,marker='*',c='r',edgecolors='k',s=60.0,zorder=3,label='hopping sites')
-    if sites.shape[0] > 1:
-        vor = Voronoi(sites)
-        fig = voronoi_plot_2d(vor, axs[1], line_color='white', show_vertices=False, show_points=False)
-    else:
-        print('!!!! Skipping Voronoi; only 1 site !!!!')
-    axs[1].scatter(*sites_naive.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
-    # axs[1].scatter(*sites_naive_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
-    for k in range(sites_naive.shape[0]): 
-        loc_circle = plt.Circle(sites_naive[k,:], radii_naive[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
-        axs[1].add_patch(loc_circle)
-        # # loc_circle = plt.Circle(sites_naive_hl[k], radii_naive_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
-        # axs[1].add_patch(loc_circle)
-    axs[1].set_xlim([0,400])
-    axs[1].set_ylim([0,400])
-    # plt.legend()
-    plt.show()
+    # # fig,ax = plt.subplots()
+    # fig, axs[1] = plot_MO(pos,M,MO_ind,dotsize=0.5,show=False,plt_objs=(fig,axs[1]),usetex=True,scale_up=50,title=f'Partition MO $|\psi_{{{MO_ind}}}\\rangle$ (Voronoi)',show_cbar=False)
+    # axs[1].scatter(*sites.T,marker='*',c='r',edgecolors='k',s=60.0,zorder=3,label='hopping sites')
+    # if sites.shape[0] > 2:
+    #     vor = Voronoi(sites_naive)
+    #     fig = voronoi_plot_2d(vor, axs[1], line_color='white', show_vertices=False, show_points=False)
+    # else:
+    #     print('!!!! Skipping Voronoi; less than 3 sites !!!!')
+    # axs[1].scatter(*sites_naive.T,marker='h',c='r',edgecolors='k',s=60.0,zorder=4,label='final sites')
+    # # axs[1].scatter(*sites_naive_hl.T,marker='h',c='limegreen',edgecolors='k',s=60.0,zorder=4,label='final sites (hyperlocal)')
+    # for k in range(sites_naive.shape[0]): 
+    #     loc_circle = plt.Circle(sites_naive[k,:], radii_naive[k], fc='none', ec='r', ls='--', lw=1.0,zorder=4)
+    #     axs[1].add_patch(loc_circle)
+    #     # # loc_circle = plt.Circle(sites_naive_hl[k], radii_naive_hl[k], fc='none', ec='limegreen', ls='--', lw=1.0,zorder=4)
+    #     # axs[1].add_patch(loc_circle)
+    # axs[1].set_xlim([0,400])
+    # axs[1].set_ylim([0,400])
+    # # plt.legend()
+    # plt.show()
 
     # ------ Voronoi only: 'naive' approach; with threshold ------
 

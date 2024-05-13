@@ -369,7 +369,6 @@ def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.50, min
 
     return centres[:nsites,:], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
 
-
 def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2,density_threshold=0):
     """Assigns carbon atoms to localisation centers obtained from `get_MO_loc_centers` using K-means clustering."""
     nclusters = cc.shape[0]
@@ -406,6 +405,7 @@ def assign_AOs_naive(pos, cc):
 
     return labels
 
+# @njit
 def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0):
     valid_hl_types = ['sites', 'radii', 'all', 'none']
     if hyperlocal not in valid_hl_types:
@@ -442,6 +442,61 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0):
     inan = np.any(np.isnan(centers),axis=1) + np.isnan(radii)
 
     return centers[~inan,:], radii[~inan]
+
+def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False):
+    out_size = 10*M.shape[1]
+    centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
+    radii = np.zeros(out_size)
+    ee = np.zeros(out_size) 
+    inds = np.zeros(out_size, dtype='int')
+    nsites = 0
+    for n in range(M.shape[1]):
+        cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,min_distance=minimum_distance,shift_centers=shift_centers)
+        if n in L:
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
+        
+        elif n in R:
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'R',shift_centers=shift_centers)
+        
+        psi = M[:,n]
+        # with objmode(labels_kmeans=)
+        _ , labels_kmeans = assign_AOs(pos, cc, psi, psi_pow=4)
+        final_sites, rr = site_radii(pos,M,n,labels_kmeans)
+        
+        n_new = final_sites.shape[0]
+
+        # If arrays are about to overflow, copy everything into bigger arrays
+        if nsites + n_new > out_size:
+            print("~~~!!!!! Site arrays about to overflow; increasing output size !!!!!~~~")
+            out_size += 10*M.shape[1]
+
+            new_centres = np.zeros((out_size,2))
+            new_centres[:nsites,:] = centres[:nsites,:]
+            centres = new_centres
+             
+            new_radii = np.zeros(out_size)
+            new_radii[:nsites] = radii[:nsites]
+            radii = new_radii
+
+            new_ee = np.zeros(out_size)
+            new_ee[:nsites] = ee[:nsites]
+            ee = new_ee
+            
+            new_inds = np.zeros(out_size,dtype='int')
+            new_inds[:nsites] = inds[:nsites]
+            inds = new_inds
+
+        centres[nsites:nsites+n_new,:] = final_sites
+        radii[nsites:nsites+n_new] = rr
+        ee[nsites:nsites+n_new] = np.ones(n_new) * energies[n]
+        inds[nsites:nsites+n_new] = np.ones(n_new,dtype='int') * n
+
+        nsites += n_new
+        print(nsites)
+
+        
+
+    return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
 
 
 @njit
@@ -484,3 +539,17 @@ def clean_centers(cc,ipeaks,grid_rho,min_dist=30.0):
         return ikeep
     else:
         return np.arange(N)
+
+
+
+def sites_mass(psi,tree,centers,radii):
+    masses = np.zeros(radii.shape[0])
+    atoms_in_radii = tree.query_ball_point(centers,radii)
+    for k, ii in enumerate(atoms_in_radii):
+        masses[k] = np.sum(np.abs(psi[ii])**2)
+    return masses
+
+
+
+
+    
