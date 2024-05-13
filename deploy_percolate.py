@@ -8,7 +8,7 @@ import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from percolate import diff_arrs, percolate, generate_site_list_opt,\
-        diff_arrs_w_inds, jitted_percolate
+        diff_arrs_w_inds, jitted_percolate, diff_arrs_var_a
 
 from utils_arpackMAC import remove_redundant_eigenpairs
 
@@ -94,6 +94,16 @@ def load_data(sample_index, structype, motype='',compute_gammas=True,run_locatio
             np.save(path.join(gamma_dir, f'gamR_40x40-{sample_index}_{motype}.npy'), gamR)
     
     return pos, energies, M, gamL, gamR
+
+
+def load_var_a_data(datadir='.'):
+    sites_pos = np.load(path.join(datadir, 'var_a_npys/centers.npy'))
+    sites_energies = np.load(path.join(datadir, 'var_a_npys/ee.npy'))
+    sites_radii = np.load(path.join(datadir, 'var_a_npys/radii.npy'))
+    ii = np.load(path.join(datadir, 'var_a_npys/ii.npy'))
+
+    return sites_pos, sites_energies, sites_radii, ii
+
 
 
 def load_data_multi(sample_index, structype, motypes, e_file_names=None, MO_file_names=None,compute_gammas=True):
@@ -211,7 +221,12 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
     else:
         E = np.array([0.0,0.0])
     
-    edArr, rdArr, ij = diff_arrs_w_inds(sites_energies, sites_pos, a0=a0, eF=eF, E=E)
+    if isinstance(a0, np.ndarray):
+        print('~~~~ a0 is an array: running variable radii percolation ~~~~')
+        edArr, rdArr, ij = diff_arrs_var_a(sites_energies, sites_pos, radii=a0, eF=eF, E=E)
+    else:
+        print('~~~~ a0 is a scalar: running variable single-radius percolation ~~~~')
+        edArr, rdArr, ij = diff_arrs_w_inds(sites_energies, sites_pos, a0=a0, eF=eF, E=E)
     
     k=0
     for T in all_Ts:
