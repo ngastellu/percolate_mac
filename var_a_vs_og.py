@@ -40,14 +40,16 @@ conv_factor = e2C*w0
 temps = np.arange(40,440,10)[14:]
 # temps = np.arange(200,435,5)
 
-tdot6dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/'
+tdot5dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/'
 
 
-var_a_dir = tdot6dir +  'to_local/'
-og_dir =  tdot6dir +  'virt_100x100_gridMOs/'
+var_a_dir = tdot5dir +  'virt_100x100_gridMOs22/'
+og_dir =  tdot5dir +  'virt_100x100_gridMOs2/'
 
-with open(og_dir + 'good_runs.txt') as fo:
-    run_lbls = [int(l.strip()) for l in fo.readlines()]
+# with open(og_dir + 'good_runs.txt') as fo:
+#     run_lbls = [int(l.strip()) for l in fo.readlines()]
+
+run_lbls = range(31)
 
 # run_lbls = range(132)
 
@@ -63,21 +65,22 @@ ndatasets = len(ddirs)
 setup_tex()
 fig, ax = plt.subplots()
 
+sigs = []
 
 ll = run_lbls
 # for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
 for k, dd, cc, cl in zip(range(len(ddirs)), ddirs, clrs, curve_lbls):
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    if k == 0:
-        dcrits = get_dcrits(ll, temps, dd, var_a=True)
-    else:
-        dcrits = get_dcrits(ll, temps, dd, var_a=False)
+    # if k == 0:
+    #     dcrits = get_dcrits(ll, temps, dd, var_a=True)
+    # else:
+    dcrits = get_dcrits(ll, temps, dd, var_a=False)
 
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)
 
- 
+    sigs.append(sigmas)
     slope, intercept, x, y, err_lr, interr_lr  = arrhenius_fit(temps, sigmas, inv_T_scale=1000.0, return_for_plotting=True, return_err=True, w0=conv_factor)
     print(sigmas_err.shape)
     ea = -slope * kB * 1e6 # in meV
@@ -99,3 +102,5 @@ ax.set_ylabel('$\sigma$ [S/m]')
 
 plt.legend()
 plt.show()
+
+# print(np.all(sigs[0]==sigs[1]))

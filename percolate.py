@@ -70,7 +70,7 @@ def diff_arrs_var_a(e,coms,radii,eF=0,E=np.array([0.0,0.0]),include_r_prefactor=
             edarr[k] = (np.abs(ei-eF) + np.abs(ej-eF) + np.abs(ei - ej)) * 0.5
             sig_i = radii[i]
             sig_j = radii[j]
-            radial_ij = (np.sum((coms[i,:] - coms[j,:])**2)) / (2*(sig_i**2 + sig_j**2))
+            radial_ij = (np.sum((coms[i,:] - coms[j,:])**2)) / (sig_i**2 + sig_j**2)
             if include_r_prefactor:
                 radial_ij -= 2*np.log(sig_i*sig_j/(2*np.pi*(sig_i**2 + sig_j**2)))
             ddarr[k] = radial_ij
