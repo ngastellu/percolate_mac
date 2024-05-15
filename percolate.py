@@ -200,8 +200,8 @@ def percolate(darr, dpair_inds, L, R, return_adjmat=False, prev_d_ind=0):
         coupledR = not R.isdisjoint(relevant_MOs)
         if coupledL and coupledR:
             print('Getting clusters...')
-            LR_connected_inds = (L|R) & relevant_MOs 
-            clusters = components(adj_mat, seed_nodes=LR_connected_inds) #seed only at edges of connected cluster
+            # LR_connected_inds = (L|R) & relevant_MOs 
+            clusters = components(adj_mat) #seed only at edges of connected cluster
             print('Done! Now looping over clusters...')
             print(f'Nb. of clusters with more than 1 MO = {np.sum(np.array([len(c) for c in clusters])>1)}')
             for c in clusters:
