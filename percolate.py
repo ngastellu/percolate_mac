@@ -6,7 +6,6 @@ import numpy as np
 from numba import njit
 import qcnico.qchemMAC as qcm
 from qcnico.graph_tools import components
-from MOs2sites import *
 from scipy import sparse
 
 @njit
@@ -71,7 +70,7 @@ def diff_arrs_var_a(e,coms,radii,eF=0,E=np.array([0.0,0.0]),include_r_prefactor=
             edarr[k] = (np.abs(ei-eF) + np.abs(ej-eF) + np.abs(ei - ej)) * 0.5
             sig_i = radii[i]
             sig_j = radii[j]
-            radial_ij = ((coms[i,:] - coms[j,:])**2) / (2*(sig_i**2 + sig_j**2))
+            radial_ij = (np.sum((coms[i,:] - coms[j,:])**2)) / (2*(sig_i**2 + sig_j**2))
             if include_r_prefactor:
                 radial_ij -= 2*np.log(sig_i*sig_j/(2*np.pi*(sig_i**2 + sig_j**2)))
             ddarr[k] = radial_ij
@@ -144,7 +143,7 @@ def pair_inds(n,N):
 def k_ind(i,j): return int(i*(i-1)/2 + j)
 
 # @njit
-def percolate(darr, dpair_inds, L, R, return_adjmat=False): 
+def percolate(darr, dpair_inds, L, R, return_adjmat=False, prev_d_ind=0): 
     """
     This function actually runs the percolation theory calculation.
     
@@ -183,7 +182,7 @@ def percolate(darr, dpair_inds, L, R, return_adjmat=False):
     n = int( (1+np.sqrt(1 + 8*ndists))/2 )
     adj_mat = np.zeros((n,n),dtype=bool)
     spanning_clusters = []
-    d_ind = 0
+    d_ind = prev_d_ind
     while (not percolated) and (d_ind < ndists):
         d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
         print('d = ', d)       
@@ -221,12 +220,12 @@ def percolate(darr, dpair_inds, L, R, return_adjmat=False):
     
     if d_ind == ndists-1:
         print(f'No spanning clusters found!')
-        return clusters, d, adj_mat
+        return clusters, d, adj_mat, d_ind
     
     if return_adjmat:
-        return spanning_clusters, d, adj_mat
+        return spanning_clusters, d, adj_mat, d_ind -1
     else:
-        return spanning_clusters, d
+        return spanning_clusters, d, d_ind - 1
 
 
 @njit
