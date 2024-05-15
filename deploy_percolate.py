@@ -7,11 +7,11 @@ import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
-from percolate import diff_arrs, percolate,\
+from .percolate import diff_arrs, percolate,\
         diff_arrs_w_inds, jitted_percolate, diff_arrs_var_a
-from MOs2sites import generate_site_list_opt
+from .MOs2sites import generate_site_list_opt
 
-from utils_arpackMAC import remove_redundant_eigenpairs
+from .utils_arpackMAC import remove_redundant_eigenpairs
 
 def load_data(sample_index, structype, motype='',compute_gammas=True,run_location='narval',save_gammas=False,gamma_dir='.',full_spectrum=False):
     """ Loads atomic positions, energies, MOs, and coupling matrices of a given MAC structure.
@@ -231,9 +231,9 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
         edArr, rdArr, ij = diff_arrs_w_inds(sites_energies, sites_pos, a0=a0, eF=eF, E=E)
         var_a = False
     
-    k=0 # counter keeps track of whether this is the first call to `percolate` or not (necessary to avoid timing compilation when `jitted=True`)
+    k=0
 
-    all_Ts = np.sort(all_Ts)[::-1] # sort in reverse order to leverage `prev_d_ind` speedup
+    #all_Ts = np.sort(all_Ts)[::-1] # sort in reverse order to leverage `prev_d_ind` speedup
     prev_d_ind = 0
     for T in all_Ts:
         print(f'******* T = {T} K *******')
@@ -242,7 +242,7 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
         if jitted:
             conduction_clusters, dcrit, A = jitted_percolate(darr,ij,L,R)
         else:
-            conduction_clusters, dcrit, A, prev_d_ind = percolate(darr,ij,L,R,return_adjmat=True,prev_d_ind=prev_d_ind)
+            conduction_clusters, dcrit, A, prev_d_ind = percolate(darr,ij,L,R,return_adjmat=True,prev_d_ind=0)
         end = perf_counter()
         if k >0: # don't time first call to percolate (avoid measuring compilation time)
             print(f'\n~~~Done! [{end-start} seconds]~~~\n Saving to pkl file...~~~',flush=True)
