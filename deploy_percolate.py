@@ -7,8 +7,9 @@ import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
-from percolate import diff_arrs, percolate, generate_site_list_opt,\
+from percolate import diff_arrs, percolate,\
         diff_arrs_w_inds, jitted_percolate, diff_arrs_var_a
+from MOs2sites import generate_site_list_opt
 
 from utils_arpackMAC import remove_redundant_eigenpairs
 
@@ -31,7 +32,7 @@ def load_data(sample_index, structype, motype='',compute_gammas=True,run_locatio
 
         else:
                 arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
-                pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
+                pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/relaxed_structures/')
                 posfile = f'{structype}n{sample_index}_relaxed.xsf'
         
         if full_spectrum:
@@ -224,11 +225,16 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
     if isinstance(a0, np.ndarray):
         print('~~~~ a0 is an array: running variable radii percolation ~~~~')
         edArr, rdArr, ij = diff_arrs_var_a(sites_energies, sites_pos, radii=a0, eF=eF, E=E)
+        var_a = True
     else:
         print('~~~~ a0 is a scalar: running variable single-radius percolation ~~~~')
         edArr, rdArr, ij = diff_arrs_w_inds(sites_energies, sites_pos, a0=a0, eF=eF, E=E)
+        var_a = False
     
-    k=0
+    k=0 # counter keeps track of whether this is the first call to `percolate` or not (necessary to avoid timing compilation when `jitted=True`)
+
+    all_Ts = np.sort(all_Ts)[::-1] # sort in reverse order to leverage `prev_d_ind` speedup
+    prev_d_ind = 0
     for T in all_Ts:
         print(f'******* T = {T} K *******')
         darr = rdArr + (edArr / (kB * T))
@@ -236,15 +242,21 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
         if jitted:
             conduction_clusters, dcrit, A = jitted_percolate(darr,ij,L,R)
         else:
-            conduction_clusters, dcrit, A = percolate(darr,ij,L,R,return_adjmat=True)
+            conduction_clusters, dcrit, A, prev_d_ind = percolate(darr,ij,L,R,return_adjmat=True,prev_d_ind=prev_d_ind)
         end = perf_counter()
         if k >0: # don't time first call to percolate (avoid measuring compilation time)
             print(f'\n~~~Done! [{end-start} seconds]~~~\n Saving to pkl file...~~~',flush=True)
 
+
+        pkl_name = 'out'
+
         if jitted:
-            pkl_name = f'out_jitted_percolate-{T}K.pkl'
-        else:
-            pkl_name = f'out_percolate-{T}K.pkl'
+            pkl_name += '_jitted'
+        if var_a:
+            pkl_name += '_var_a'
+        
+        pkl_name += f'_percolate-{T}K.pkl'
+
         with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
         print('Saved successfully.\n', flush=True)

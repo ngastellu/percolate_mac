@@ -9,14 +9,17 @@ from scipy.stats import linregress
 
 kB = 8.617333262e-5 #eV/K
 
-def get_dcrits(run_inds,temps,datadir):
+def get_dcrits(run_inds,temps,datadir, var_a=False):
     nsamples = len(run_inds)
     ntemps = len(temps)
     dcrits = np.zeros((nsamples,ntemps))
     for k in range(nsamples):
         for l in range(ntemps):
             sampdir = f"sample-{run_inds[k]}"
-            pkl = f"out_percolate-{temps[l]}K.pkl"
+            if var_a:
+                pkl = f"out_var_a_percolate-{temps[l]}K.pkl"
+            else:
+                pkl = f"out_percolate-{temps[l]}K.pkl"
             fo = open(path.join(datadir,sampdir,pkl),'rb')
             dat = pickle.load(fo)
             dcrits[k,l] = dat[1]

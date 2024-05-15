@@ -41,25 +41,32 @@ temps = np.arange(40,440,10)[14:]
 # temps = np.arange(200,435,5)
 
 tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/'
-pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/100x100_gridMOs/'
-t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs/'
-tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs/'
-tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs/'
+pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_var_a/'
+t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs_var_a/'
+tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_var_a/'
+tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs2/'
 
 
 
 tdot25_lbls = list(set(range(30)) - {0, 5, 8, 18, 20, 21, 25, 26})
 
-with open(pCNNdir + 'good_runs.txt') as fo:
+with open(pCNNdir + 'good_runs_var_a.txt') as fo:
     pCNN_lbls = [int(l.strip()) for l in fo.readlines()]
 
-with open(t1dir + 'good_runs.txt') as fo:
-    t1_lbls = [int(l.strip()) for l in fo.readlines()]
+# with open(t1dir + 'good_runs.txt') as fo:
+    # t1_lbls = [int(l.strip()) for l in fo.readlines()]
 
-with open(tempdot6_dir + 'good_runs.txt') as fo:
+with open(tempdot6_dir + 'good_runs_var_a.txt') as fo:
     tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
 
-tdot5_lbls = range(32)
+# with open(tempdot5_dir + 'good_runs_var_a.txt') as fo:
+#     tdot5_lbls = [int(l.strip()) for l in fo.readlines()]
+
+tdot5_lbls = range(31)
+
+# tdot6_lbls = list(set(range(2,132)) - {8, 11, 14, 16, 17, 19, 20, 22, 23, 25, 26, 28, 29, 31, 32})
+
+# tdot5_lbls = range(117)
 
 dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
 
@@ -108,7 +115,7 @@ sigs = []
 for k, dd, ll, cc, cl in zip(range(3), ddirs, run_lbls, clrs, curve_lbls):
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    dcrits = get_dcrits(ll, temps, dd)
+    dcrits = get_dcrits(ll, temps, dd, var_a=True)
 
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)

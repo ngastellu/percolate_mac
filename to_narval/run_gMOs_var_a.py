@@ -17,4 +17,4 @@ dV = 0.0
 pos, e, M, gamL, gamR = load_data(n, struc_type, mo_type, compute_gammas=False)
 L, R = LR_MOs(gamL, gamR)
 sites_pos, sites_energies, sites_radii, ii = load_var_a_data(datadir='.')
-run_percolate(sites_pos,sites_energies,L,R,temps, dV, a0=sites_radii, eF=0, jitted=True)
+run_percolate(sites_pos,sites_energies,L,R,temps, dV, a0=sites_radii, eF=0, jitted=False)
