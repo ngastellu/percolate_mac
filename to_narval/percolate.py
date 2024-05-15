@@ -42,6 +42,29 @@ def diff_arrs(e, coms, a0, eF=0, E=np.array([0,0]),detailed_balance=False):
     return edarr, ddarr
 
 
+@njit 
+def diff_arrs_var_a(e,coms,radii,eF=0,E=np.array([0.0,0.0]),include_r_prefactor=True):
+    N = e.shape[0]
+    ddarr = np.zeros(int(N*(N-1)/2))
+    edarr = np.zeros(int(N*(N-1)/2))
+    inds = np.zeros((int(N*(N-1)/2),2), dtype='int')
+    k = 0
+    for i in range(N):
+        ei = e[i] - coms[i].dot(E)
+        for j in range(i):
+            ej = e[j] - coms[j].dot(E)
+            edarr[k] = (np.abs(ei-eF) + np.abs(ej-eF) + np.abs(ei - ej)) * 0.5
+            sig_i = radii[i]
+            sig_j = radii[j]
+            radial_ij = (np.sum((coms[i,:] - coms[j,:])**2)) / (sig_i**2 + sig_j**2)
+            if include_r_prefactor:
+                radial_ij -= 2*np.log(sig_i*sig_j/(2*np.pi*(sig_i**2 + sig_j**2)))
+            ddarr[k] = radial_ij
+            inds[k,0] = i
+            inds[k,1] = j
+            k += 1
+    return edarr, ddarr
+
 
 @njit
 def dArray_energy(e, T, eF=None):
