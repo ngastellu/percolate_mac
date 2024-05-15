@@ -7,7 +7,7 @@ import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
-from .percolate import diff_arrs, percolate, generate_site_list
+from .percolate import diff_arrs, percolate, generate_site_list, diff_arrs_var_a
 from utils_arpackMAC import remove_redundant_eigenpairs
 
 def load_data(sample_index, structype, motype,compute_gammas=True):
@@ -177,6 +177,42 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
         with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
 
+def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0):
+    # ******* Define strongly-coupled MOs *******
+    gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
+    gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
+
+    L = set((gamL > gamL_tol).nonzero()[0])
+    R = set((gamR > gamR_tol).nonzero()[0])
+
+    # ******* Pre-compute distances *******
+
+    centres = np.load('var_a_npys/centers.npy')
+    ee = np.load('var_a_npys/ee.npy')
+    ii = np.load('var_a_npys/ii.npy')
+    radii = np.load('var_a_npys/radii.npy')
+    
+    if np.abs(dV) > 0:
+        dX = np.max(pos[:,0]) - np.min(pos[:,0])
+        E = np.array([dV/dX,0])
+    else:
+        E = np.array([0.0,0.0])
+
+    edArr, rdArr = diff_arrs_var_a(ee, centres, radii, eF=eF, E=E)
+
+    cgamL = gamL[ii]
+    cgamR = gamR[ii]
+
+    all_Ts = np.flip(np.sort(all_Ts))
+    d_prev_ind = 0
+    for T in all_Ts:
+        # ******* 5: Get spanning cluster *******
+        conduction_clusters, dcrit, A, iidprev = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr),prev_d_ind=d_prev_ind)
+        d_prev_ind = iidprev
+        print(f'Distance nb {d_prev_ind} yielded a percolating cluster!', flush=True)
+
+        with open(f'out_var_a_rollback_percolate-{T}K.pkl', 'wb') as fo:
+            pickle.dump((conduction_clusters,dcrit,A), fo)
 
 def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0):
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
