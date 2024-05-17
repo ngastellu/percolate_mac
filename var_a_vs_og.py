@@ -40,16 +40,17 @@ conv_factor = e2C*w0
 temps = np.arange(40,440,10)[14:]
 # temps = np.arange(200,435,5)
 
-tdot5dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/'
+tdot6dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/'
 
 
-var_a_dir = tdot5dir +  'virt_100x100_gridMOs22/'
-og_dir =  tdot5dir +  'virt_100x100_gridMOs2/'
+var_a_dir = tdot6dir +  'virt_100x100_gridMOs_rollback/'
+og_dir =  tdot6dir +  'virt_100x100_gridMOs/'
 
-# with open(og_dir + 'good_runs.txt') as fo:
-#     run_lbls = [int(l.strip()) for l in fo.readlines()]
+with open(og_dir + 'good_runs.txt') as fo:
+    run_lbls = [int(l.strip()) for l in fo.readlines()]
 
-run_lbls = range(31)
+
+#run_lbls = range(31)
 
 # run_lbls = range(132)
 
@@ -75,7 +76,13 @@ for k, dd, cc, cl in zip(range(len(ddirs)), ddirs, clrs, curve_lbls):
     # if k == 0:
     #     dcrits = get_dcrits(ll, temps, dd, var_a=True)
     # else:
-    dcrits = get_dcrits(ll, temps, dd, var_a=False)
+    print(k)
+    if k == 0:
+        dcrits = get_dcrits(ll, temps, dd, rollback=True)
+    
+    else:
+        dcrits = get_dcrits(ll, temps, dd, rollback=False)
+
 
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)

@@ -8,6 +8,7 @@ from qcnico import plt_utils
 from qcnico.qchemMAC import AO_gammas, MO_gammas
 from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
+from qcnico.qcplots import plot_MO
 from MOs2sites import generate_sites_radii_list, LR_MOs, sites_mass
 
 
@@ -28,14 +29,20 @@ pos = remove_dangling_carbons(pos,1.8)
 pos = pos[:,:2]
 tree = KDTree(pos)
 
-agL, agR = AO_gammas(pos,gamma,brute_force=True)
-gamL, gamR = MO_gammas(M, agL, agR, return_diag=True) 
+# agL, agR = AO_gammas(pos,gamma,brute_force=True)
+# gamL, gamR = MO_gammas(M, agL, agR, return_diag=True) 
+
+gamL = np.load('/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_var_a/sample-42/gamL_40x40-42_virtual.npy')
+gamR = np.load('/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_var_a/sample-42/gamR_40x40-42_virtual.npy')
 
 L, R = LR_MOs(gamL, gamR)
+
+
 
 print('Generating sites and radii now...')
 start = perf_counter()
 centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, energies)
+centers_hl, radii_hl, ee, ii = generate_sites_radii_list(pos, M, L, R, energies,hyperlocal='all')
 end = perf_counter()
 print(f'Done! [{end-start} seconds]')
 
@@ -54,10 +61,25 @@ for n in range(M.shape[1]):
 
 plt_utils.setup_tex()
 
-plt_utils.histogram(radii,nbins=200,xlabel='Site radii [\AA]')
+plt_utils.multiple_histograms((radii,radii_hl),nbins=200,xlabel='Site radii [\AA]',labels=('$|\psi_n|^2$','$|\psi_n|^4$'))
 
 fig, ax = plt.subplots()
 ax.scatter(r_sorted,masses,c='r',s=1.0)
 ax.set_xlabel('Site radius [\AA]')
 ax.set_ylabel('Site mass')
 plt.show()
+
+
+imax_r = np.argmax(radii)
+nn = ii[imax_r]
+
+rel_centers =  centers[ii == nn]
+rel_radii = radii[ii == nn]
+
+print('REL RADII = ', rel_radii)
+
+fig, ax = plt.subplots()
+plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax), loc_centers=rel_centers, loc_radii=rel_radii)
+fig, ax = plt.subplots()
+plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax),show_rgyr=True)
+

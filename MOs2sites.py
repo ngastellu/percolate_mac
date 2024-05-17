@@ -443,7 +443,7 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0):
 
     return centers[~inan,:], radii[~inan]
 
-def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False):
+def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False, hyperlocal='sites'):
     out_size = 10*M.shape[1]
     centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     radii = np.zeros(out_size)
@@ -461,7 +461,7 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
         psi = M[:,n]
         # with objmode(labels_kmeans=)
         _ , labels_kmeans = assign_AOs(pos, cc, psi, psi_pow=4)
-        final_sites, rr = site_radii(pos,M,n,labels_kmeans)
+        final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal)
         
         n_new = final_sites.shape[0]
 
