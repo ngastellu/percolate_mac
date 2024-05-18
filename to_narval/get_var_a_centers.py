@@ -28,7 +28,7 @@ L, R = LR_MOs(gamL, gamR)
 
 print('Generating sites and radii now...')
 start = perf_counter()
-centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, e)
+centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, e, hyperlocal='all')
 end = perf_counter()
 print(f'Done! [{end-start} seconds]')
 
