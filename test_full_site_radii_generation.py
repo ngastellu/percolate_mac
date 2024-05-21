@@ -37,14 +37,19 @@ gamR = np.load('/Users/nico/Desktop/simulation_outputs/percolation/40x40/percola
 
 L, R = LR_MOs(gamL, gamR)
 
-
+eps_rho = 1.05e-3
+flag_empty_clusters = True
+max_r = 50.0
 
 print('Generating sites and radii now...')
 start = perf_counter()
-centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, energies)
-centers_hl, radii_hl, ee, ii = generate_sites_radii_list(pos, M, L, R, energies,hyperlocal='all')
+centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, energies, radii_rho_threshold=eps_rho,flag_empty_clusters=flag_empty_clusters,max_r=max_r)
+centers_hl, radii_hl, ee_hl, ii_hl = generate_sites_radii_list(pos, M, L, R, energies,hyperlocal='all', radii_rho_threshold=eps_rho,flag_empty_clusters=flag_empty_clusters,max_r=max_r)
 end = perf_counter()
 print(f'Done! [{end-start} seconds]')
+
+print('Shape of centers: ', centers.shape)
+print('Shape of ii: ', ii.shape)
 
 masses = np.zeros(radii.shape[0])
 r_sorted = np.zeros(radii.shape[0])
@@ -79,7 +84,18 @@ rel_radii = radii[ii == nn]
 print('REL RADII = ', rel_radii)
 
 fig, ax = plt.subplots()
-plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax), loc_centers=rel_centers, loc_radii=rel_radii)
-fig, ax = plt.subplots()
-plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax),show_rgyr=True)
+plot_MO(pos,M, nn, dotsize=1.0, plt_objs=(fig, ax), loc_centers=rel_centers, loc_radii=rel_radii)
+# fig, ax = plt.subplots()
+# plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax),show_rgyr=True)
 
+
+# np.random.seed(64)
+# for n in np.random.randint(M.shape[1], size=10):
+#     jj = (ii == n)
+#     print(jj)
+#     nsites = jj.sum()
+#     cc = centers[jj,:]
+#     print(cc)
+#     rr = radii[jj]
+#     print(rr)
+#     plot_MO(pos,M, n, dotsize=1.0, loc_centers=cc, loc_radii=rr,c_rel_size=2)

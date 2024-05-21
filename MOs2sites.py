@@ -429,6 +429,11 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
     centers = np.zeros((nsites,2))
     radii = np.zeros(nsites)
     N = pos.shape[0]
+
+    if flagged_labels is not None:
+        flagged_radii = np.zeros(len(flagged_labels))
+        m = 0
+
     for k, l in enumerate(unique_labels):
         mask = (labels==l)  
         if density_threshold > 0:
@@ -454,8 +459,13 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
         
         if flagged_labels is not None and l in flagged_labels:
             # if l labels an empty cluster (i.e. devoid of a priori loc centers) and the radius is too big, ignore that site
+            rrr = radii[k]
+            flagged_radii[m] = rrr
             if radii[k] > max_r: 
                 radii[k] = 0
+
+    if flagged_labels is not None:
+        print(f'MAX flagged radius = {np.max(flagged_radii)} ; MEAN flagged radius = {np.mean(flagged_radii)}')
         
     # filter nans induced be wavefunction re-normalisation
     inan = np.any(np.isnan(centers),axis=1) + np.isnan(radii)

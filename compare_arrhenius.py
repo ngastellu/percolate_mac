@@ -43,8 +43,8 @@ temps = np.arange(40,440,10)[14:]
 tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/'
 pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_var_a_rollback/'
 t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs_var_a/'
-tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_var_a_rollback/'
-tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_var_a_rollback/'
+tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_var_a_hl/'
+tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_var_a_hl/'
 
 
 
@@ -60,7 +60,7 @@ pCNN_lbls = pCNN_lbls[pCNN_lbls <= 150]
 with open(tempdot6_dir + 'good_runs_var_a.txt') as fo:
     tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
 
-with open(tempdot5_dir + 'good_runs_var_a.txt') as fo:
+with open(tempdot5_dir + 'good_runs_var_a_hl.txt') as fo:
     tdot5_lbls = [int(l.strip()) for l in fo.readlines()]
 
 # tdot5_lbls = range(31)
@@ -116,7 +116,10 @@ sigs = []
 for k, dd, ll, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, clrs, curve_lbls):
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    dcrits = get_dcrits(ll, temps, dd,rollback=True)
+    if k == 0:
+        dcrits = get_dcrits(ll, temps, dd,rollback=True)
+    else:
+        dcrits = get_dcrits(ll, temps, dd,hyperlocal=True)
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)
 
