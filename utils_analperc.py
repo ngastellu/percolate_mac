@@ -9,7 +9,7 @@ from scipy.stats import linregress
 
 kB = 8.617333262e-5 #eV/K
 
-def get_dcrits(run_inds,temps,datadir, var_a=False, rollback=False):
+def get_dcrits(run_inds,temps,datadir, var_a=False, rollback=False, hyperlocal=False):
     nsamples = len(run_inds)
     ntemps = len(temps)
     dcrits = np.zeros((nsamples,ntemps))
@@ -21,6 +21,8 @@ def get_dcrits(run_inds,temps,datadir, var_a=False, rollback=False):
             elif rollback:
                 # print('ye')
                 pkl = f"out_var_a_rollback_percolate-{temps[l]}K.pkl"
+            elif hyperlocal:
+                pkl = f'out_var_a_hl_rollback_percolate-{temps[l]}K.pkl'
             else:
                 pkl = f"out_percolate-{temps[l]}K.pkl"
             fo = open(path.join(datadir,sampdir,pkl),'rb')

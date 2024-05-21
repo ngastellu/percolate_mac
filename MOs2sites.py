@@ -369,7 +369,7 @@ def generate_site_list_opt(pos,M,L,R,energies,nbins=20,threshold_ratio=0.50, min
 
     return centres[:nsites,:], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
 
-def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2,density_threshold=0):
+def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2,density_threshold=0, flag_empty_clusters=False):
     """Assigns carbon atoms to localisation centers obtained from `get_MO_loc_centers` using K-means clustering."""
     nclusters = cc.shape[0]
     # print('nclusts = ',nclusters)
@@ -381,7 +381,7 @@ def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2,density_threshold=0):
     if psi is not None:
         density = np.abs(psi)**2
         too_low = (density < density_threshold).nonzero()[0]
-        print(f'K-means: ignoring {too_low.shape[0]} / {pos.shape[0]} carbons (eps = {density_threshold})')
+        # print(f'K-means: ignoring {too_low.shape[0]} / {pos.shape[0]} carbons (eps = {density_threshold})')
         psi[too_low] = 0
         kmeans = kmeans.fit(pos,sample_weight=np.abs(psi)**psi_pow)
     else:
@@ -390,7 +390,19 @@ def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2,density_threshold=0):
     cluster_cc = kmeans.cluster_centers_
     labels = kmeans.labels_
 
-    return cluster_cc, labels
+    if flag_empty_clusters:
+        # print(cc)
+        cc_labels = kmeans.predict(cc)
+        slabels = set(labels)
+        scclabels = set(cc_labels)
+        if len(scclabels) == 0:
+            print('[assign_AOs] !!!! All labels have been flagged !!!!')
+        empty_labels = slabels - scclabels
+        print('Nb of flagged of labels = ', len(empty_labels))
+        
+        return cluster_cc, labels, empty_labels
+    else:
+        return cluster_cc, labels
 
 
 def assign_AOs_naive(pos, cc):
@@ -406,7 +418,7 @@ def assign_AOs_naive(pos, cc):
     return labels
 
 # @njit
-def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0):
+def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagged_labels=None,max_r=50):
     valid_hl_types = ['sites', 'radii', 'all', 'none']
     if hyperlocal not in valid_hl_types:
         print(f'''[sites_radii] WARNING: specified `hyperlocal` arg \'{hyperlocal}\'is invalid; 
@@ -416,11 +428,13 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0):
     nsites = unique_labels.shape[0]
     centers = np.zeros((nsites,2))
     radii = np.zeros(nsites)
+    N = pos.shape[0]
     for k, l in enumerate(unique_labels):
         mask = (labels==l)  
         if density_threshold > 0:
             density = np.abs(M[:,n])**2
             density_mask = (density > density_threshold) 
+            # print(f'[site_radii] Ignoring {N - density_mask.sum()} atoms out of {N} total.')
             mask *= density_mask
         # print(f'# of atoms in cluster {l}: ', mask.sum())
         # masked_M = np.copy(M)
@@ -438,12 +452,22 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0):
             centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)
             radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, center_of_mass=centers[k,:],renormalise=True)
         
+        if flagged_labels is not None and l in flagged_labels:
+            # if l labels an empty cluster (i.e. devoid of a priori loc centers) and the radius is too big, ignore that site
+            if radii[k] > max_r: 
+                radii[k] = 0
+        
     # filter nans induced be wavefunction re-normalisation
     inan = np.any(np.isnan(centers),axis=1) + np.isnan(radii)
 
-    return centers[~inan,:], radii[~inan]
+    # filter zero radii/centers due to density thresholding
+    izero = np.all(centers==0,axis=1) + (radii == 0)
+    trash_mask = inan + izero
 
-def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False, hyperlocal='sites'):
+    return centers[~trash_mask,:], radii[~trash_mask]
+
+def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False, hyperlocal='sites',
+                              flag_empty_clusters = False, radii_rho_threshold=0, max_r=50):
     out_size = 10*M.shape[1]
     centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     radii = np.zeros(out_size)
@@ -451,6 +475,7 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
     inds = np.zeros(out_size, dtype='int')
     nsites = 0
     for n in range(M.shape[1]):
+        print(f'**** Getting sites for MO {n} ****')
         cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,min_distance=minimum_distance,shift_centers=shift_centers)
         if n in L:
             cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
@@ -460,8 +485,12 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
         
         psi = M[:,n]
         # with objmode(labels_kmeans=)
-        _ , labels_kmeans = assign_AOs(pos, cc, psi, psi_pow=4)
-        final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal)
+        if flag_empty_clusters:
+            _ , labels_kmeans, flagged_l = assign_AOs(pos, cc, psi, psi_pow=4, flag_empty_clusters=flag_empty_clusters)
+        else:
+            _ , labels_kmeans = assign_AOs(pos, cc, psi, psi_pow=4, flag_empty_clusters=flag_empty_clusters)
+            flagged_l = None
+        final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r)
         
         n_new = final_sites.shape[0]
 
@@ -492,7 +521,7 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
         inds[nsites:nsites+n_new] = np.ones(n_new,dtype='int') * n
 
         nsites += n_new
-        print(nsites)
+        # print(nsites)
 
         
 
