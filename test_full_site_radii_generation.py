@@ -44,7 +44,7 @@ max_r = 50.0
 
 print('Generating sites and radii now...')
 start = perf_counter()
-centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, energies, radii_rho_threshold=eps_rho,flag_empty_clusters=flag_empty_clusters,max_r=max_r)
+centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, energies, radii_rho_threshold=eps_rho)
 np.save('ok_centers.npy', centers)
 np.save('ok_radii.npy', radii)
 np.save('ok_ii.npy', ii)
@@ -107,42 +107,42 @@ plot_MO(pos,M, nn, dotsize=1.0, plt_objs=(fig, ax), loc_centers=rel_centers, loc
 # fig, ax = plt.subplots()
 # plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax),show_rgyr=True)
 
-cc, *_ = get_MO_loc_centers_opt(pos, M, nn, 100, threshold_ratio=0.30)
-plot_MO(pos,M, nn, dotsize=1.0,loc_centers=cc)
-print('A priori centers = ', cc)
-psi = M[:,nn]
-clust_cc, ll, flagged_ll = assign_AOs(pos, cc, psi, psi_pow=4, flag_empty_clusters=True)
-print('Clusters centers = ', clust_cc)
-print(ll)
-print(flagged_ll)
+# cc, *_ = get_MO_loc_centers_opt(pos, M, nn, 100, threshold_ratio=0.30)
+# plot_MO(pos,M, nn, dotsize=1.0,loc_centers=cc)
+# print('A priori centers = ', cc)
+# psi = M[:,nn]
+# clust_cc, ll, flagged_ll = assign_AOs(pos, cc, psi, psi_pow=4, flag_empty_clusters=True)
+# print('Clusters centers = ', clust_cc)
+# print(ll)
+# print(flagged_ll)
 
-fs, fr = site_radii(pos,M,nn,ll,hyperlocal='sites',density_threshold=eps_rho,flagged_labels=flagged_ll,max_r=max_r)
-print('Final sites = ', fs)
-print('Final radii = ', fr)
+# fs, fr = site_radii(pos,M,nn,ll,hyperlocal='sites',density_threshold=eps_rho,flagged_labels=flagged_ll,max_r=max_r)
+# print('Final sites = ', fs)
+# print('Final radii = ', fr)
 
 
-plot_MO(pos,M, nn, dotsize=1.0, loc_centers=fs, loc_radii=fr)
+# plot_MO(pos,M, nn, dotsize=1.0, loc_centers=fs, loc_radii=fr)
 
-masses = sites_mass(psi,tree,fs,fr)
-print('Masses = ', masses)
+# masses = sites_mass(psi,tree,fs,fr)
+# print('Masses = ', masses)
 
-cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
-clrs = [d['color'] for d in list(cyc[0:len(clust_cc)])]
-atom_clrs = [clrs[k] for k in ll]
+# cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
+# clrs = [d['color'] for d in list(cyc[0:len(clust_cc)])]
+# atom_clrs = [clrs[k] for k in ll]
 
-fig,ax = plt.subplots()
-fig, ax = plot_atoms(pos,dotsize=0.1,show=False,plt_objs=(fig,ax),usetex=False,colour=atom_clrs,zorder=1)
-ax.scatter(*clust_cc.T, c=clrs, marker='^', s=5.0)
-ax.scatter(*rel_centers.T, c='r',marker='h', s=5.0)
-plt.show()
+# fig,ax = plt.subplots()
+# fig, ax = plot_atoms(pos,dotsize=0.1,show=False,plt_objs=(fig,ax),usetex=False,colour=atom_clrs,zorder=1)
+# ax.scatter(*clust_cc.T, c=clrs, marker='^', s=5.0)
+# ax.scatter(*rel_centers.T, c='r',marker='h', s=5.0)
+# plt.show()
 
-# np.random.seed(64)
-# for n in np.random.randint(M.shape[1], size=10):
-#     jj = (ii == n)
-#     # print(jj)
-#     nsites = jj.sum()
-#     cc = centers[jj,:]
-#     # print(cc)
-#     rr = radii[jj]
-#     # print(rr)
-#     plot_MO(pos,M, n, dotsize=1.0, loc_centers=cc, loc_radii=rr,c_rel_size=2)
+# # np.random.seed(64)
+# # for n in np.random.randint(M.shape[1], size=10):
+# #     jj = (ii == n)
+# #     # print(jj)
+# #     nsites = jj.sum()
+# #     cc = centers[jj,:]
+# #     # print(cc)
+# #     rr = radii[jj]
+# #     # print(rr)
+# #     plot_MO(pos,M, n, dotsize=1.0, loc_centers=cc, loc_radii=rr,c_rel_size=2)
