@@ -434,12 +434,13 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
         flagged_radii = np.zeros(len(flagged_labels))
         m = 0
 
+    if density_threshold > 0:
+        density = np.abs(M[:,n])**2
+        density_mask = (density > density_threshold) 
+
     for k, l in enumerate(unique_labels):
         mask = (labels==l)  
         if density_threshold > 0:
-            density = np.abs(M[:,n])**2
-            density_mask = (density > density_threshold) 
-            # print(f'[site_radii] Ignoring {N - density_mask.sum()} atoms out of {N} total.')
             mask *= density_mask
         # print(f'# of atoms in cluster {l}: ', mask.sum())
         # masked_M = np.copy(M)
@@ -464,7 +465,7 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
             if radii[k] > max_r: 
                 radii[k] = 0
 
-    if flagged_labels is not None:
+    if flagged_labels is not None and len(flagged_radii) > 0:
         print(f'MAX flagged radius = {np.max(flagged_radii)} ; MEAN flagged radius = {np.mean(flagged_radii)}')
         
     # filter nans induced be wavefunction re-normalisation
