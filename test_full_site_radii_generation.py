@@ -1,4 +1,4 @@
-#!/isr/bin/env python
+#!/usr/bin/env python
 
 from time import perf_counter
 import numpy as np
@@ -32,8 +32,8 @@ tree = KDTree(pos)
 # agL, agR = AO_gammas(pos,gamma,brute_force=True)
 # gamL, gamR = MO_gammas(M, agL, agR, return_diag=True) 
 
-gamL = np.load('/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_var_a/sample-42/gamL_40x40-42_virtual.npy')
-gamR = np.load('/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_var_a/sample-42/gamR_40x40-42_virtual.npy')
+gamL = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_var_a/sample-{nsample}/gamL_40x40-{nsample}_virtual.npy')
+gamR = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_var_a/sample-{nsample}/gamR_40x40-{nsample}_virtual.npy')
 
 L, R = LR_MOs(gamL, gamR)
 

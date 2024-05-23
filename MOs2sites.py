@@ -405,7 +405,6 @@ def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2,density_threshold=0, fla
         return cluster_cc, labels
 
 
-
 def assign_AOs_naive(pos, cc):
     N = pos.shape[0]
     min_dists = np.ones(N) * np.inf
