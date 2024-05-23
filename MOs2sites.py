@@ -445,20 +445,20 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
 
     for k, l in enumerate(unique_labels):
         mask = (labels==l)  
-        # if density_threshold > 0:
-            # mask *= density_mask
+        if density_threshold > 0:
+            mask *= density_mask
         if hyperlocal == 'all':
-            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n,eps_rho=density_threshold)
-            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n,eps_rho=density_threshold)
+            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)#,eps_rho=density_threshold)
+            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)#,eps_rho=density_threshold)
         elif hyperlocal == 'sites':
-            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n,eps_rho=density_threshold)
-            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, renormalise=True,eps_rho=density_threshold)
+            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)#,eps_rho=density_threshold)
+            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, renormalise=True)#,eps_rho=density_threshold)
         elif hyperlocal == 'radii':
-            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True,eps_rho=density_threshold)
-            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n,eps_rho=density_threshold)
+            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)#,eps_rho=density_threshold)
+            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)#,eps_rho=density_threshold)
         else: #no hyperlocal
-            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True,eps_rho=density_threshold)
-            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, center_of_mass=centers[k,:],renormalise=True,eps_rho=density_threshold)
+            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)#,eps_rho=density_threshold)
+            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, center_of_mass=centers[k,:],renormalise=True)#,eps_rho=density_threshold)
         
         if flagged_labels is not None and l in flagged_labels:
             # if l labels an empty cluster (i.e. devoid of a priori loc centers) and the radius is too big, ignore that site
