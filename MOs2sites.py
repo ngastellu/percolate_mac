@@ -181,7 +181,7 @@ def get_MO_loc_centers(pos, M, n, nbins=20, threshold_ratio=0.50,return_realspac
 
 
 @njit
-def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.50,shift_centers=True,min_distance=30.0):
+def get_MO_loc_centers_opt(pos, M, n, nbins=20, threshold_ratio=0.50,shift_centers=False,min_distance=30.0):
     """This function takes in a MO (defined matrix M and index n) and returns a list of hopping sites which correspond to it.
     This version of the function is Numba-compatible, made for running on sets of >1000 MOs.
     
@@ -398,7 +398,7 @@ def assign_AOs(pos, cc, psi=None,init_cc=True,psi_pow=2,density_threshold=0, fla
         if len(scclabels) == 0:
             print('[assign_AOs] !!!! All labels have been flagged !!!!')
         empty_labels = slabels - scclabels
-        print('Nb of flagged of labels = ', len(empty_labels))
+        # print('Nb of flagged of labels = ', len(empty_labels))
         
         return cluster_cc, labels, empty_labels
     else:
@@ -430,9 +430,14 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
     radii = np.zeros(nsites)
     N = pos.shape[0]
 
-    if flagged_labels is not None:
+    if flagged_labels is not None and len(flagged_labels) > 0:
         flagged_radii = np.zeros(len(flagged_labels))
         m = 0
+    
+    if density_threshold > 0:
+        density = np.abs(M[:,n])**2
+        density_mask = (density > density_threshold) 
+        # print(f'[site_radii] Ignoring {N - density_mask.sum()} atoms out of {N} total.')
 
     if density_threshold > 0:
         density = np.abs(M[:,n])**2
@@ -440,23 +445,20 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
 
     for k, l in enumerate(unique_labels):
         mask = (labels==l)  
-        if density_threshold > 0:
-            mask *= density_mask
-        # print(f'# of atoms in cluster {l}: ', mask.sum())
-        # masked_M = np.copy(M)
-        # masked_M[mask,:] = 0
+        # if density_threshold > 0:
+            # mask *= density_mask
         if hyperlocal == 'all':
-            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)
-            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)
+            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n,eps_rho=density_threshold)
+            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n,eps_rho=density_threshold)
         elif hyperlocal == 'sites':
-            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)
-            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, renormalise=True)
+            centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n,eps_rho=density_threshold)
+            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, renormalise=True,eps_rho=density_threshold)
         elif hyperlocal == 'radii':
-            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)
-            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)
-        else:
-            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True)
-            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, center_of_mass=centers[k,:],renormalise=True)
+            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True,eps_rho=density_threshold)
+            radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n,eps_rho=density_threshold)
+        else: #no hyperlocal
+            centers[k,:] = qcm.MO_com(pos[mask,:],M[mask,:],n, renormalise=True,eps_rho=density_threshold)
+            radii[k] = qcm.MO_rgyr(pos[mask,:], M[mask,:], n, center_of_mass=centers[k,:],renormalise=True,eps_rho=density_threshold)
         
         if flagged_labels is not None and l in flagged_labels:
             # if l labels an empty cluster (i.e. devoid of a priori loc centers) and the radius is too big, ignore that site
@@ -465,16 +467,19 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
             if radii[k] > max_r: 
                 radii[k] = 0
 
-    if flagged_labels is not None and len(flagged_radii) > 0:
-        print(f'MAX flagged radius = {np.max(flagged_radii)} ; MEAN flagged radius = {np.mean(flagged_radii)}')
+    if flagged_labels is not None and len(flagged_labels) > 0:
+        print('flagged radii = ', flagged_radii)
+        # print(f'MAX flagged radius = {np.max(flagged_radii)} ; MEAN flagged radius = {np.mean(flagged_radii)}')
         
-    # filter nans induced be wavefunction re-normalisation
+    # filter nans induced by wavefunction re-normalisation
     inan = np.any(np.isnan(centers),axis=1) + np.isnan(radii)
 
     # filter zero radii/centers due to density thresholding
     izero = np.all(centers==0,axis=1) + (radii == 0)
     trash_mask = inan + izero
 
+    print(f'Removing {trash_mask.sum()} site/radius pairs')
+    
     return centers[~trash_mask,:], radii[~trash_mask]
 
 def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False, hyperlocal='sites',
@@ -498,10 +503,14 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
         # with objmode(labels_kmeans=)
         if flag_empty_clusters:
             _ , labels_kmeans, flagged_l = assign_AOs(pos, cc, psi, psi_pow=4, flag_empty_clusters=flag_empty_clusters)
+            print('[generate_sites_radii_list] Flagged labels = ', flagged_l)
         else:
             _ , labels_kmeans = assign_AOs(pos, cc, psi, psi_pow=4, flag_empty_clusters=flag_empty_clusters)
             flagged_l = None
         final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r)
+        print('FINAL SITES = ', final_sites)
+        print('FINAL RADII = ', rr)
+        print('\n')
         
         n_new = final_sites.shape[0]
 
