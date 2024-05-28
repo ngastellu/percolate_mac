@@ -417,6 +417,30 @@ def assign_AOs_naive(pos, cc):
 
     return labels
 
+
+# @njit
+def site_radii_naive(pos, M, n, centers, density_threshold=0,psi_pow=2):
+    psi = M[:,n]
+    if density_threshold > 0:
+        density = psi ** 2
+        mask = density > density_threshold
+        psi = psi[mask]
+        pos = pos[mask,:]
+
+        psi /= density.sum()
+
+    radii = np.zeros(centers.shape[0])
+    for k,R in enumerate(centers):
+        dR = np.linalg.norm(pos - R, axis=1)
+        radii[k] = np.sum(dR * (psi**psi_pow))
+    
+    return radii
+
+
+    
+
+
+
 # @njit
 def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagged_labels=None,max_r=50):
     valid_hl_types = ['sites', 'radii', 'all', 'none']
@@ -483,13 +507,21 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
     return centers[~trash_mask,:], radii[~trash_mask]
 
 def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False, hyperlocal='sites',
-                              flag_empty_clusters = False, radii_rho_threshold=0, max_r=50):
+                              flag_empty_clusters = False, radii_rho_threshold=0, max_r=50,return_labelled_atoms=False):
+    
+    N = M.shape[0]
+
     out_size = 10*M.shape[1]
     centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     radii = np.zeros(out_size)
     ee = np.zeros(out_size) 
     inds = np.zeros(out_size, dtype='int')
+    
+    if return_labelled_atoms:
+        all_labels = np.zeros((out_size,N),dtype='int')
+    
     nsites = 0
+
     for n in range(M.shape[1]):
         print(f'**** Getting sites for MO {n} ****')
         cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,min_distance=minimum_distance,shift_centers=shift_centers)
@@ -535,7 +567,75 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
             new_inds[:nsites] = inds[:nsites]
             inds = new_inds
 
+            if return_labelled_atoms:
+                new_labels = np.zeros((out_size,N),dtype='int')
+                new_labels[:nsites,:] = all_labels[:]
+                all_labels = new_labels
+
         centres[nsites:nsites+n_new,:] = final_sites
+        radii[nsites:nsites+n_new] = rr
+        ee[nsites:nsites+n_new] = np.ones(n_new) * energies[n]
+        inds[nsites:nsites+n_new] = np.ones(n_new,dtype='int') * n
+        if return_labelled_atoms:
+            all_labels[nsites:nsites+n_new] = labels_kmeans
+
+        nsites += n_new
+        # print(nsites)
+
+    if return_labelled_atoms: 
+        return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites], all_labels[:nsites,:] #get rid of 'empty' values in output arrays
+    else:
+        return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
+
+
+def generate_sites_radii_list_naive(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False,
+                               psi_pow=2, radii_rho_threshold=0):
+    out_size = 10*M.shape[1]
+    centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
+    radii = np.zeros(out_size)
+    ee = np.zeros(out_size) 
+    inds = np.zeros(out_size, dtype='int')
+    nsites = 0
+    for n in range(M.shape[1]):
+        print(f'**** Getting sites for MO {n} ****')
+        cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,min_distance=minimum_distance,shift_centers=shift_centers)
+        if n in L:
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
+        
+        elif n in R:
+            cc = correct_peaks(cc, pos, rho, xedges, yedges,'R',shift_centers=shift_centers)
+        
+        # with objmode(labels_kmeans=)
+        rr = site_radii_naive(pos, M, n, cc, density_threshold=radii_rho_threshold, psi_pow=psi_pow)
+        print('CENTERS = ', cc)
+        print('RADII = ', rr)
+        print('\n')
+        
+        n_new = rr.shape[0]
+
+        # If arrays are about to overflow, copy everything into bigger arrays
+        if nsites + n_new > out_size:
+            print("~~~!!!!! Site arrays about to overflow; increasing output size !!!!!~~~")
+            out_size += 10*M.shape[1]
+
+            # Allocate larger arrays and copy old arrays into newly allocated arrs
+            new_centres = np.zeros((out_size,2))
+            new_centres[:nsites,:] = centres[:nsites,:]
+            centres = new_centres
+             
+            new_radii = np.zeros(out_size)
+            new_radii[:nsites] = radii[:nsites]
+            radii = new_radii
+
+            new_ee = np.zeros(out_size)
+            new_ee[:nsites] = ee[:nsites]
+            ee = new_ee
+            
+            new_inds = np.zeros(out_size,dtype='int')
+            new_inds[:nsites] = inds[:nsites]
+            inds = new_inds
+
+        centres[nsites:nsites+n_new,:] = cc
         radii[nsites:nsites+n_new] = rr
         ee[nsites:nsites+n_new] = np.ones(n_new) * energies[n]
         inds[nsites:nsites+n_new] = np.ones(n_new,dtype='int') * n
@@ -543,10 +643,7 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
         nsites += n_new
         # print(nsites)
 
-        
-
     return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
-
 
 @njit
 def pair_dists_w_inds(points):
