@@ -7,7 +7,7 @@ from qcnico import plt_utils
 
 def gen_data(lbls, ddir, filename='rr_v_masses_v_ee.npy'):
     for n in lbls:
-        print(n)
+        # print(n)
         npy = ddir + f'sample-{n}/{filename}'
         yield np.load(npy)
 
@@ -22,7 +22,7 @@ def gen_n_sites(lbls,ddir):
         for i in range(nradii):
             iMO = ii[i]
             j = (iunique == iMO).nonzero()[0]
-            print(j)
+            # print(j)
             nsites = counts[j]
             out[i,0] = radii[i]
             out[i,1] = nsites
@@ -53,15 +53,18 @@ lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
 
 plt_utils.setup_tex()
 
+rmax = 30
 
 istrucs = np.zeros((3,3),dtype=int) # structure inds of the high-mass sites
 
+nsites = [104424, 77544, 56588]
 
 
 for k, d in enumerate(outer_dirs):
     ddir  = d + 'var_radii_data/' + run_type + '/'
     percdir = d + f'percolate_output/zero_field/{run_type}/'
     good_runs_file = percdir + 'good_runs_eps_rho_1.05e-3.txt'
+    nbig = 0
 
     fo = open(good_runs_file)
     lines = fo.readlines()
@@ -72,13 +75,18 @@ for k, d in enumerate(outer_dirs):
     fig, ax = plt.subplots() 
 
     for dat in datgen:
-        print(dat.shape)
+        # print(dat.shape)
         rr, masses, ee = dat
+        densities = masses / (np.pi * rr * rr)
         ee -= np.min(ee)
-        ax.scatter(rr, masses, c=ee,s=1.0)
+        ax.scatter(rr, densities, c=clrs[k],s=1.0)
+        # nsites += rr.shape[0]
+        nbig += (rr>rmax).sum()
 
+    ax.axvline(x=rmax,ymin=0,ymax=1,c='k')
     ax.set_xlabel('Site radius [\AA]')
-    ax.set_ylabel('Site probability mass')
+    ax.set_ylabel('Site probability density')
 
     plt.show()
 
+    print(f'Nb of sites with r > {rmax} angstroms = {nbig} / {nsites[k]}')

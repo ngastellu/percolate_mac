@@ -212,7 +212,7 @@ def setup_hopping_sites_gridMOs(pos, energies, M, gamL, gamR, tolscal=3.0, nbins
     else:
         return centres, ee, L_sites, R_sites
 
-def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_dir='.',jitted=False):
+def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_dir='.',jitted=False,pkl_prefix='out_percolate',rmax=None):
     """Once the hopping sites have been defined, run `percolate` under the array of desired conditions (temperature, external field).
     This function returns nothing; it writes the results of each call to `percolate` to a pickle file located in `pkl_dir`."""
     kB = 8.617333262 #eV / K
@@ -224,6 +224,12 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
     
     if isinstance(a0, np.ndarray):
         print('~~~~ a0 is an array: running variable radii percolation ~~~~')
+        if rmax is not None:
+            igood = (a0 < rmax).nonzero()[0] # filter out sites that are 'too big'
+            sites_pos = sites_pos[igood]
+            sites_energies = sites_energies[igood]
+            a0 = a0[igood]
+            
         edArr, rdArr, ij = diff_arrs_var_a(sites_energies, sites_pos, radii=a0, eF=eF, E=E)
         var_a = True
     else:
@@ -248,14 +254,8 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
             print(f'\n~~~Done! [{end-start} seconds]~~~\n Saving to pkl file...~~~',flush=True)
 
 
-        pkl_name = 'out'
-
-        if jitted:
-            pkl_name += '_jitted'
-        if var_a:
-            pkl_name += '_var_a'
         
-        pkl_name += f'_percolate-{T}K.pkl'
+        pkl_name = pkl_prefix +  f'-{T}K.pkl'
 
         with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)

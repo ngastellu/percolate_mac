@@ -55,10 +55,9 @@ print(f'Done! [{end-start} seconds]')
 print('Shape of centers: ', centers.shape)
 print('Shape of ii: ', ii.shape)
 
+
 masses = np.zeros(radii.shape[0])
-# masses_hl = np.zeros(radii_hl.shape[0])
 r_sorted = np.zeros(radii.shape[0])
-# r_sorted_hl = np.zeros(radii_hl.shape[0])
 k = 0
 
 masses_hl = np.zeros(radii_hl.shape[0])
@@ -90,6 +89,8 @@ site_iprs_hl = all_sites_ipr(M,labels_hl,eps_rho=eps_rho)
 
 print(site_iprs.shape)
 print(masses.shape)
+
+print(np.all(radii == r_sorted))
 
 plt_utils.setup_tex()
 
@@ -123,16 +124,44 @@ plt.legend()
 plt.show()
 
 
+L_ipr = 1.0 / np.sqrt(site_iprs)
+densities = masses/(np.pi*r_sorted*r_sorted)
 
+high_L_ipr = np.argsort(L_ipr)[-5:]
 
-for imax_r in np.argsort(site_iprs):
+print('5 biggest sites (IPR-wise) = ' ,high_L_ipr)
+
+for imax_r in high_L_ipr:
+    big_ipr = L_ipr[imax_r]
+    bigr = radii[imax_r]
     nn = ii[imax_r]
 
     rel_centers =  centers[ii == nn]
     rel_radii = radii[ii == nn]
 
     fig, ax = plt.subplots()
-    plot_MO(pos,M, nn, dotsize=1.0, plt_objs=(fig, ax), loc_centers=rel_centers, loc_radii=rel_radii)
+    c = ['r'] * rel_radii.shape[0]
+    ibig = (rel_radii == bigr).nonzero()[0][0]
+    c[ibig] = 'limegreen'
+    plot_MO(pos,M, nn, dotsize=1.0, plt_objs=(fig, ax), loc_centers=rel_centers, loc_radii=rel_radii, c_clrs = c)
+
+lo_density = np.argsort(densities)[:5]
+print('5 biggest sites (rho-wise) = ' ,lo_density
+      )
+
+for imax_r in lo_density:
+    lorho = densities[imax_r]
+    bigr = radii[imax_r]
+    nn = ii[imax_r]
+
+    rel_centers =  centers[ii == nn]
+    rel_radii = radii[ii == nn]
+
+    fig, ax = plt.subplots()
+    c = ['r'] * rel_radii.shape[0]
+    ibig = (rel_radii == bigr).nonzero()[0][0]
+    c[ibig] = 'limegreen'
+    plot_MO(pos,M, nn, dotsize=1.0, plt_objs=(fig, ax), loc_centers=rel_centers, loc_radii=rel_radii,c_clrs = c)
 
 # fig, ax = plt.subplots()
 # plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax),show_rgyr=True)
