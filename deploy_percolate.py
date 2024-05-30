@@ -177,7 +177,7 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
         with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
 
-def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False):
+def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',pkl_prefix=None,rmax=None):
     # ******* Define strongly-coupled MOs *******
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
@@ -187,21 +187,28 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
 
     # ******* Pre-compute distances *******
     if hyperlocal:
-        centres = np.load('var_a_npys/centers_hl.npy')
-        ee = np.load('var_a_npys/ee_hl.npy')
-        ii = np.load('var_a_npys/ii_hl.npy')
-        radii = np.load('var_a_npys/radii_hl.npy')
+        centres = np.load(path.join(npydir,'centers_hl.npy'))
+        ee = np.load(path.join(npydir,'ee_hl.npy'))
+        ii = np.load(path.join(npydir, 'ii_hl.npy'))
+        radii = np.load(path.join(npydir, 'radii_hl.npy'))
     else:
-        centres = np.load('var_a_npys/centers.npy')
-        ee = np.load('var_a_npys/ee.npy')
-        ii = np.load('var_a_npys/ii.npy')
-        radii = np.load('var_a_npys/radii.npy')
+        centres = np.load(path.join(npydir,'centers.npy'))
+        ee = np.load(path.join(npydir,'ee.npy'))
+        ii = np.load(path.join(npydir, 'ii.npy'))
+        radii = np.load(path.join(npydir, 'radii.npy'))
     
     if np.abs(dV) > 0:
         dX = np.max(pos[:,0]) - np.min(pos[:,0])
         E = np.array([dV/dX,0])
     else:
         E = np.array([0.0,0.0])
+
+    if rmax is not None:
+        igood = (radii < rmax).nonzero()[0]
+        centres = centres[igood]
+        ee = ee[igood]
+        ii = ii[igood]
+        radii = radii[igood]
 
     edArr, rdArr = diff_arrs_var_a(ee, centres, radii, eF=eF, E=E)
 
@@ -216,10 +223,13 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
         d_prev_ind = iidprev
         print(f'Distance nb {d_prev_ind} yielded a percolating cluster!', flush=True)
         
-        if hyperlocal:
-            pkl_name = f'out_var_a_hl_rollback_percolate-{T}K.pkl'
+        if pkl_prefix is None:
+            if hyperlocal:
+                pkl_name = f'out_var_a_hl_rollback_percolate-{T}K.pkl'
+            else:
+                pkl_name = f'out_var_a_rollback_percolate-{T}K.pkl'
         else:
-            pkl_name = f'out_var_a_rollback_percolate-{T}K.pkl'
+            pkl_name = pkl_prefix + f'-{T}.pkl'
 
         with open(pkl_name, 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
