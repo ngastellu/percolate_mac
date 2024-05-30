@@ -72,32 +72,22 @@ with open(tempdot5_dir + 'good_runs_eps_rho_1.05e-3.txt') as fo:
 
 dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
 
-ring_data_tdot25 = np.load(dd_rings + 'avg_ring_counts_tdot25_relaxed.npy')
-ring_data_t1 = np.load(dd_rings + 'avg_ring_counts_t1_relaxed.npy')
+ring_data_tempdot5 = np.load(dd_rings + 'avg_ring_counts_tempdot5_new_model_relaxed.npy')
 ring_data_pCNN = np.load(dd_rings + 'avg_ring_counts_normalised.npy')
 ring_data_tempdot6 = np.load(dd_rings + 'avg_ring_counts_tempdot6_new_model_relaxed.npy')
 
-p6c_tdot25 = ring_data_tdot25[4] / ring_data_tdot25.sum()
-p6c_t1 = ring_data_t1[3] / ring_data_t1.sum()
 p6c_tempdot6 = ring_data_tempdot6[4] / ring_data_tempdot6.sum()
-p6c_pCNN = ring_data_pCNN[3]
+p6c_tempdot5 = ring_data_tempdot5[4] / ring_data_tempdot5.sum()
+p6c_pCNN = ring_data_pCNN[4]
 # p6c = np.array([p6c_tdot25, p6c_pCNN,p6c_t1,p6c_tempdot6])
-p6c = np.array([p6c_pCNN,p6c_tempdot6])
+p6c = np.array([p6c_pCNN,p6c_tempdot6,p6c_tempdot5])
 
-# clrs = get_cm(p6c, 'inferno',min_val=0.25,max_val=0.7)
-
-
-cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
-clrs = [d['color'] for d in list(cyc[0:3])]
+clrs = get_cm(p6c, 'inferno',min_val=0.25,max_val=0.7)
 
 # ddirs = [tdot25dir, pCNNdir, t1dir, tempdot6_dir]
 ddirs = [pCNNdir, tempdot6_dir, tempdot5_dir]
 # run_lbls = [tdot25_lbls,pCNN_lbls,t1_lbls,tdot6_lbls]
 run_lbls = [pCNN_lbls,tdot6_lbls,tdot5_lbls]
-# curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 1$', '$\\tilde{T} = 0.6$']
-# curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 0.6$']
-# curve_lbls = [f'$p_{{6c}} = {p*100:.2f}\,\%$' for p in p6c]
-# curve_lbls = ['sAMC-500', 'sAMC-300', 'tdot5']
 curve_lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
 
 ndatasets = len(ddirs)

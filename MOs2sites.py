@@ -442,7 +442,7 @@ def site_radii_naive(pos, M, n, centers, density_threshold=0,psi_pow=2):
 
 
 # @njit
-def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagged_labels=None,max_r=50):
+def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagged_labels=None,max_r=50,return_labels=False):
     valid_hl_types = ['sites', 'radii', 'all', 'none']
     if hyperlocal not in valid_hl_types:
         print(f'''[sites_radii] WARNING: specified `hyperlocal` arg \'{hyperlocal}\'is invalid; 
@@ -504,7 +504,10 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
 
     print(f'Removing {trash_mask.sum()} site/radius pairs')
     
-    return centers[~trash_mask,:], radii[~trash_mask]
+    if return_labels:
+        return centers[~trash_mask,:], radii[~trash_mask], unique_labels[~trash_mask]
+    else:
+        return centers[~trash_mask,:], radii[~trash_mask]
 
 def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False, hyperlocal='sites',
                               flag_empty_clusters = False, radii_rho_threshold=0, max_r=50,return_labelled_atoms=False):
@@ -518,7 +521,7 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
     inds = np.zeros(out_size, dtype='int')
     
     if return_labelled_atoms:
-        all_labels = np.zeros((out_size,N),dtype='int')
+        all_labels = np.zeros((M.shape[1],N),dtype='int')
     
     nsites = 0
 
@@ -539,10 +542,21 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
         else:
             _ , labels_kmeans = assign_AOs(pos, cc, psi, psi_pow=4, flag_empty_clusters=flag_empty_clusters)
             flagged_l = None
-        final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r)
+        
+        if return_labelled_atoms:
+            final_sites, rr, unique_labels = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r,return_labels=True)
+            unique_labels = set(unique_labels)
+            for k in range(N):
+                if labels_kmeans[k] not in unique_labels:
+                    labels_kmeans[k] = -1
+            # labels_kmeans[labels_kmeans not in unique_labels] = -1
+        else:
+            final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r)
+        
         print('FINAL SITES = ', final_sites)
         print('FINAL RADII = ', rr)
         print('\n')
+
         
         n_new = final_sites.shape[0]
 
@@ -567,23 +581,19 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
             new_inds[:nsites] = inds[:nsites]
             inds = new_inds
 
-            if return_labelled_atoms:
-                new_labels = np.zeros((out_size,N),dtype='int')
-                new_labels[:nsites,:] = all_labels[:]
-                all_labels = new_labels
 
         centres[nsites:nsites+n_new,:] = final_sites
         radii[nsites:nsites+n_new] = rr
         ee[nsites:nsites+n_new] = np.ones(n_new) * energies[n]
         inds[nsites:nsites+n_new] = np.ones(n_new,dtype='int') * n
         if return_labelled_atoms:
-            all_labels[nsites:nsites+n_new] = labels_kmeans
+            all_labels[n,:] = labels_kmeans
 
         nsites += n_new
         # print(nsites)
 
     if return_labelled_atoms: 
-        return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites], all_labels[:nsites,:] #get rid of 'empty' values in output arrays
+        return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites], all_labels #get rid of 'empty' values in output arrays
     else:
         return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
 
@@ -696,6 +706,45 @@ def sites_mass(psi,tree,centers,radii):
     return masses
 
 
+# @njit
+def all_sites_ipr(M,labels,eps_rho=0):
+    """Computes the inverse participation ratios of the sub-MOs derived from ALL of a given structure's
+    MOs."""
+    nsites = 0
+    for ll in labels:
+        nsites += np.unique(ll[ll != -1]).shape[0] # filter out -1 ('bad' label) from unique(ll) when evalutating nsites
+    iprs = np.zeros(nsites)
+    k = 0
+    # Loop over MOs
+    for n in range(M.shape[1]):
+        print('Getting IPRs of sites from MO nb ', n)
+        ll = labels[n]
+        nclusters = np.unique(ll[ll != -1]).shape[0]
+        psi = M[:,n]
+        iprs[k:k+nclusters] = sites_ipr(psi,ll,eps_rho=eps_rho)
+
+        k += nclusters
+
+    return iprs
+        
 
 
+
+# @njit
+def sites_ipr(psi,labels,eps_rho=0):
+    """Computes the IPRs of the sub-MOs obtained by partitioning a SINGLE MO."""
+    if eps_rho > 0:
+        psi[psi**2 < eps_rho] = 0
+        psi /= (psi**2).sum()
+
+    # Ignore -1 label: corresponds to 'bad sites' (see `generate_site_radii_list`)
+    nn = np.unique(labels[labels != -1])
+    iprs = np.zeros(nn.shape[0])
+
+    for k, n in enumerate(nn):
+        mask = (labels == n)
+        sub_psi = psi[mask]
+        print(np.sum(psi**2))
+        iprs[k] = np.sum(sub_psi**4) / np.sum(sub_psi**2)
     
+    return iprs

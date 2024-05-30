@@ -17,6 +17,9 @@ n = int(sys.argv[1])
 struc_type = sys.argv[2]
 mo_type = sys.argv[3]
 
+eps_rho = 1.05e-3
+npydir = 'var_a_npys_eps_rho_1.05e-3/'
+
 temps = np.arange(40,440,10)
 dV = 0.0
 
@@ -28,7 +31,7 @@ L, R = LR_MOs(gamL, gamR)
 
 print('Generating sites and radii now...')
 start = perf_counter()
-centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, e, hyperlocal='all')
+centers, radii, ee, ii = generate_sites_radii_list(pos, M, L, R, e, radii_rho_threshold=eps_rho)
 end = perf_counter()
 print(f'Done! [{end-start} seconds]')
 
@@ -50,8 +53,8 @@ for n in range(M.shape[1]):
     k += nsites
     print(f'new k = {k}\n')
 
-np.save('var_a_npys/ee.npy', ee)
-np.save('var_a_npys/radii.npy', radii)
-np.save('var_a_npys/centers.npy', centers)
-np.save('var_a_npys/ii.npy', ii)
-np.save('rr_v_masses_v_ee.npy',np.vstack((r_sorted,masses,e_sorted)))
+np.save(npydir + 'ee.npy', ee)
+np.save(npydir + 'radii.npy', radii)
+np.save(npydir + 'centers.npy', centers)
+np.save(npydir + 'ii.npy', ii)
+np.save(f'rr_v_masses_v_ee_eps_rho_{eps_rho}.npy',np.vstack((r_sorted,masses,e_sorted)))
