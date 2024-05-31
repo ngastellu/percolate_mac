@@ -43,25 +43,25 @@ temps = np.arange(40,440,10)[14:]
 # t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs_var_a/'
 # tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/'
 
-pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
-tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
-tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
+pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_rmax_50/'
+tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_rmax_50/'
+tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_rmax_50/'
 
 
 
 # tdot25_lbls = list(set(range(30)) - {0, 5, 8, 18, 20, 21, 25, 26})
 
-with open(pCNNdir + 'good_runs_eps_rho_1.05e-3.txt') as fo:
+with open(pCNNdir + 'good_runs_rmax_50.txt') as fo:
     pCNN_lbls = [int(l.strip()) for l in fo.readlines()]
 
 pCNN_lbls = np.array(pCNN_lbls)
 pCNN_lbls = pCNN_lbls[pCNN_lbls <= 150]
 # with open(t1dir + 'good_runs.txt') as fo:
     # t1_lbls = [int(l.strip()) for l in fo.readlines()]
-with open(tempdot6_dir + 'good_runs_eps_rho_1.05e-3.txt') as fo:
+with open(tempdot6_dir + 'good_runs_rmax_50.txt') as fo:
     tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
 
-with open(tempdot5_dir + 'good_runs_eps_rho_1.05e-3.txt') as fo:
+with open(tempdot5_dir + 'good_runs_rmax_50.txt') as fo:
     tdot5_lbls = [int(l.strip()) for l in fo.readlines()]
 
 # tdot5_lbls = range(31)
@@ -107,7 +107,7 @@ sigs = []
 for k, dd, ll, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, clrs, curve_lbls):
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    dcrits = get_dcrits(ll, temps, dd, pkl_prefix='out_percolate_eps_rho_1.05e-3')
+    dcrits = get_dcrits(ll, temps, dd, pkl_prefix='out_percolate_eps_rho_1.05e-3_rmax_50')
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)
 
