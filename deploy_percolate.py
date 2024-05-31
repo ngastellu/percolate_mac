@@ -177,7 +177,7 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
         with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
 
-def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',pkl_prefix=None,rmax=None):
+def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',pkl_prefix=None,rmax=None,rho_min=None):
     # ******* Define strongly-coupled MOs *******
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
@@ -188,14 +188,18 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
     # ******* Pre-compute distances *******
     if hyperlocal:
         centres = np.load(path.join(npydir,'centers_hl.npy'))
-        ee = np.load(path.join(npydir,'ee_hl.npy'))
+        # ee = np.load(path.join(npydir,'ee_hl.npy'))
         ii = np.load(path.join(npydir, 'ii_hl.npy'))
-        radii = np.load(path.join(npydir, 'radii_hl.npy'))
+        # radii = np.load(path.join(npydir, 'radii_hl.npy'))
+        dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee_hl.npy'))
+        radii, masses, _, ee = dat
     else:
         centres = np.load(path.join(npydir,'centers.npy'))
-        ee = np.load(path.join(npydir,'ee.npy'))
+        # ee = np.load(path.join(npydir,'ee.npy'))
         ii = np.load(path.join(npydir, 'ii.npy'))
-        radii = np.load(path.join(npydir, 'radii.npy'))
+        # radii = np.load(path.join(npydir, 'radii.npy'))
+        dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee.npy'))
+        radii, masses, _, ee = dat
     
     if np.abs(dV) > 0:
         dX = np.max(pos[:,0]) - np.min(pos[:,0])
@@ -209,6 +213,15 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
         ee = ee[igood]
         ii = ii[igood]
         radii = radii[igood]
+
+    if rho_min is not None:
+        rhos = masses / (np.pi * radii * radii)
+        igood = (rhos > rho_min) 
+        centres = centres[igood]
+        ee = ee[igood]
+        ii = ii[igood]
+        radii = radii[igood]
+
 
     edArr, rdArr = diff_arrs_var_a(ee, centres, radii, eF=eF, E=E)
 
