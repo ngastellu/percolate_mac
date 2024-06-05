@@ -177,7 +177,7 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
         with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
 
-def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',pkl_prefix=None,rmax=None,rho_min=None):
+def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None,rho_min=None,use_idprev=True):
     # ******* Define strongly-coupled MOs *******
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
@@ -230,22 +230,28 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
 
     all_Ts = np.flip(np.sort(all_Ts))
     d_prev_ind = 0
+    tracker_file = f'finished_temps_{run_name}.txt'
+    ftrack = open(tracker_file,'w')
+
     for T in all_Ts:
         # ******* 5: Get spanning cluster *******
         conduction_clusters, dcrit, A, iidprev = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr),prev_d_ind=d_prev_ind)
-        d_prev_ind = iidprev
+        if use_idprev:
+            d_prev_ind = iidprev #update minimum index of distances to consider, if use_idprev, otherwise first ind to look at is always 0
         print(f'Distance nb {d_prev_ind} yielded a percolating cluster!', flush=True)
         
-        if pkl_prefix is None:
+        if run_name is None:
             if hyperlocal:
                 pkl_name = f'out_var_a_hl_rollback_percolate-{T}K.pkl'
             else:
                 pkl_name = f'out_var_a_rollback_percolate-{T}K.pkl'
         else:
-            pkl_name = pkl_prefix + f'-{T}.pkl'
+            pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
 
         with open(pkl_name, 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
+        ftrack.write(f'{T}K\n')
+    ftrack.close()
 
 def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0):
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
