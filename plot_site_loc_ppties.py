@@ -37,7 +37,7 @@ lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
 
 plt_utils.setup_tex()
 
-rmax = 50
+rmax = 60
 
 istrucs = np.zeros((3,3),dtype=int) # structure inds of the high-mass sites
 
@@ -50,6 +50,8 @@ for k, d in enumerate(outer_dirs):
     percdir = d + f'percolate_output/zero_field/{run_type}/'
     good_runs_file = percdir + 'good_runs_rmax_50.txt'
     nbig = 0
+    
+    min_bigR_density = np.inf
 
     fo = open(good_runs_file)
     lines = fo.readlines()
@@ -71,6 +73,14 @@ for k, d in enumerate(outer_dirs):
         max_rho = np.max(densities)
         if max_rho > max_density:
             max_density = max_rho
+        
+        ibigRs = rr > rmax
+        if np.any(ibigRs):
+            bigR_densities = densities[ibigRs]
+            smolrho = np.min(bigR_densities)
+
+            if smolrho < min_bigR_density:
+                min_bigR_density = smolrho
 
 
 
@@ -81,69 +91,70 @@ for k, d in enumerate(outer_dirs):
     plt.show()
 
     print(f'Nb of sites with r > {rmax} angstroms = {nbig} / {nsites[k]}')
+    print(f'Min density of sites with r > {rmax} = ', min_bigR_density)
 print('Max density = ', np.max(densities))
 
 # ------------- Histograms of site densities -----------
 
-fig, axs = plt.subplots(3,1,sharex=True)
+# fig, axs = plt.subplots(3,1,sharex=True)
 
-colormap = plt.cm.viridis
-# norm = mpl.colors.Normalize(vmin=0,vmax=max_density)
-norm = mpl.colors.LogNorm(vmin=1e-4,vmax=max_density*150)
+# colormap = plt.cm.viridis
+# # norm = mpl.colors.Normalize(vmin=0,vmax=max_density)
+# norm = mpl.colors.LogNorm(vmin=1e-4,vmax=max_density*150)
 
-rbins = np.linspace(0,220,50)
-centers = 0.5 * (rbins[1:] + rbins[:-1])
-dx = centers[1] - centers[0]
+# rbins = np.linspace(0,220,50)
+# centers = 0.5 * (rbins[1:] + rbins[:-1])
+# dx = centers[1] - centers[0]
 
-for k, d in enumerate(outer_dirs):
-    print(nsites[k])
-    ddir  = d + 'var_radii_data/' + 'rr_v_masses_v_iprs_v_ee_eps_rho_0.00105/'
-    percdir = d + f'percolate_output/zero_field/{run_type}/'
-    good_runs_file = percdir + 'good_runs_rmax_50.txt'
+# for k, d in enumerate(outer_dirs):
+#     print(nsites[k])
+#     ddir  = d + 'var_radii_data/' + 'rr_v_masses_v_iprs_v_ee_eps_rho_0.00105/'
+#     percdir = d + f'percolate_output/zero_field/{run_type}/'
+#     good_runs_file = percdir + 'good_runs_rmax_50.txt'
 
-    fo = open(good_runs_file)
-    lines = fo.readlines()
-    fo.close()
-    nn = [int(l.strip()) for l in lines]
-    datgen = gen_data(nn, ddir, filename=npyname)
+#     fo = open(good_runs_file)
+#     lines = fo.readlines()
+#     fo.close()
+#     nn = [int(l.strip()) for l in lines]
+#     datgen = gen_data(nn, ddir, filename=npyname)
 
-    all_radii = np.zeros(nsites[k])
-    all_densities = np.zeros(nsites[k])
+#     all_radii = np.zeros(nsites[k])
+#     all_densities = np.zeros(nsites[k])
     
-    j = 0
-    for dat in datgen:
-        # print(dat.shape)
-        rr, masses, iprs, ee = dat
-        densities = masses / (np.pi * rr * rr)
-        n_new = rr.shape[0]
-        all_radii[j:j+n_new] = rr
-        all_densities[j:j+n_new] = densities
-        j+= n_new
+#     j = 0
+#     for dat in datgen:
+#         # print(dat.shape)
+#         rr, masses, iprs, ee = dat
+#         densities = masses / (np.pi * rr * rr)
+#         n_new = rr.shape[0]
+#         all_radii[j:j+n_new] = rr
+#         all_densities[j:j+n_new] = densities
+#         j+= n_new
     
-    ii = np.searchsorted(rbins,all_radii) 
-    print(ii)
+#     ii = np.searchsorted(rbins,all_radii) 
+#     print(ii)
 
-    nbins = rbins.shape[0]
-    rcounts = np.zeros(nbins)
-    avg_densities = np.zeros(nbins)
+#     nbins = rbins.shape[0]
+#     rcounts = np.zeros(nbins)
+#     avg_densities = np.zeros(nbins)
 
-    for m in range(nbins):
-        mask = (ii == m)
-        rcounts[m] = mask.sum()
-        if rcounts[m] == 0:
-            avg_densities[m] = 0
-        else:
-            avg_densities[m] = np.mean(all_densities[mask])
+#     for m in range(nbins):
+#         mask = (ii == m)
+#         rcounts[m] = mask.sum()
+#         if rcounts[m] == 0:
+#             avg_densities[m] = 0
+#         else:
+#             avg_densities[m] = np.mean(all_densities[mask])
     
-    print(1000*avg_densities)
-    print(norm(avg_densities))
-    bar_clrs = colormap(norm(1000*avg_densities))
-    print('nb of radii in last bin = ',rcounts[-1])
-    axs[k].bar(centers, rcounts[:-1], color=bar_clrs ,align='center',width=dx)
-    axs[k].set_title(lbls[k])
+#     print(1000*avg_densities)
+#     print(norm(avg_densities))
+#     bar_clrs = colormap(norm(1000*avg_densities))
+#     print('nb of radii in last bin = ',rcounts[-1])
+#     axs[k].bar(centers, rcounts[:-1], color=bar_clrs ,align='center',width=dx)
+#     axs[k].set_title(lbls[k])
 
 
-axs[-1].set_xlabel('Site radii [\AA]')
-# plt.colorbar()
-plt.show()   
+# axs[-1].set_xlabel('Site radii [\AA]')
+# # plt.colorbar()
+# plt.show()   
 

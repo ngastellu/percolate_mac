@@ -43,25 +43,27 @@ temps = np.arange(40,440,10)[14:]
 # t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs_var_a/'
 # tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/'
 
-pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_rmax_50/'
-tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_rmax_50/'
-tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_rmax_50/'
+run_type = 'rho_min_1e-4'
+
+pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_{run_type}/'
+tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_{run_type}/'
+tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_{run_type}/'
 
 
 
 # tdot25_lbls = list(set(range(30)) - {0, 5, 8, 18, 20, 21, 25, 26})
 
-with open(pCNNdir + 'good_runs_rmax_50.txt') as fo:
+with open(pCNNdir + f'good_runs_{run_type}.txt') as fo:
     pCNN_lbls = [int(l.strip()) for l in fo.readlines()]
 
 pCNN_lbls = np.array(pCNN_lbls)
 pCNN_lbls = pCNN_lbls[pCNN_lbls <= 150]
 # with open(t1dir + 'good_runs.txt') as fo:
     # t1_lbls = [int(l.strip()) for l in fo.readlines()]
-with open(tempdot6_dir + 'good_runs_rmax_50.txt') as fo:
+with open(tempdot6_dir + f'good_runs_{run_type}.txt') as fo:
     tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
 
-with open(tempdot5_dir + 'good_runs_rmax_50.txt') as fo:
+with open(tempdot5_dir + f'good_runs_{run_type}.txt') as fo:
     tdot5_lbls = [int(l.strip()) for l in fo.readlines()]
 
 # tdot5_lbls = range(31)
@@ -107,7 +109,7 @@ sigs = []
 for k, dd, ll, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, clrs, curve_lbls):
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    dcrits = get_dcrits(ll, temps, dd, pkl_prefix='out_percolate_eps_rho_1.05e-3_rmax_50')
+    dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_{run_type}')
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)
 
@@ -131,7 +133,7 @@ for k, dd, ll, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, clrs, curve_lbl
 ax.set_yscale('log')
 ax.set_xlabel('$1000/T$ [K$^{-1}$]')
 ax.set_ylabel('$\sigma$ [S/m]')
-#ax.set_title('Virtual near-$E_F$ MOs')
+ax.set_title('Percolation without sites with $a_i > 50$\AA')
 
 plt.legend()
 plt.show()
