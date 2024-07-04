@@ -43,27 +43,31 @@ temps = np.arange(40,440,10)[14:]
 # t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs_var_a/'
 # tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/'
 
-run_type = 'rho_min_1e-4'
+# run_type = 'eps_rho_1.05e-3'
 
-pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_{run_type}/'
-tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_{run_type}/'
-tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_{run_type}/'
+pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_rmax_18.03/'
+tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_rmax_121.2/'
+tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_rmax_198.69/'
+
+# pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
+# tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
+# tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
 
 
 
 # tdot25_lbls = list(set(range(30)) - {0, 5, 8, 18, 20, 21, 25, 26})
 
-with open(pCNNdir + f'good_runs_{run_type}.txt') as fo:
+with open(pCNNdir + f'good_runs_rmax_18.03.txt') as fo:
     pCNN_lbls = [int(l.strip()) for l in fo.readlines()]
 
-pCNN_lbls = np.array(pCNN_lbls)
-pCNN_lbls = pCNN_lbls[pCNN_lbls <= 150]
+# pCNN_lbls = np.array(pCNN_lbls)
+# pCNN_lbls = pCNN_lbls[pCNN_lbls <= 150]
 # with open(t1dir + 'good_runs.txt') as fo:
     # t1_lbls = [int(l.strip()) for l in fo.readlines()]
-with open(tempdot6_dir + f'good_runs_{run_type}.txt') as fo:
+with open(tempdot6_dir + f'good_runs_rmax_121.2.txt') as fo:
     tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
 
-with open(tempdot5_dir + f'good_runs_{run_type}.txt') as fo:
+with open(tempdot5_dir + f'good_runs_rmax_198.69.txt') as fo:
     tdot5_lbls = [int(l.strip()) for l in fo.readlines()]
 
 # tdot5_lbls = range(31)
@@ -90,7 +94,8 @@ clrs = get_cm(p6c, 'inferno',min_val=0.25,max_val=0.7)
 ddirs = [pCNNdir, tempdot6_dir, tempdot5_dir]
 # run_lbls = [tdot25_lbls,pCNN_lbls,t1_lbls,tdot6_lbls]
 run_lbls = [pCNN_lbls,tdot6_lbls,tdot5_lbls]
-curve_lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
+# curve_lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
+curve_lbls = ['sAMC-500', 'sAMC-400', 'sAMC-300']
 
 ndatasets = len(ddirs)
 
@@ -105,11 +110,14 @@ errs_cf = np.zeros(ndatasets)
 
 sigs = []
 
+r_maxs = ['18.03', '121.2', '198.69']
+
 # for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
-for k, dd, ll, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, clrs, curve_lbls):
+for k, dd, ll, rr, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, r_maxs, clrs, curve_lbls):
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_{run_type}')
+    dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_rmax_{rr}')
+    # dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_{run_type}')
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)
 
@@ -133,7 +141,7 @@ for k, dd, ll, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, clrs, curve_lbl
 ax.set_yscale('log')
 ax.set_xlabel('$1000/T$ [K$^{-1}$]')
 ax.set_ylabel('$\sigma$ [S/m]')
-ax.set_title('Percolation without sites with $a_i > 50$\AA')
+ax.set_title('Percolation with site size cutoff determined by largest crystallite area')
 
 plt.legend()
 plt.show()

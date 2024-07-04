@@ -32,7 +32,7 @@ def network_data(sites_dir, percdir, nsample, T, pkl_prefix):
     
     print(icluster.dtype)
     
-    radii = np.load(sites_dir + f'sample-{nsample}/radii.npy')
+    radii = np.load(sites_dir + 'radii.npy')
     
     radii = radii[icluster]
     d = pkl[1]
@@ -48,9 +48,9 @@ def network_data(sites_dir, percdir, nsample, T, pkl_prefix):
 
 
 # @njit
-def gather_radii(sites_dir, percdir, nn, T, pkl_prefix):
+def gather_radii(percdir, nn, T, pkl_prefix,structype):
     nMACs = len(nn)
-    ntot = 250*nMACs # expect about 100 sites per cluster for each structure
+    ntot = 250*nMACs # expect about 250 sites per cluster for each structure
 
     all_radii = np.zeros(ntot)
     dcrits = np.zeros(nMACs)
@@ -58,6 +58,10 @@ def gather_radii(sites_dir, percdir, nn, T, pkl_prefix):
 
     nradii = 0
     for k, n in enumerate(nn):
+        if structype == '40x40':
+            sites_dir =  f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/var_radii_data/virt_100x100_gridMOs_eps_rho_1.05e-3/sample-{n}/'
+        else:
+            sites_dir = percdir + f'sample-{n}/var_a_npys_eps_rho_1.05e-3/'
         radii, d, degs = network_data(sites_dir,percdir,n,T,pkl_prefix)
         print(radii)
         n_new = radii.shape[0]
@@ -94,7 +98,8 @@ run_type = 'virt_100x100_gridMOs_eps_rho_1.05e-3'
 pkl_prefix = 'out_percolate_eps_rho_1.05e-3' 
 T = 180
 
-outer_dirs = [simdir + d for d in ['40x40/', 'Ata_structures/tempdot6/', 'Ata_structures/tempdot5/']]
+structypes = ['40x40', 'tempdot6', 'tempdot5']
+outer_dirs = [simdir + st + '/' for st in structypes]
 
 dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
 
@@ -109,7 +114,8 @@ p6c_pCNN = ring_data_pCNN[4]
 p6c = np.array([p6c_pCNN,p6c_tempdot6,p6c_tempdot5])
 
 clrs = get_cm(p6c, 'inferno',min_val=0.25,max_val=0.7)
-lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
+# lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
+lbls = ['sAMC-500', 'sAMC-400', 'sAMC-300']
 
 all_radii_ens = []
 dcrit_ens = []
@@ -123,16 +129,17 @@ fig.suptitle(f'Site radii in percolating clusters at $T = {T}$K')
 
 for k, outer_dir in enumerate(outer_dirs):
     print(f'---------- {outer_dir.split("/")[-2]} ----------')
-    sites_dir = outer_dir + f'var_radii_data/{run_type}/'
+    # sites_dir = outer_dir + f'var_radii_data/{run_type}/'
     percdir = outer_dir + f'percolate_output/zero_field/{run_type}/'
     good_runs_file = percdir + 'good_runs_eps_rho_1.05e-3.txt'
     pkl_prefix = 'out_percolate_eps_rho_1.05e-3'
+    structype = outer_dir.split('/')[-2]
 
     fo = open(good_runs_file)
     lines = fo.readlines()
     fo.close()
     nn = [int(l.strip()) for l in lines]
-    all_radii, dcrits, nb_neighbours = gather_radii(sites_dir,percdir,nn,T,pkl_prefix)
+    all_radii, dcrits, nb_neighbours = gather_radii(percdir,nn,T,pkl_prefix,structype)
 
     all_radii_ens.append(all_radii)
     dcrit_ens.append(dcrits)
