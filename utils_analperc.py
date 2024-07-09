@@ -16,8 +16,12 @@ def get_dcrits(run_inds,temps,datadir, pkl_prefix='out_percolate'):
     for k in range(nsamples):
         for l in range(ntemps):
             sampdir = f"sample-{run_inds[k]}"
-            pkl = pkl_prefix + f"-{temps[l]}K.pkl"
-            fo = open(path.join(datadir,sampdir,pkl),'rb')
+            try:
+                pkl = pkl_prefix + f"-{temps[l]}K.pkl"
+                fo = open(path.join(datadir,sampdir,pkl),'rb')
+            except FileNotFoundError:
+                pkl = pkl_prefix + f"-{temps[l]}.pkl"
+                fo = open(path.join(datadir,sampdir,pkl),'rb')
             dat = pickle.load(fo)
             dcrits[k,l] = dat[1]
             fo.close()

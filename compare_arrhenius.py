@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from scipy.optimize import curve_fit
-from qcnico.plt_utils import setup_tex, get_cm
+from qcnico.plt_utils import setup_tex, MAC_ensemble_colours
 from utils_analperc import get_dcrits, saddle_pt_sigma, arrhenius_fit
 
 def sigma_errorbar(dcrits):
@@ -76,30 +76,29 @@ with open(tempdot5_dir + f'good_runs_rmax_198.69.txt') as fo:
 
 # tdot5_lbls = range(117)
 
-dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
-
-ring_data_tempdot5 = np.load(dd_rings + 'avg_ring_counts_tempdot5_new_model_relaxed.npy')
-ring_data_pCNN = np.load(dd_rings + 'avg_ring_counts_normalised.npy')
-ring_data_tempdot6 = np.load(dd_rings + 'avg_ring_counts_tempdot6_new_model_relaxed.npy')
-
-p6c_tempdot6 = ring_data_tempdot6[4] / ring_data_tempdot6.sum()
-p6c_tempdot5 = ring_data_tempdot5[4] / ring_data_tempdot5.sum()
-p6c_pCNN = ring_data_pCNN[4]
-# p6c = np.array([p6c_tdot25, p6c_pCNN,p6c_t1,p6c_tempdot6])
-p6c = np.array([p6c_pCNN,p6c_tempdot6,p6c_tempdot5])
-
-clrs = get_cm(p6c, 'inferno',min_val=0.25,max_val=0.7)
 
 # ddirs = [tdot25dir, pCNNdir, t1dir, tempdot6_dir]
-ddirs = [pCNNdir, tempdot6_dir, tempdot5_dir]
 # run_lbls = [tdot25_lbls,pCNN_lbls,t1_lbls,tdot6_lbls]
-run_lbls = [pCNN_lbls,tdot6_lbls,tdot5_lbls]
+# run_lbls = [pCNN_lbls,tdot5_lbls]
 # curve_lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
-curve_lbls = ['sAMC-500', 'sAMC-400', 'sAMC-300']
+
+ddirs = [pCNNdir,tempdot6_dir,tempdot5_dir]
+curve_lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300']
+run_lbls = [pCNN_lbls,tdot6_lbls,tdot5_lbls]
+clrs = MAC_ensemble_colours()
+
+
+# curve_lbls = ['$\delta$-aG','$\chi$-aG']
+# clrs = MAC_ensemble_colours('two_ensembles')
 
 ndatasets = len(ddirs)
 
 setup_tex()
+
+
+rcParams['font.size'] = 30
+rcParams['figure.figsize'] = [12.8,9.6]
+
 fig, ax = plt.subplots()
 
 eas = np.zeros(ndatasets)
@@ -141,26 +140,26 @@ for k, dd, ll, rr, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, r_maxs, clr
 ax.set_yscale('log')
 ax.set_xlabel('$1000/T$ [K$^{-1}$]')
 ax.set_ylabel('$\sigma$ [S/m]')
-ax.set_title('Percolation with site size cutoff determined by largest crystallite area')
+# ax.set_title('Percolation with site size cutoff determined by largest crystallite area')
 
 plt.legend()
 plt.show()
 
 
-print(p6c)
+# print(p6c)
 
-ii = np.argsort(p6c)
+# ii = np.argsort(p6c)
 
-fig, ax = plt.subplots()
-# ax.plot(p6c, eas,'ro',ms=5.0)
-# ax.plot(p6c,eas, 'r-',lw=0.8)
-ax.errorbar(p6c[ii],eas[ii],yerr=errs_lr[ii],fmt='-o',label='linregress')
-# ax.errorbar(p6c,eas2,yerr=errs_cf,fmt='-o',label='curve fit')
+# fig, ax = plt.subplots()
+# # ax.plot(p6c, eas,'ro',ms=5.0)
+# # ax.plot(p6c,eas, 'r-',lw=0.8)
+# ax.errorbar(p6c[ii],eas[ii],yerr=errs_lr[ii],fmt='-o',label='linregress')
+# # ax.errorbar(p6c,eas2,yerr=errs_cf,fmt='-o',label='curve fit')
 
-ax.set_xlabel('Proprtion of crystalline hexagons $p_{6c}$')
-ax.set_ylabel('$E_{a}$ [meV]')
-# plt.legend()
-plt.show()
+# ax.set_xlabel('Proprtion of crystalline hexagons $p_{6c}$')
+# ax.set_ylabel('$E_{a}$ [meV]')
+# # plt.legend()
+# plt.show()
 
-plt.plot(x,sigs[1]/sigs[0],'-o')
-plt.show()
+# plt.plot(x,sigs[1]/sigs[0],'-o')
+# plt.show()

@@ -163,14 +163,18 @@ max_r = 50.0
 #     c[ibig] = 'limegreen'
 #     plot_MO(pos,M, nn, dotsize=1.0, plt_objs=(fig, ax), loc_centers=rel_centers, loc_radii=rel_radii,c_clrs = c)
 
+plt_utils.setup_tex()
+rcParams['font.size'] = 30
+rcParams['figure.figsize'] = [12.8,9.6]
+
 fig, ax = plt.subplots()
 nn = 15
 # rel_centers =  centers[ii == nn]
 # rel_radii = radii[ii == nn]
-plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax),show_rgyr=True, c_rel_size=300.0,scale_up=10.0,c_labels='$\langle \\bm{R} \\rangle$')
+plot_MO(pos, M, nn, dotsize=1.0, plt_objs=(fig, ax),show_rgyr=True, c_rel_size=450.0,scale_up=15.0,c_labels='$\langle\psi|\\bm{r}|\psi \\rangle$',usetex=False)
 
 cc, *_ = get_MO_loc_centers_opt(pos, M, nn, 100, threshold_ratio=0.30)
-plot_MO(pos,M, nn, dotsize=1.0,loc_centers=cc,c_rel_size=100.0,c_markers='^',c_clrs='r',scale_up=10.0,c_labels='a priori sites')
+# plot_MO(pos,M, nn, dotsize=1.0,loc_centers=cc,c_rel_size=150.0,c_markers='^',c_clrs='r',scale_up=15.0,c_labels='a priori sites',usetex=False)
 print('A priori centers = ', cc)
 psi = M[:,nn]
 clust_cc, ll, flagged_ll = assign_AOs(pos, cc, psi, psi_pow=4, flag_empty_clusters=True)
@@ -187,21 +191,23 @@ print('Final radii = ', fr)
 masses = sites_mass(psi,tree,fs,fr)
 print('Masses = ', masses)
 
-cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
-clrs = [d['color'] for d in list(cyc[0:len(clust_cc)])]
+# cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
+# clrs = [d['color'] for d in list(cyc[2:len(clust_cc)])]
+clrs = ['#008744', '#0057e7', '#d62d20', '#be29ec']
 atom_clrs = [clrs[k] for k in ll]
 
 fig,ax = plt.subplots()
 fig, ax = plot_atoms(pos,dotsize=0.5,show=False,plt_objs=(fig,ax),usetex=False,colour=atom_clrs,zorder=1)
-ax.scatter(*clust_cc[:-1].T, facecolors=clrs[:-1], marker='h', s=100.0, edgecolors='k',lw=0.5)
-ax.scatter(*clust_cc[-1].T, facecolors=clrs[-1], marker='h', s=100.0, edgecolors='k',lw=0.5,label='k-cluster centres')
+ax.scatter(*clust_cc[:-1].T, facecolors=clrs[:-1], marker='h', s=150.0, edgecolors='k',lw=0.5)
+ax.scatter(*clust_cc[-1].T, facecolors=clrs[-1], marker='h', s=150.0, edgecolors='k',lw=0.5,label='cluster centres')
 # ax.scatter(*rel_centers.T, c='r',marker='h', s=5.0)
-ax.scatter(*cc[:-1].T, c='r',marker='^', s=100.0,edgecolors='k',lw=0.5)
-ax.scatter(*cc[-1].T, c='r',marker='^', s=100.0,edgecolors='k',lw=0.5,label='a priori sites')
-plt.legend()
+# ax.scatter(*cc[:-1].T, c='r',marker='^', s=100.0,edgecolors='k',lw=0.5)
+# ax.scatter(*cc[-1].T, c='r',marker='^', s=100.0,edgecolors='k',lw=0.5,label='a priori sites')
+# plt.legend()
 plt.show()
 
-plot_MO(pos,M, nn, dotsize=1.0, loc_centers=fs, loc_radii=fr,c_rel_size=100.0,scale_up=10.0,c_labels='new hopping sites')
+rcParams['font.size'] = 30
+plot_MO(pos,M, nn, dotsize=1.0, loc_centers=fs, loc_radii=fr,c_rel_size=300.0,scale_up=15.0,c_labels='hopping sites',usetex=False,c_markers='.')
 # np.random.seed(64)
 # for n in np.random.randint(M.shape[1], size=10):
 
