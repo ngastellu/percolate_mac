@@ -5,7 +5,7 @@ from sklearn.cluster import MiniBatchKMeans
 from numba import njit, jit, int32, float64, objmode
 from qcnico import qchemMAC as qcm
 # from qcnico.graph_tools import components
-from percolate import jitted_components
+from .percolate import jitted_components
 
 """
 Author: Nico Gastellu
@@ -510,24 +510,32 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
         return centers[~trash_mask,:], radii[~trash_mask]
 
 def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False, hyperlocal='sites',
-                              flag_empty_clusters = False, radii_rho_threshold=0, max_r=50,return_labelled_atoms=False):
+                              flag_empty_clusters = False, radii_rho_threshold=0, max_r=50,return_labelled_atoms=False,out_size=None,return_site_matrix=False):
     
+
     N = M.shape[0]
 
-    out_size = 10*M.shape[1]
+    if out_size is None:
+        out_size = 10*M.shape[1]
     centres = np.zeros((out_size,2)) #setting centers = [0,0] allows us to use np.vstack when constructing centres array
     radii = np.zeros(out_size)
     ee = np.zeros(out_size) 
     inds = np.zeros(out_size, dtype='int')
     
+    if return_site_matrix:
+        # site_state_matrix contains the electronic states |s_i> obtained by k-means partitioning the MOs
+        site_state_matrix = np.zeros((N,out_size))
+        return_labelled_atoms = True #need to know atom labels to get site matrix
+
     if return_labelled_atoms:
         all_labels = np.zeros((M.shape[1],N),dtype='int')
-    
+     
     nsites = 0
 
     for n in range(M.shape[1]):
         print(f'**** Getting sites for MO {n} ****')
         cc, rho, xedges, yedges = get_MO_loc_centers_opt(pos,M,n,nbins,threshold_ratio,min_distance=minimum_distance,shift_centers=shift_centers)
+        print(cc,flush=True)
         if n in L:
             cc = correct_peaks(cc, pos, rho, xedges, yedges,'L',shift_centers=shift_centers)
         
@@ -581,6 +589,11 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
             new_inds[:nsites] = inds[:nsites]
             inds = new_inds
 
+            if return_site_matrix:
+                new_site_state_matrix = np.zeros(N,out_size)
+                new_site_state_matrix[:,:nsites] = site_state_matrix
+                site_state_matrix = new_site_state_matrix
+
 
         centres[nsites:nsites+n_new,:] = final_sites
         radii[nsites:nsites+n_new] = rr
@@ -588,12 +601,23 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
         inds[nsites:nsites+n_new] = np.ones(n_new,dtype='int') * n
         if return_labelled_atoms:
             all_labels[n,:] = labels_kmeans
+        
+        # !!! Careful that whatever version of site_radii in use conserves the label ordering !!!
+        if return_site_matrix:
+            for k, nn in enumerate(np.unique(labels_kmeans)):
+                mask = labels_kmeans == nn
+                print(mask.nonzero()[0])
+                site_state_matrix[mask,nsites+k] = M[mask,n]
+            site_state_matrix[site_state_matrix < radii_rho_threshold] = 0
+            site_state_matrix /= np.linalg.norm(site_state_matrix, axis=0)
 
         nsites += n_new
         # print(nsites)
 
-    if return_labelled_atoms: 
+    if return_labelled_atoms and not return_site_matrix: 
         return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites], all_labels #get rid of 'empty' values in output arrays
+    elif return_labelled_atoms and return_site_matrix:
+        return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites], all_labels, site_state_matrix[:,:nsites] #get rid of 'empty' values in output arrays
     else:
         return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites] #get rid of 'empty' values in output arrays
 

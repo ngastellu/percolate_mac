@@ -131,7 +131,7 @@ def plot_loc_centers(rho, xedges, yedges, centers, colours='r', show=True, plt_o
         return fig, ax
 
 
-def dcrit_hists(dcrits,temps,nbins,plot_inds=None,colormap='coolwarm',alpha=0.6,usetex=True,plt_objs=None,show=True):
+def dcrit_hists(dcrits,temps,nbins,plot_inds=None,colormap='coolwarm',alpha=0.6,usetex=True,plt_objs=None,show=True,fontsize=20):
     Tcm = plt_utils.get_cm(temps,colormap,max_val=1.0)
     
     # If indices aren't specified, plot all the histograms
@@ -142,7 +142,7 @@ def dcrit_hists(dcrits,temps,nbins,plot_inds=None,colormap='coolwarm',alpha=0.6,
 
 
     if usetex:
-        plt_utils.setup_tex()
+        plt_utils.setup_tex(fontsize=fontsize)
     
     if plt_objs is None:
         fig, ax = plt.subplots()
@@ -153,10 +153,11 @@ def dcrit_hists(dcrits,temps,nbins,plot_inds=None,colormap='coolwarm',alpha=0.6,
         plt_utils.histogram(dcrits[:,k],nbins=nbins,show=False, density=True, plt_objs=(fig,ax),
             plt_kwargs={'alpha': alpha, 'color': Tcm[k], 'label': f'$T = {temps[k]}$K'})
     
-    ax.set_xlabel('Critical distance $u_{c}$')
-    ax.set_ylabel('$P(u)$')
+    ax.set_xlabel('Critical distance $\\xi_{c}$')
+    ax.set_ylabel('$P(\\xi_c)$')
+
     if show:
-        plt.legend()
+        plt.legend(fontsize=fontsize)
         plt.show()
     else:
         return fig, ax
