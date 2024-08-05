@@ -461,11 +461,6 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
     if density_threshold > 0:
         density = np.abs(M[:,n])**2
         density_mask = (density > density_threshold) 
-        # print(f'[site_radii] Ignoring {N - density_mask.sum()} atoms out of {N} total.')
-
-    if density_threshold > 0:
-        density = np.abs(M[:,n])**2
-        density_mask = (density > density_threshold) 
 
     for k, l in enumerate(unique_labels):
         mask = (labels==l)  
@@ -605,10 +600,12 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
         # !!! Careful that whatever version of site_radii in use conserves the label ordering !!!
         if return_site_matrix:
             for k, nn in enumerate(np.unique(labels_kmeans)):
+                if k == -1: #ignore bad labels
+                    continue
                 mask = labels_kmeans == nn
                 print(mask.nonzero()[0])
                 site_state_matrix[mask,nsites+k] = M[mask,n]
-            site_state_matrix[site_state_matrix < radii_rho_threshold] = 0
+            site_state_matrix[site_state_matrix**2 < radii_rho_threshold] = 0
             site_state_matrix /= np.linalg.norm(site_state_matrix, axis=0)
 
         nsites += n_new

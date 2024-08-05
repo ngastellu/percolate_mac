@@ -12,8 +12,8 @@ if __name__ == '__main__':
 
     # Specify desired AMC structure
 
-    structure_type = 'tempdot6'
-    structure_index = 78
+    structure_type = 'tempdot5'
+    structure_index = 5
 
     if structure_type == 'tempdot5':
         rmax = 198.69
@@ -43,6 +43,9 @@ if __name__ == '__main__':
     sitemat_file = f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structure_type}_rmax_{rmax}/site_kets-{structure_index}.npy'
     S = np.load(sitemat_file)
 
+    sitemat_file = f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structure_type}_rmax_{rmax}/site_kets-{structure_index}_new.npy'
+    S2 = np.load(sitemat_file)
+
     print('Shape of S: ', S.shape)
     print('Nb. of atoms: ', coords.shape[0])
     
@@ -61,26 +64,33 @@ if __name__ == '__main__':
 
 
     # Apply mask to obtain the coods of carbon atoms belonging to one of its hopping sites
-    isites = [17,5,2,1]
+    # isites = [17,5,2,1]
+    isites=[389, 139, 396, 13, 14, 397, 16, 273, 18, 274]
     for site_index in isites:
         print(f'\n\n-------- {site_index} --------')
         site_atomic_coords = coords[mask[site_index,:]]
 
         site_ket = S[:,site_index]
+        site_ket2 = S2[:,site_index]
 
         print(np.all(mask[site_index,:] == (site_ket != 0)))
 
         r = qcm.MO_com_hyperlocal(coords, S, site_index)
+        r2 = qcm.MO_com_hyperlocal(coords, S2, site_index)
+
 
         print('Loaded centre = ', centres[site_index])
         # print('Computed centre = ', r)
 
         a = qcm.MO_rgyr(coords, S, site_index, renormalise=True)
+        a2 = qcm.MO_rgyr(coords, S2, site_index, renormalise=True)
 
         print('Loaded radius = ', radii[site_index])
         # print('Computed radius = ', a)
 
         plot_MO(coords, S, site_index, dotsize=1.0, loc_centers=np.array([centres[site_index], r]), loc_radii=[radii[site_index], a],scale_up=10.0, c_clrs=['r', 'g'])
+        plot_MO(coords, S2, site_index, dotsize=1.0, loc_centers=np.array([centres[site_index], r2]), loc_radii=[radii[site_index], a2],scale_up=10.0, c_clrs=['r', 'g'])
+
 
 
 

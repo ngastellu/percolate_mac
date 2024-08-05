@@ -12,8 +12,8 @@ if __name__ == '__main__':
 
     # Specify desired AMC structure
 
-    structure_type = 'tempdot6'
-    structure_index = 78
+    structure_type = 'tempdot5'
+    structure_index = 5
 
     if structure_type == 'tempdot5':
         rmax = 198.69
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     mask = np.load(mask_file)
 
     #Load site matrix
-    sitemat_file = f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structure_type}_rmax_{rmax}/site_kets-{structure_index}.npy'
+    sitemat_file = f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structure_type}_rmax_{rmax}/site_kets-{structure_index}_new.npy'
     S = np.load(sitemat_file)
 
     print('Shape of S: ', S.shape)
@@ -49,6 +49,9 @@ if __name__ == '__main__':
     #Get site radii and positions
     rfile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/radii.npy'
     cfile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/centers.npy'
+    efile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/ee.npy'
+    ee = np.load(efile)
+
 
     radii = np.load(rfile)
     centres = np.load(cfile)
@@ -86,3 +89,18 @@ if __name__ == '__main__':
     plt.show()
 
     print(np.mean(np.abs(rr - radii)))
+    print((rr == radii).nonzero()[0])
+
+    isame_r = set((rr == radii).nonzero()[0])
+
+    plt.plot(ee)
+    for n in isame_r:
+        plt.axvline(x=n,ymin=0,ymax=1,ls='--',lw=0.8,c='k')
+    plt.show()
+
+    isame_cc = set(np.all(cc == centres, axis=1).nonzero()[0])
+
+    print(len(isame_cc))
+    print(len(isame_r))
+    print(isame_cc - isame_r)
+    print(isame_r < isame_cc)
