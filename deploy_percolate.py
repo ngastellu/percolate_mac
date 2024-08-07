@@ -177,7 +177,7 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
         with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
 
-def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None,rho_min=None,use_idprev=True):
+def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None,rho_min=None,use_idprev=True,check_sites=False):
     # ******* Define strongly-coupled MOs *******
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
@@ -188,19 +188,37 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
     # ******* Pre-compute distances *******
     if hyperlocal:
         centres = np.load(path.join(npydir,'centers_hl.npy'))
-        # ee = np.load(path.join(npydir,'ee_hl.npy'))
+        ee = np.load(path.join(npydir,'ee_hl.npy'))
         ii = np.load(path.join(npydir, 'ii_hl.npy'))
-        # radii = np.load(path.join(npydir, 'radii_hl.npy'))
-        dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee_hl.npy'))
+        radii = np.load(path.join(npydir, 'radii_hl.npy'))
+        # dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee_hl.npy'))
         radii, masses, _, ee = dat
     else:
         centres = np.load(path.join(npydir,'centers.npy'))
-        # ee = np.load(path.join(npydir,'ee.npy'))
+        ee = np.load(path.join(npydir,'ee.npy'))
         ii = np.load(path.join(npydir, 'ii.npy'))
-        # radii = np.load(path.join(npydir, 'radii.npy'))
-        dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee.npy'))
-        radii, masses, _, ee = dat
+        radii = np.load(path.join(npydir, 'radii.npy'))
+        # dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee.npy'))
+        # radii, masses, _, ee = dat
     
+    if check_sites: #making sure that the pre-computed sites/radii correspond to the site kets stored in site_state_matrix
+        S = np.load(path.join(npydir, 'site_state_matrix.npy'))
+        nradii = radii.shape[0]
+        nsites = centres.shape[0]
+        print('centers.shape[0] == radii.shape[0]: ', nsites == nradii, flush=True)
+        print('centers.shape[0] == S.shape[1] (nb. of cols in site ket matrix): ', nsites == S.shape[1], flush=True)
+        recomputed_centres = np.zeros_like(centres)
+        recomputed_radii = np.zeros_like(radii)
+        for n in range(nsites):
+            # here we assume the `hyperlocal` kwarh in `generate_site_radii_list` is set to `sites` (default)
+            recomputed_centres[n,:] = qcm.MO_com_hyperlocal(pos, S, n)
+            recomputed_radii = qcm.MO_rgyr(pos, S, n, renormalise=True)
+        
+        rdiff = np.abs(radii - recomputed_radii)
+        print(f'**** MAX DIFFERENCE BETWEEN RADII = {np.max(rdiff)} ****')
+        print(f'**** MAX DISTANCE BETWEEN CENTRES = {np.max(np.linalg.norm(centres - recomputed_centres,axis=1))} ****')
+            
+            
     if np.abs(dV) > 0:
         dX = np.max(pos[:,0]) - np.min(pos[:,0])
         E = np.array([dV/dX,0])
@@ -253,68 +271,6 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
         ftrack.write(f'{T}K\n')
     ftrack.close()
 
-
-def rerun_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None,rho_min=None,use_idprev=True):
-    # ******* Define strongly-coupled MOs *******
-    gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
-    gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
-
-    L = set((gamL > gamL_tol).nonzero()[0])
-    R = set((gamR > gamR_tol).nonzero()[0])
-
-    # ******* Pre-compute distances *******
-    
-    if np.abs(dV) > 0:
-        dX = np.max(pos[:,0]) - np.min(pos[:,0])
-        E = np.array([dV/dX,0])
-    else:
-        E = np.array([0.0,0.0])
-
-    if rmax is not None:
-        igood = (radii < rmax).nonzero()[0]
-        centres = centres[igood]
-        ee = ee[igood]
-        ii = ii[igood]
-        radii = radii[igood]
-
-    if rho_min is not None:
-        rhos = masses / (np.pi * radii * radii)
-        igood = (rhos > rho_min) 
-        centres = centres[igood]
-        ee = ee[igood]
-        ii = ii[igood]
-        radii = radii[igood]
-
-
-    edArr, rdArr = diff_arrs_var_a(ee, centres, radii, eF=eF, E=E)
-
-    cgamL = gamL[ii]
-    cgamR = gamR[ii]
-
-    all_Ts = np.flip(np.sort(all_Ts))
-    d_prev_ind = 0
-    tracker_file = f'finished_temps_{run_name}.txt'
-    ftrack = open(tracker_file,'w')
-
-    for T in all_Ts:
-        # ******* 5: Get spanning cluster *******
-        conduction_clusters, dcrit, A, iidprev = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr),prev_d_ind=d_prev_ind)
-        if use_idprev:
-            d_prev_ind = iidprev #update minimum index of distances to consider, if use_idprev, otherwise first ind to look at is always 0
-        print(f'Distance nb {d_prev_ind} yielded a percolating cluster!', flush=True)
-        
-        if run_name is None:
-            if hyperlocal:
-                pkl_name = f'out_var_a_hl_rollback_percolate-{T}K.pkl'
-            else:
-                pkl_name = f'out_var_a_rollback_percolate-{T}K.pkl'
-        else:
-            pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
-
-        with open(pkl_name, 'wb') as fo:
-            pickle.dump((conduction_clusters,dcrit,A), fo)
-        ftrack.write(f'{T}K\n')
-    ftrack.close()
 
 def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0):
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
