@@ -442,7 +442,7 @@ def site_radii_naive(pos, M, n, centers, density_threshold=0,psi_pow=2):
 
 
 # @njit
-def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagged_labels=None,max_r=50,return_labels=False):
+def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagged_labels=None,max_r=50,return_labels=False,amplitude_pow=2):
     valid_hl_types = ['sites', 'radii', 'all', 'none']
     if hyperlocal not in valid_hl_types:
         print(f'''[sites_radii] WARNING: specified `hyperlocal` arg \'{hyperlocal}\'is invalid; 
@@ -459,12 +459,7 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
         m = 0
     
     if density_threshold > 0:
-        density = np.abs(M[:,n])**2
-        density_mask = (density > density_threshold) 
-        # print(f'[site_radii] Ignoring {N - density_mask.sum()} atoms out of {N} total.')
-
-    if density_threshold > 0:
-        density = np.abs(M[:,n])**2
+        density = np.abs(M[:,n])**amplitude_pow
         density_mask = (density > density_threshold) 
 
     for k, l in enumerate(unique_labels):
@@ -511,7 +506,7 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
         return centers[~trash_mask,:], radii[~trash_mask]
 
 def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30, minimum_distance=20.0, shift_centers=False, hyperlocal='sites',
-                              flag_empty_clusters = False, radii_rho_threshold=0, max_r=50,return_labelled_atoms=False,out_size=None,return_site_matrix=False):
+                              flag_empty_clusters = False, radii_rho_threshold=0, max_r=50,return_labelled_atoms=False,out_size=None,return_site_matrix=False,amplitude_pow=2):
     
 
     N = M.shape[0]
@@ -553,14 +548,14 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
             flagged_l = None
         
         if return_labelled_atoms:
-            final_sites, rr, unique_labels = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r,return_labels=True)
+            final_sites, rr, unique_labels = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r,return_labels=True,amplitude_pow=amplitude_pow)
             unique_labels = set(unique_labels)
             for k in range(N):
                 if labels_kmeans[k] not in unique_labels:
                     labels_kmeans[k] = -1
             # labels_kmeans[labels_kmeans not in unique_labels] = -1
         else:
-            final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r)
+            final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r,amplitude_pow=amplitude_pow)
         
         print('FINAL SITES = ', final_sites)
         print('FINAL RADII = ', rr)
