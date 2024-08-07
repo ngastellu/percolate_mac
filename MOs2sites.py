@@ -461,11 +461,17 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
     if density_threshold > 0:
         density = np.abs(M[:,n])**2
         density_mask = (density > density_threshold) 
+        # print(f'[site_radii] Ignoring {N - density_mask.sum()} atoms out of {N} total.')
+
+    if density_threshold > 0:
+        density = np.abs(M[:,n])**2
+        density_mask = (density > density_threshold) 
 
     for k, l in enumerate(unique_labels):
         mask = (labels==l)  
         if density_threshold > 0:
             mask *= density_mask
+        np.save(f'mask1-{n}-{l}.npy', mask)
         if hyperlocal == 'all':
             centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)#,eps_rho=density_threshold)
             radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)#,eps_rho=density_threshold)
@@ -598,19 +604,24 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
             all_labels[n,:] = labels_kmeans
         
         # !!! Careful that whatever version of site_radii in use conserves the label ordering !!!
+        ngood_sites = 0
         if return_site_matrix:
             for k, nn in enumerate(np.unique(labels_kmeans)):
-                if k == -1: #ignore bad labels
+                if nn == -1:
                     continue
                 mask = labels_kmeans == nn
-                print(mask.nonzero()[0])
-                site_state_matrix[mask,nsites+k] = M[mask,n]
-            site_state_matrix[site_state_matrix**2 < radii_rho_threshold] = 0
-            site_state_matrix /= np.linalg.norm(site_state_matrix, axis=0)
+                site_state_matrix[mask,nsites+ngood_sites] = M[mask,n]
+                mask *= (M[:,n] ** 2) > radii_rho_threshold
+                np.save(f'mask2-{n}-{nn}.npy', mask)
+                ngood_sites += 1
+
+            #site_state_matrix /= np.linalg.norm(site_state_matrix, axis=0)
 
         nsites += n_new
         # print(nsites)
 
+    if return_site_matrix:
+        site_state_matrix[site_state_matrix**2 <= radii_rho_threshold] = 0
     if return_labelled_atoms and not return_site_matrix: 
         return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites], all_labels #get rid of 'empty' values in output arrays
     elif return_labelled_atoms and return_site_matrix:

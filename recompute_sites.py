@@ -61,6 +61,7 @@ if __name__ == '__main__':
     radii = radii[igood]
     print(radii.shape)
     centres = centres[igood]
+    S = S[:,igood]
 
 
     # Apply mask to obtain the coods of carbon atoms belonging to one of its hopping sites
