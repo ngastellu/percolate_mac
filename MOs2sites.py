@@ -554,7 +554,7 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
                     labels_kmeans[k] = -1
             # labels_kmeans[labels_kmeans not in unique_labels] = -1
         else:
-            final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r,amplitude_pow=amplitude_pow)
+            final_sites, rr = site_radii(pos,M,n,labels_kmeans,hyperlocal=hyperlocal,density_threshold=radii_rho_threshold,flagged_labels=flagged_l,max_r=max_r, amplitude_pow=amplitude_pow)
         
         print('FINAL SITES = ', final_sites)
         print('FINAL RADII = ', rr)
@@ -603,18 +603,21 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
             for k, nn in enumerate(np.unique(labels_kmeans)):
                 if nn == -1:
                     continue
-                mask = labels_kmeans == nn
+                mask = labels_kmeans == nn #select only atoms corresponding to the sub-MO (i.e. site) at hand
+                mask *= (M[:,n] ** amplitude_pow) > radii_rho_threshold #filter out atoms where |psi> is very small
                 site_state_matrix[mask,nsites+ngood_sites] = M[mask,n]
-                mask *= (M[:,n] ** amplitude_pow) > radii_rho_threshold
                 ngood_sites += 1
 
             #site_state_matrix /= np.linalg.norm(site_state_matrix, axis=0)
 
         nsites += n_new
+        print('n_new = ', n_new)
+        print('ngood_sites = ', ngood_sites)
         # print(nsites)
 
-    if return_site_matrix:
-        site_state_matrix[site_state_matrix**2 <= radii_rho_threshold] = 0
+    #if return_site_matrix:
+    #    site_state_matrix[site_state_matrix**amplitude_pow <= radii_rho_threshold] = 0
+
     if return_labelled_atoms and not return_site_matrix: 
         return centres[:nsites,:], radii[:nsites], ee[:nsites], inds[:nsites], all_labels #get rid of 'empty' values in output arrays
     elif return_labelled_atoms and return_site_matrix:

@@ -49,9 +49,9 @@ temps = np.arange(40,440,10)[14:]
 # tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_rmax_121.2/'
 # tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_rmax_198.69/'
 
-pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/voltage_drop1V/virt_100x100_gridMOs_rmax_18.03/'
-tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/voltage_drop1V/virt_100x100_gridMOs_rmax_121.2/'
-tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/voltage_drop1V/virt_100x100_gridMOs_rmax_198.69/'
+pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_rmax_18.03_psipow1/'
+tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_rmax_121.2_psipow1/'
+tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_rmax_198.69_psipow1/'
 
 # pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
 # tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
@@ -61,17 +61,17 @@ tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/per
 
 # tdot25_lbls = list(set(range(30)) - {0, 5, 8, 18, 20, 21, 25, 26})
 
-with open(pCNNdir + f'good_runs_rmax_18.03.txt') as fo:
+with open(pCNNdir + f'good_runs_rmax_18.03_psipow1.txt') as fo:
     pCNN_lbls = [int(l.strip()) for l in fo.readlines()]
 
 # pCNN_lbls = np.array(pCNN_lbls)
 # pCNN_lbls = pCNN_lbls[pCNN_lbls <= 150]
 # with open(t1dir + 'good_runs.txt') as fo:
     # t1_lbls = [int(l.strip()) for l in fo.readlines()]
-with open(tempdot6_dir + f'good_runs_rmax_121.2.txt') as fo:
+with open(tempdot6_dir + f'good_runs_rmax_121.2_psipow1.txt') as fo:
     tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
 
-with open(tempdot5_dir + f'good_runs_rmax_198.69.txt') as fo:
+with open(tempdot5_dir + f'good_runs_rmax_198.69_psipow1.txt') as fo:
     tdot5_lbls = [int(l.strip()) for l in fo.readlines()]
 
 # tdot5_lbls = range(31)
@@ -128,7 +128,7 @@ for k, dd, ll, rr, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, r_maxs, clr
 
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_rmax_{rr}')
+    dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_rmax_{rr}_psipow1')
     # dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_{run_type}')
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)

@@ -35,27 +35,31 @@ if __name__ == '__main__':
     coords = coords[:,:2]
 
     # Load its hopping site mask
-    # mask_file = path.expanduser(f'~/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/hopping_site_masks/hopping_site_masks-{structure_index}.npy') #path to the file containing the masks for each site
-    # mask_file = path.expanduser(f'~/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/strict_hopping_masks/strict_hopping_mask-{structure_index}.npy') #path to the file containing the masks for each site
-    # mask = np.load(mask_file)
+    mask_file = path.expanduser(f'~/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/hopping_site_masks/hopping_site_masks-{structure_index}.npy') #path to the file containing the masks for each site
+    mask_file = path.expanduser(f'~/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/strict_hopping_masks/strict_hopping_mask-{structure_index}.npy') #path to the file containing the masks for each site
+    mask = np.load(mask_file)
 
     #Load site matrix
-    sitemat_file = f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structure_type}_rmax_{rmax}/site_kets-{structure_index}_newestest.npy'
-    S = np.load(sitemat_file)
+    # sitemat_file = f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structure_type}_rmax_{rmax}/site_kets-{structure_index}_newestest.npy'
+    # S = np.load(sitemat_file)
 
     # sitemat_file = f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structure_type}_rmax_{rmax}/site_kets-{structure_index}_new.npy'
     # S2 = np.load(sitemat_file)
 
-    print('Shape of S: ', S.shape)
-    print('Nb. of atoms: ', coords.shape[0])
     
     #Get site radii and positions
-    rfile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/radii.npy'
-    cfile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/centers.npy'
-    lfile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/labels.npy'
+    # rfile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/radii.npy'
+    # cfile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/centers.npy'
+    # lfile = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/to_local_sites_data/sample-{structure_index}/sites_data_0.00105/labels.npy'
+    sites_datadir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/var_radii_data/sites_data_0.00105_psi_pow1-12/'
+    rfile = sites_datadir + 'radii.npy'
+    cfile = sites_datadir + 'centers.npy'
+    lfile = sites_datadir + 'labels.npy'
+    sitemat_file = sites_datadir + 'site_state_matrix.npy'
 
     radii = np.load(rfile)
     centres = np.load(cfile)
+    S = np.load(sitemat_file)
 
     print(radii.shape)    
     igood = radii < rmax
@@ -63,13 +67,18 @@ if __name__ == '__main__':
     print(radii.shape)
     centres = centres[igood]
     S = S[:,igood]
+    print('Shape of S: ', S.shape)
+    print('Nb. of atoms: ', coords.shape[0])
     # S2 = S2[:,igood]
 
 
     # Apply mask to obtain the coods of carbon atoms belonging to one of its hopping sites
     # isites = [0,1]
     # isites=[389, 139, 396, 13, 14, 397, 16, 273, 18, 274]
-    isites = np.random.randint(S.shape[1],size=10)
+    np.random.seed(0)
+    # isites = np.random.randint(S.shape[1],size=10)
+    # isites = [417, 362, 381,  71, 380, 159, 195, 190,  73, 187] #max rdiffs for sAMC300-12
+    isites = [199, 387, 181, 159, 109,  63, 233,  42, 227, 106] #max center dists for sAMC300-12
     for site_index in isites:
         print(f'\n\n-------- {site_index} --------')
         # site_atomic_coords = coords[mask[site_index,:]]
@@ -94,7 +103,6 @@ if __name__ == '__main__':
 
         plot_MO(coords, S, site_index, dotsize=1.0, loc_centers=np.array([centres[site_index], r]), loc_radii=[radii[site_index], a],scale_up=10.0, c_clrs=['r', 'g'])
         # plot_MO(coords, S2, site_index, dotsize=1.0, loc_centers=np.array([centres[site_index], r2]), loc_radii=[radii[site_index], a2],scale_up=10.0, c_clrs=['r', 'g'])
-
 
 
 
