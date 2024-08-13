@@ -466,7 +466,6 @@ def site_radii(pos, M, n, labels, hyperlocal='sites', density_threshold=0, flagg
         mask = (labels==l)  
         if density_threshold > 0:
             mask *= density_mask
-        np.save(f'mask1-{n}-{l}.npy', mask)
         if hyperlocal == 'all':
             centers[k,:] = qcm.MO_com_hyperlocal(pos[mask,:],M[mask,:],n)#,eps_rho=density_threshold)
             radii[k] = qcm.MO_rgyr_hyperlocal(pos[mask,:], M[mask,:], n)#,eps_rho=density_threshold)
@@ -606,8 +605,7 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
                     continue
                 mask = labels_kmeans == nn
                 site_state_matrix[mask,nsites+ngood_sites] = M[mask,n]
-                mask *= (M[:,n] ** 2) > radii_rho_threshold
-                np.save(f'mask2-{n}-{nn}.npy', mask)
+                mask *= (M[:,n] ** amplitude_pow) > radii_rho_threshold
                 ngood_sites += 1
 
             #site_state_matrix /= np.linalg.norm(site_state_matrix, axis=0)
