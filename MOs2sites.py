@@ -604,7 +604,7 @@ def generate_sites_radii_list(pos,M,L,R,energies,nbins=100,threshold_ratio=0.30,
                 if nn == -1:
                     continue
                 mask = labels_kmeans == nn #select only atoms corresponding to the sub-MO (i.e. site) at hand
-                mask *= (M[:,n] ** amplitude_pow) > radii_rho_threshold #filter out atoms where |psi> is very small
+                mask *= (np.abs(M[:,n]) ** amplitude_pow) > radii_rho_threshold #filter out atoms where |psi> is very small
                 site_state_matrix[mask,nsites+ngood_sites] = M[mask,n]
                 ngood_sites += 1
 
