@@ -98,10 +98,10 @@ def load_data(sample_index, structype, motype='',compute_gammas=True,run_locatio
 
 
 def load_var_a_data(datadir='.'):
-    sites_pos = np.load(path.join(datadir, 'var_a_npys/centers.npy'))
-    sites_energies = np.load(path.join(datadir, 'var_a_npys/ee.npy'))
-    sites_radii = np.load(path.join(datadir, 'var_a_npys/radii.npy'))
-    ii = np.load(path.join(datadir, 'var_a_npys/ii.npy'))
+    sites_pos = np.load(path.join(datadir, 'centers.npy'))
+    sites_energies = np.load(path.join(datadir, 'ee.npy'))
+    sites_radii = np.load(path.join(datadir, 'radii.npy'))
+    ii = np.load(path.join(datadir, 'ii.npy'))
 
     return sites_pos, sites_energies, sites_radii, ii
 

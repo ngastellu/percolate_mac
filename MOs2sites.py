@@ -5,7 +5,7 @@ from sklearn.cluster import MiniBatchKMeans
 from numba import njit, jit, int32, float64, objmode
 from qcnico import qchemMAC as qcm
 # from qcnico.graph_tools import components
-from .percolate import jitted_components
+from percolate import jitted_components
 
 """
 Author: Nico Gastellu

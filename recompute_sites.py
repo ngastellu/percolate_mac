@@ -13,8 +13,8 @@ if __name__ == '__main__':
 
     # Specify desired AMC structure
 
-    structure_type = 'tempdot5'
-    structure_index = 12
+    structure_type = '40x40'
+    structure_index = 120
 
     if structure_type == 'tempdot5':
         rmax = 198.69
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     # sitemat_file = f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structure_type}_rmax_{rmax}/site_kets-{structure_index}_new.npy'
     # S = np.load(sitemat_file)
     
-    sites_datadir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/var_radii_data/sites_data_0.00105_psi_pow1-12/'
+    sites_datadir = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/sites_data_0.00105_psi_pow1-{structure_index}/'
     rfile = sites_datadir + 'radii.npy'
     cfile = sites_datadir + 'centers.npy'
     lfile = sites_datadir + 'labels.npy'

@@ -152,3 +152,25 @@ def ablation_Ea(dcrits,sample_sizes,temps=np.arange(40,440,10)):
         sigmas = saddle_pt_sigma(dc)
         Eas[k], _ = arrhenius_fit(temps, sigmas, inv_T_scale=1000.0)
     return Eas
+
+
+def get_conduction_cluster(datadir, pkl_prefix, T):
+
+    try:
+        pkl = pkl_prefix + f"-{T}K.pkl"
+        fo = open(path.join(datadir,pkl),'rb')
+    except FileNotFoundError:
+        pkl = pkl_prefix + f"-{T}.pkl"
+        fo = open(path.join(datadir,pkl),'rb')
+    dat = pickle.load(fo)
+    fo.close()
+    
+
+    clusters = dat[0]
+
+    return clusters
+
+def conduction_mask(sites_mask, cluster):
+    cluster_mask = sites_mask[list(cluster)]
+    conduction_bools = cluster_mask.sum(axis = 0) # sum corresponds to the union of atom sets associated with each site in cluster
+    return conduction_bools
