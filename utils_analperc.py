@@ -154,7 +154,7 @@ def ablation_Ea(dcrits,sample_sizes,temps=np.arange(40,440,10)):
     return Eas
 
 
-def get_conduction_cluster(datadir, pkl_prefix, T):
+def get_conduction_clusters(datadir, pkl_prefix, T):
 
     try:
         pkl = pkl_prefix + f"-{T}K.pkl"

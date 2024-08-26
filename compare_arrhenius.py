@@ -53,6 +53,13 @@ pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_o
 tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_rmax_121.2_psipow1/'
 tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_rmax_198.69_psipow1/'
 
+
+#----- old ddirs
+
+pCNNdir2 = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_rmax_18.03/'
+tempdot6_dir2 = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_rmax_121.2/'
+tempdot5_dir2 = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_rmax_198.69/'
+
 # pCNNdir = f'/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
 # tempdot6_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
 # tempdot5_dir = f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs_eps_rho_1.05e-3/'
@@ -74,6 +81,17 @@ with open(tempdot6_dir + f'good_runs_rmax_121.2_psipow1.txt') as fo:
 with open(tempdot5_dir + f'good_runs_rmax_198.69_psipow1.txt') as fo:
     tdot5_lbls = [int(l.strip()) for l in fo.readlines()]
 
+
+
+# ----- load old lables -----
+with open(pCNNdir2 + f'good_runs_rmax_18.03.txt') as fo:
+    pCNN_lbls2 = [int(l.strip()) for l in fo.readlines()]
+
+with open(tempdot6_dir2 + f'good_runs_rmax_121.2.txt') as fo:
+    tdot6_lbls2 = [int(l.strip()) for l in fo.readlines()]
+
+with open(tempdot5_dir2 + f'good_runs_rmax_198.69.txt') as fo:
+    tdot5_lbls2 = [int(l.strip()) for l in fo.readlines()]
 # tdot5_lbls = range(31)
 
 # tdot6_lbls = list(set(range(2,132)) - {8, 11, 14, 16, 17, 19, 20, 22, 23, 25, 26, 28, 29, 31, 32})
@@ -86,10 +104,11 @@ with open(tempdot5_dir + f'good_runs_rmax_198.69_psipow1.txt') as fo:
 # run_lbls = [pCNN_lbls,tdot5_lbls]
 # curve_lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
 
-ddirs = [pCNNdir,tempdot6_dir,tempdot5_dir]
-curve_lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300']
-run_lbls = [pCNN_lbls,tdot6_lbls,tdot5_lbls]
+ddirs = [pCNNdir,tempdot6_dir,tempdot5_dir,pCNNdir2,tempdot6_dir2,tempdot5_dir2]
+curve_lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300', 'sAMC-500 ($|\psi|^2$ sites)', 'sAMC-q400 ($|\psi|^2$ sites)', 'sAMC-300 ($|\psi|^2$ sites)']
+run_lbls = [pCNN_lbls,tdot6_lbls,tdot5_lbls, pCNN_lbls2,tdot6_lbls2,tdot5_lbls2]
 clrs = MAC_ensemble_colours()
+clrs.extend(MAC_ensemble_colours())
 
 # ddirs = [tempdot6_dir,tempdot5_dir]
 # curve_lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300']
@@ -121,14 +140,17 @@ errs_cf = np.zeros(ndatasets)
 
 sigs = []
 
-r_maxs = ['18.03', '121.2', '198.69']
+r_maxs = ['18.03', '121.2', '198.69', '18.03', '121.2', '198.69']
 
 # for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
 for k, dd, ll, rr, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, r_maxs, clrs, curve_lbls):
 
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_rmax_{rr}_psipow1')
+    if k < 3:
+        dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_rmax_{rr}_psipow1')
+    else:
+        dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_rmax_{rr}')
     # dcrits = get_dcrits(ll, temps, dd, pkl_prefix=f'out_percolate_{run_type}')
     # sigmas = saddle_pt_sigma(dcrits)
     sigmas, sigmas_err = sigma_errorbar(dcrits)
@@ -145,9 +167,19 @@ for k, dd, ll, rr, cc, cl in zip(range(len(ddirs)), ddirs, run_lbls, r_maxs, clr
     # print(np.sort(dcrits)[[0,-1]])
     # print(np.max(sigmas_err))
 
-    ax.plot(x,np.exp(y),'o',label=cl,ms=10.0, c=cc)
+
+    if k < 3:
+        ax.plot(x,np.exp(y),'o',label=cl,ms=10.0, c=cc)
+    else:
+        ax.plot(x,np.exp(y),'+',label=cl,ms=10.0, c=cc)
     # ax.errorbar(1000/temps,sigmas,yerr=sigmas_err,fmt='-o',c=cc,label=cl,ms=5.0)
-    ax.plot(x, np.exp(x*slope+intercept),'-',c=cc,lw=1.6)
+    if k < 3:
+        ax.plot(x, np.exp(x*slope+intercept),'-',c=cc,lw=1.6)
+    else:
+        ax.plot(x, np.exp(x*slope+intercept),'--',c=cc,lw=1.6)
+    
+    if k >= 3:
+        print(f'\n--- Avg ratio between conductivities from |psi| and |psi|^2 sites = {np.mean(sigmas / sigs[k-3])}\n ---')
 
   
 ax.set_yscale('log')
