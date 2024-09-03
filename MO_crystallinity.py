@@ -2,7 +2,7 @@
 
 import numpy as np
 import sys
-from os import path
+import os
 from sites_analysis import undistorted_mask
 
 
@@ -16,7 +16,10 @@ if __name__ == '__main__':
     ensemble = sys.argv[1]
     cryst_mask_type = sys.argv[2]
     psipow=2
-    outdir = f'MO_crystallinities_{cryst_mask_type}/'
+    outdir = f'MO_crystallinities_{cryst_mask_type}_{ensemble}/'
+
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
 
 
     if ensemble == '40x40':
@@ -32,7 +35,7 @@ if __name__ == '__main__':
     for n in lbls:
         
         try:
-            M = np.load(path.expanduser(f'~/scratch/ArpackMAC/{ensemble}/MOs/virtual/MOs_ARPACK_bigMAC-{n}.npy'))
+            M = np.load(os.path.expanduser(f'~/scratch/ArpackMAC/{ensemble}/MOs/virtual/MOs_ARPACK_bigMAC-{n}.npy'))
             N = M.shape[0]
         except FileNotFoundError as e:
             print(e)
@@ -40,14 +43,14 @@ if __name__ == '__main__':
 
         if cryst_mask_type == 'crystalline':
             try:
-                cryst_mask_dir = path.expanduser(f'~/scratch/structural_characteristics_MAC/labelled_ring_centers/{ensemble}/sample-{n}/')
+                cryst_mask_dir = os.path.expanduser(f'~/scratch/structural_characteristics_MAC/labelled_ring_centers/{ensemble}/sample-{n}/')
                 cryst_mask = np.load(cryst_mask_dir +  f'crystalline_atoms_mask-{n}.npy')
             except FileNotFoundError as e:
                 print(e)
                 continue
         elif cryst_mask_type == 'undistorted':
             try:
-                cryst_mask_dir = path.expanduser(f'~/scratch/structural_characteristics_MAC/rho_sites/{ensemble}/sample-{n}/')
+                cryst_mask_dir = os.path.expanduser(f'~/scratch/structural_characteristics_MAC/rho_sites/{ensemble}/sample-{n}/')
                 undistorted_atoms = np.load(cryst_mask_dir +  f'undistorted_atoms_{ensemble}-{n}.npy')
                 cryst_mask = undistorted_mask(undistorted_atoms,N)
             except FileNotFoundError as e:
