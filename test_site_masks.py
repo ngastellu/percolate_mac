@@ -12,11 +12,11 @@ if __name__ == '__main__':
 
     # Specify desired AMC structure
 
-    structure_type = 'tempdot6'
+    structure_type = 'tempdot5'
 
     if structure_type == 'tempdot5':
         rmax = 198.69
-        structure_index = 13
+        structure_index = 39
         structure_type_official = '300'
     elif structure_type == 'tempdot6':
         rmax = 121.2
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     sites_datadir = f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/var_radii_data/sites_data_0.00105_psi_pow1-{structure_index}/'
     rfile = sites_datadir + 'radii.npy'
     cfile = sites_datadir + 'centers.npy'
-    lfile = sites_datadir + 'labels.npy'
+    # lfile = sites_datadir + 'labels.npy'
     ifile = sites_datadir + 'ii.npy'
     sitemat_file = sites_datadir + 'site_state_matrix.npy'
 
@@ -69,15 +69,15 @@ if __name__ == '__main__':
     ii = np.load(ifile)
 
     # print(radii.shape)    
-    igood = radii < rmax
-    radii = radii[igood]
-    print(radii.shape)
-    centres = centres[igood]
-    S = S[:,igood]
+    # igood = radii < rmax
+    # radii = radii[igood]
+    # print(radii.shape)
+    # centres = centres[igood]
+    # S = S[:,igood]
     print('Shape of S: ', S.shape)
     print('Nb. of atoms: ', coords.shape[0])
 
-    M = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/tempdot6/MOs_ARPACK/virtual/MOs_ARPACK_bigMAC-{structure_index}.npy')
+    M = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/{structure_type}/MOs_ARPACK/virtual/MOs_ARPACK_bigMAC-{structure_index}.npy')
     # S2 = S2[:,igood]
 
 
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     # isites=[389, 139, 396, 13, 14, 397, 16, 273, 18, 274]
     np.random.seed(1)
     # isites = np.random.randint(S.shape[1],size=10)
-    isites = [37]
+    isites = [300]
     # isites = [417, 362, 381,  71, 380, 159, 195, 190,  73, 187] #max rdiffs for sAMC300-12
     # isites = [199, 387, 181, 159, 109,  63, 233,  42, 227, 106] #max center dists for sAMC300-12
     for site_index in isites:
@@ -128,5 +128,12 @@ if __name__ == '__main__':
 
         colours = np.array(['k']* coords.shape[0])
         colours[strict_mask[site_index,:]] = 'r'
+
+        plot_atoms(coords,dotsize=1.0,colour=colours)
+
+        mask2 = S[:,site_index] != 0
+
+        colours = np.array(['k']* coords.shape[0])
+        colours[mask2   ] = 'r'
 
         plot_atoms(coords,dotsize=1.0,colour=colours)
