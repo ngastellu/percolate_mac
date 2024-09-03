@@ -40,7 +40,7 @@ def track_overlaps(datadir, structural_mask, sites_mask, temps, perc_run_name, m
             cluster_mask = conduction_mask(sites_mask, clusters[0])
             overlaps = mask_overlap(structural_mask,cluster_mask,return_bools=True)
         
-        np.save(path.join(datadir, f'{mask_name}_conduction_masks_{perc_run_name}-{T}K.npy'), overlaps)
+        np.save(path.join(datadir, f'{mask_name}_conduction_masks_{perc_run_name}_psipow2-{T}K.npy'), overlaps)
 
 
 if __name__ == "__main__":
@@ -48,6 +48,7 @@ if __name__ == "__main__":
     structype = sys.argv[1]
     struct_mask_type = sys.argv[2]
     site_mask_type = sys.argv[3]
+    psipow = 2
 
     if structype == '40x40':
         rmax = 18.03
@@ -59,7 +60,7 @@ if __name__ == "__main__":
         print(f'{structype} is an invalid structure type!')
         sys.exit()
 
-    run_lbl = f'rmax_{rmax}_psipow1'
+    run_lbl = f'rmax_{rmax}'
     pkl_prefix = f'out_percolate_{run_lbl}'
     temps = np.arange(40,440,10)
 
@@ -76,9 +77,9 @@ if __name__ == "__main__":
             datadir = f'sample-{n}' # run this from the percolation dir
 
             if site_mask_type == 'naive':
-                site_mask = np.load(f'hopping_site_masks/hopping_site_masks-{n}.npy')
+                site_mask = np.load(f'hopping_site_masks_psipow{psipow}/hopping_site_masks-{n}.npy')
             elif site_mask_type == 'strict':
-                site_mask = np.load(f'strict_hopping_masks/strict_hopping_site-{n}.npy')
+                site_mask = np.load(f'strict_hopping_masks_psipow{psipow}/strict_hopping_mask-{n}.npy')
             else:
                 print(f'Invalid specified site_mask_type: {site_mask_type}')
                 sys.exit()
@@ -90,7 +91,7 @@ if __name__ == "__main__":
                 iundistorted = np.load(path.join(struc_mask_datadir,f'sample-{n}',f'undistorted_atoms_{structype}-{n}.npy'))
                 structural_mask = undistorted_mask(iundistorted, N)
             elif struct_mask_type == 'crystalline':
-                struc_mask_datadir = path.expanduser(f'~/scratch/structural_characteristics_MAC/labelled_ring_cen/{structype}/sample-{n}/')
+                struc_mask_datadir = path.expanduser(f'~/scratch/structural_characteristics_MAC/labelled_ring_centers/{structype}/sample-{n}/')
                 structural_mask = np.load(path.join(struc_mask_datadir, f'crystalline_atoms_mask-{n}.npy'))
             else:
                 print(f'Invalid specified struct_mask_type: {struct_mask_type}')
@@ -98,7 +99,8 @@ if __name__ == "__main__":
             
 
 
-            track_overlaps(datadir, structural_mask, site_mask, temps, run_lbl, struct_mask_type)
+            mask_name = f'{struct_mask_type}_{site_mask_type}'
+            track_overlaps(datadir, structural_mask, site_mask, temps, run_lbl, mask_name)
         
         except Exception as e:
             print(e)
