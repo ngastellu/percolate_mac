@@ -24,7 +24,7 @@ def mask_overlap(mask1, mask2, return_bools=True):
         return (mask1 * mask2).nonzero()[0]
 
 
-def track_overlaps(datadir, structural_mask, sites_mask, temps, perc_run_name, mask_name):
+def track_overlaps(datadir, structural_mask, sites_mask, temps, perc_run_name, mask_name, return_overlaps=False):
     """Computes how many conduction atoms belong to a crystallite (or other structural feature as indicated by `structural_mask`) as a function of temperature."""
     N = structural_mask.shape[0]
     pkl_prefix = f'out_percolate_{perc_run_name}'
@@ -40,8 +40,51 @@ def track_overlaps(datadir, structural_mask, sites_mask, temps, perc_run_name, m
             cluster_mask = conduction_mask(sites_mask, clusters[0])
             overlaps = mask_overlap(structural_mask,cluster_mask,return_bools=True)
         
-        np.save(path.join(datadir, f'{mask_name}_conduction_masks_{perc_run_name}_psipow2-{T}K.npy'), overlaps)
+        if return_overlaps:
+            return overlaps
+        else:
+            np.save(path.join(datadir, f'{mask_name}_conduction_masks_{perc_run_name}_psipow2-{T}K.npy'), overlaps)
 
+def save_conduction_masks(datadir, sites_mask, temps, perc_run_name):
+    """Computes conduction masks (i.e. selects atoms that are in a conduction cluster) for a given structure at all temperatures in 
+    `temps`."""
+    pkl_prefix = f'out_percolate_{perc_run_name}'
+    for T in temps:
+        print(f' -- T = {T} K --')
+        clusters = get_conduction_clusters(datadir, pkl_prefix, T)
+        if len(clusters) > 1:
+            print(f'Multiple ({len(clusters)}) conduction clusters detected!', flush=True)
+            print('Cluster sizes = ', [len(c) for c in clusters],flush=True)
+            cluster_mask = np.array([conduction_mask(sites_mask,c) for c in clusters])
+        else:
+            cluster_mask = conduction_mask(sites_mask, clusters[0])
+        
+        np.save(path.join(datadir, f'conduction_cluster_masks_{perc_run_name}_psipow2-{T}K.npy'), cluster_mask)
+
+def cluster_crystallinity(datadir,cryst_mask,site_kets,T,perc_run_name,renormalise_by_cryst_size=False):
+    """Does a similar analysis as the `MO_crystallinity`, but this time focusing only on sites from the conduction clusters at a given temperature.
+    
+    !!! N.B: ASSUME SITE KETS ARE ALREADY NORMALISED !!! """
+    
+    pkl_prefix = f'out_percolate_{perc_run_name}'
+    clusters = get_conduction_clusters(datadir, pkl_prefix, T)
+    if len(clusters) > 1:
+        cluster = clusters[0].union(*clusters[1:]) #aggregate all site kets that belong to a percolating cluster``
+    else:
+        try:
+            cluster = clusters[0]
+        except IndexError as e:
+            print(e)
+            print('Returning -1.')
+            return np.array([-1])
+
+    cluster_sites = site_kets[:,list(cluster)]
+    cluster_crystallinity = np.sum(cluster_sites[cryst_mask,:]**2,axis=0)
+    if renormalise_by_cryst_size:
+        return cluster_crystallinity / cryst_mask.sum()
+    else:
+        return cluster_crystallinity
+                
 
 if __name__ == "__main__":
 

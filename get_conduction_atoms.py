@@ -5,8 +5,6 @@ import sys
 import numpy as np
 import pickle
 from var_a_percolate_mac.percolate import diff_arrs_var_a
-from qcnico.coords_io import read_xyz
-from scipy.spatial import KDTree
 
 
 nn = int(sys.argv[1])

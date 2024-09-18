@@ -6,9 +6,12 @@ import os
 from sites_analysis import undistorted_mask
 
 
-def MOs_crystallinity(M,cryst_mask):
+def MOs_crystallinity(M,cryst_mask,renormalise=False):
     psi_cryst = M[cryst_mask,:] # only AOs on crystalline sites
-    return (np.abs(psi_cryst)**2).sum(axis=0)
+    if renormalise:
+        return (np.abs(psi_cryst)**2).sum(axis=0) / cryst_mask.sum()
+    else:
+        return (np.abs(psi_cryst)**2).sum(axis=0)
 
 
 if __name__ == '__main__':
@@ -16,7 +19,12 @@ if __name__ == '__main__':
     ensemble = sys.argv[1]
     cryst_mask_type = sys.argv[2]
     psipow=2
-    outdir = f'MO_crystallinities_{cryst_mask_type}_{ensemble}/'
+    motype = 'virtual'
+    renormalise = True
+    if renormalise:
+        outdir = f'MO_crystallinities_{cryst_mask_type}_{ensemble}_renormd/'
+    else:
+        outdir = f'MO_crystallinities_{cryst_mask_type}_{ensemble}/'
 
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -35,7 +43,7 @@ if __name__ == '__main__':
     for n in lbls:
         
         try:
-            M = np.load(os.path.expanduser(f'~/scratch/ArpackMAC/{ensemble}/MOs/virtual/MOs_ARPACK_bigMAC-{n}.npy'))
+            M = np.load(os.path.expanduser(f'~/scratch/ArpackMAC/{ensemble}/MOs/{motype}/MOs_ARPACK_bigMAC-{n}.npy'))
             N = M.shape[0]
         except FileNotFoundError as e:
             print(e)
@@ -61,6 +69,6 @@ if __name__ == '__main__':
             sys.exit()
         
         
-        electronic_crystallinity = MOs_crystallinity(M,cryst_mask)
+        electronic_crystallinity = MOs_crystallinity(M,cryst_mask,renormalise)
 
         np.save(outdir + f'MO_crystallinities-{n}.npy', electronic_crystallinity)
