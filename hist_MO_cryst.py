@@ -19,11 +19,11 @@ nbins = 100
 
 for ax, st, lbl, c in zip(axs,structypes,lbls,clrs):
 
-    datadir_lo = percdir + f'{st}/electronic_crystallinity/loMO_crystallinities_crystalline_{st}/'
+    datadir_lo = percdir + f'{st}/electronic_crystallinity/loMO_crystallinities_crystalline_{st}_renormd/'
     npys_lo = [datadir_lo + f for f in os.listdir(datadir_lo)]
     data_lo = np.hstack([np.load(f) for f in npys_lo])
 
-    datadir_hi = percdir + f'{st}/electronic_crystallinity/hiMO_crystallinities_crystalline_{st}/'
+    datadir_hi = percdir + f'{st}/electronic_crystallinity/hiMO_crystallinities_crystalline_{st}_renormd/'
     npys_hi = [datadir_hi + f for f in os.listdir(datadir_hi)]
     data_hi = np.hstack([np.load(f) for f in npys_hi])
 
