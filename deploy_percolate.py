@@ -6,8 +6,7 @@ from time import perf_counter
 from os import path
 import numpy as np
 import qcnico.qchemMAC as qcm
-from qcnico.coords_io import read_xsf
-from qcnico.remove_dangling_carbons import remove_dangling_carbons
+from qcnico.coords_io import read_xyz, read_xsf
 from .percolate import diff_arrs, percolate, generate_site_list, diff_arrs_var_a
 from utils_arpackMAC import remove_redundant_eigenpairs
 
@@ -21,7 +20,7 @@ def load_data(sample_index, structype, motype,gammas_method='compute'):
 
     else:
         pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/relaxed_structures_no_dangle/')
-        posfile = f'{structype}n{sample_index}_relaxed.xsf'
+        posfile = f'{structype}n{sample_index}_relaxed_no-dangle.xyz'
     
     arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
 
@@ -34,11 +33,8 @@ def load_data(sample_index, structype, motype,gammas_method='compute'):
     M =  np.load(mo_path)
     
     pos_path = path.join(pos_dir,posfile)
-    pos, _ = read_xsf(pos_path)
-
-    rCC = 1.8
-    pos = remove_dangling_carbons(pos, rCC)
-    
+    pos = read_xyz(pos_path)
+ 
     # ******* 2: Get gammas *******
     if gammas_method == 'compute':
         gamma = 0.1
