@@ -2,6 +2,7 @@
 
 import sys
 import pickle
+from time import perf_counter
 from os import path
 import numpy as np
 import qcnico.qchemMAC as qcm
@@ -10,23 +11,19 @@ from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from .percolate import diff_arrs, percolate, generate_site_list, diff_arrs_var_a
 from utils_arpackMAC import remove_redundant_eigenpairs
 
-def load_data(sample_index, structype, motype,compute_gammas=True):
+def load_data(sample_index, structype, motype,gammas_method='compute'):
     """ Loads atomic positions, energies, MOs, and coupling matrices of a given MAC structure.
     This function aims to be be common to all percolation runs (gridMOs or not, etc.). """
 
-    if structype == 'pCNN':
-
-            arpackdir = path.expanduser('~/scratch/ArpackMAC/40x40')
-            pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
-
-            posfile = f'bigMAC-{sample_index}_relaxed.xsf'
+    if structype == '40x40':
+        pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relaxed_structures_no_dangle/')
+        posfile = f'bigMAC-{sample_index}_relaxed_no-dangle.xyz'
 
     else:
-
-            arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
-            pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
-
-            posfile = f'{structype}n{sample_index}_relaxed.xsf'
+        pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/relaxed_structures_no_dangle/')
+        posfile = f'{structype}n{sample_index}_relaxed.xsf'
+    
+    arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
 
     mo_file = f'MOs_ARPACK_bigMAC-{sample_index}.npy'
     energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
@@ -43,14 +40,16 @@ def load_data(sample_index, structype, motype,compute_gammas=True):
     pos = remove_dangling_carbons(pos, rCC)
     
     # ******* 2: Get gammas *******
-    if compute_gammas:
+    if gammas_method == 'compute':
         gamma = 0.1
         agaL, agaR = qcm.AO_gammas(pos, gamma)
         gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
         np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
         np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
+        
+        return pos, energies, M, gamL, gamR
 
-    else:
+    elif gammas_method == 'load':
         try:
             gamL = np.load(f'gamL_40x40-{sample_index}_{motype}.npy')
             gamR = np.load(f'gamR_40x40-{sample_index}_{motype}.npy')
@@ -62,14 +61,26 @@ def load_data(sample_index, structype, motype,compute_gammas=True):
             np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
             np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
     
-    return pos, energies, M, gamL, gamR
+        return pos, energies, M, gamL, gamR
+    elif gammas_method == 'none':
+        return pos, energies, M
+    else:
+        print(f'''[load_data ERROR] Invalid for entry for `gammas_method`: {gammas_method}.
+              \nValid entries are:\n
+              * "compute" (default): Computes all of the MO-lead couplings from scratch\n
+              * "load": Checks if MO-lead couplings have already been computed in saved in current directory. If yes, load them from NPY files. If no, computes them from scratch (same as "compute")\n
+              * "none": does not retrieve the couplings; returns only pos, energies, and MO matrix.\n
+            Assuming "none" here.
+              ''')
+        return pos, energies, M
+
 
 
 def load_data_multi(sample_index, structype, motypes, e_file_names=None, MO_file_names=None,compute_gammas=True):
     """Same as `load_data`, but this time loads data from multiple diagonalisation runs to 
     use more eigenpairs for percolation calculation."""
 
-    if structype == 'pCNN':
+    if structype == 'pCNN' or '40x40':
             arpackdir = path.expanduser('~/scratch/ArpackMAC/40x40')
             pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
 
@@ -177,13 +188,10 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
         with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
 
-def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None,rho_min=None,use_idprev=True,check_sites=False):
+def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None,rho_min=None,use_idprev=True,check_sites=False):
     # ******* Define strongly-coupled MOs *******
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
-
-    L = set((gamL > gamL_tol).nonzero()[0])
-    R = set((gamR > gamR_tol).nonzero()[0])
 
     # ******* Pre-compute distances *******
     if hyperlocal:
@@ -191,15 +199,15 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
         ee = np.load(path.join(npydir,'ee_hl.npy'))
         ii = np.load(path.join(npydir, 'ii_hl.npy'))
         radii = np.load(path.join(npydir, 'radii_hl.npy'))
-        # dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee_hl.npy'))
+        dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee_hl.npy'))
         radii, masses, _, ee = dat
     else:
         centres = np.load(path.join(npydir,'centers.npy'))
         ee = np.load(path.join(npydir,'ee.npy'))
         ii = np.load(path.join(npydir, 'ii.npy'))
         radii = np.load(path.join(npydir, 'radii.npy'))
-        # dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee.npy'))
-        # radii, masses, _, ee = dat
+        dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee.npy'))
+        radii, masses, _, ee = dat
     
     if check_sites: #making sure that the pre-computed sites/radii correspond to the site kets stored in site_state_matrix
         S = np.load(path.join(npydir, 'site_state_matrix.npy'))
@@ -257,6 +265,75 @@ def run_var_a(pos, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False
         if use_idprev:
             d_prev_ind = iidprev #update minimum index of distances to consider, if use_idprev, otherwise first ind to look at is always 0
         print(f'Distance nb {d_prev_ind} yielded a percolating cluster!', flush=True)
+        
+        if run_name is None:
+            if hyperlocal:
+                pkl_name = f'out_var_a_hl_rollback_percolate-{T}K.pkl'
+            else:
+                pkl_name = f'out_var_a_rollback_percolate-{T}K.pkl'
+        else:
+            pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
+
+        with open(pkl_name, 'wb') as fo:
+            pickle.dump((conduction_clusters,dcrit,A), fo)
+        ftrack.write(f'{T}K\n')
+    ftrack.close()
+
+
+def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, sGammas=None,gamma=0.1):
+    
+    # Ensure site kets are properly normalised
+    S /= np.linalg.norm(S,axis=0)
+
+
+
+    # ******* Pre-compute distances *******
+    if hyperlocal:
+        centres = np.load(path.join(npydir,'centers_hl.npy'))
+        ee = np.load(path.join(npydir,'ee_hl.npy'))
+        radii = np.load(path.join(npydir, 'radii_hl.npy'))
+
+    else:
+        centres = np.load(path.join(npydir,'centers.npy'))
+        ee = np.load(path.join(npydir,'ee.npy'))
+        radii = np.load(path.join(npydir, 'radii.npy'))
+    
+    if np.abs(dV) > 0:
+        dX = np.max(pos[:,0]) - np.min(pos[:,0])
+        E = np.array([dV/dX,0])
+    else:
+        E = np.array([0.0,0.0])
+
+    if rmax is not None:
+        igood = (radii < rmax).nonzero()[0]
+        centres = centres[igood]
+        ee = ee[igood]
+        radii = radii[igood]
+        S = S[:,igood]
+
+    if sGammas is None:
+        print('Getting AO gamma...', end=' ')
+        start = perf_counter()
+        agaL, agaR = qcm.AO_gammas(pos, gamma)
+        ao_end = perf_counter()
+        print(f'Done! [{ao_end - start} seconds]\nGetting sites gammas...', end=' ')
+        cgamL, cgamR = qcm.MO_gammas(S, agaL, agaR, return_diag=True)
+        end = perf_counter()
+        print(f'Done! [{end - ao_end} seconds]')
+    else:
+        cgamL, cgamR = sGammas
+
+    gamL_tol = np.mean(cgamL) + tol_scal * np.std(cgamL)
+    gamR_tol = np.mean(cgamR) + tol_scal * np.std(cgamR)
+    
+    edArr, rdArr = diff_arrs_var_a(ee, centres, radii, eF=eF, E=E)
+    
+    tracker_file = f'finished_temps_{run_name}_sites_var_a.txt'
+    ftrack = open(tracker_file,'w')
+
+    for T in all_Ts:
+        # ******* 5: Get spanning cluster *******
+        conduction_clusters, dcrit, A, iidprev = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr))
         
         if run_name is None:
             if hyperlocal:
