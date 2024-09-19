@@ -24,8 +24,15 @@ def load_data(sample_index, structype, motype,gammas_method='compute'):
     
     arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
 
-    mo_file = f'MOs_ARPACK_bigMAC-{sample_index}.npy'
-    energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
+    
+    if motype == 'virtual' or motype == 'occupied':
+        mo_file = f'MOs_ARPACK_bigMAC-{sample_index}.npy'
+        energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
+    
+    else: #'hi' or 'lo'
+        mo_file = f'MOs_ARPACK_{motype}_{structype}-{sample_index}.npy'
+        energy_file = f'eARPACK_{motype}_{structype}-{sample_index}.npy'
+    
     mo_path = path.join(arpackdir,'MOs',motype,mo_file)
     energy_path = path.join(arpackdir,'energies',motype,energy_file)
 
