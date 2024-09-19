@@ -191,7 +191,7 @@ def run_gridMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, compute_ce
         with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
 
-def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None,rho_min=None,use_idprev=True,check_sites=False):
+def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None,rho_min=None,use_idprev=True,check_sites=False,pkl_dir='.'):
     # ******* Define strongly-coupled MOs *******
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
@@ -277,13 +277,13 @@ def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=Fals
         else:
             pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
 
-        with open(pkl_name, 'wb') as fo:
+        with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
         ftrack.write(f'{T}K\n')
     ftrack.close()
 
 
-def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, sGammas=None,gamma=0.1):
+def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, sGammas=None,gamma=0.1,pkl_dir='.'):
     
     # Ensure site kets are properly normalised
     S /= np.linalg.norm(S,axis=0)
@@ -346,7 +346,7 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
         else:
             pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
 
-        with open(pkl_name, 'wb') as fo:
+        with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
         ftrack.write(f'{T}K\n')
     ftrack.close()
