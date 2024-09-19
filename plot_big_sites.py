@@ -18,8 +18,9 @@ npyname = 'rr_v_masses_v_ee_eps_rho_0.00105.npy'
 outer_posdir = '/Users/nico/Desktop/simulation_outputs/MAC_structures/'
 
 inner_posdirs= ['pCNN/bigMAC_40x40_ensemble/', 'Ata_structures/relaxed_structures/tempdot6/', 'Ata_structures/relaxed_structures/tempdot5/']
-outer_dirs = [simdir + d for d in ['40x40/', 'Ata_structures/tempdot6/', 'Ata_structures/tempdot5/']]
+outer_dirs = [simdir + d for d in ['40x40/', 'tempdot6/', 'tempdot5/']]
 posprefix = ['bigMAC-', 'tempdot6n', 'tempdot5n']
+rmaxs = [18.03, 121.2, 198.69]
 
 dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
 
@@ -27,12 +28,13 @@ lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
 
 
 # for k, d in enumerate(outer_dirs):
+rmax = rmaxs[-1]
+run_type = f'virt_100x100_gridMOs_rmax_{rmax}'
 d = outer_dirs[-1]
 k = 2
 print(d)
 percdir = d + f'percolate_output/zero_field/{run_type}/'
-good_runs_file = percdir + 'good_runs_eps_rho_1.05e-3.txt'
-rdir = d + 'var_radii_data/' + run_type + '/'
+good_runs_file = percdir + f'good_runs_rmax_{rmax}.txt'
 Mdir = d + 'MOs_ARPACK/virtual/'
 posdir = outer_posdir + inner_posdirs[k]
 
@@ -50,8 +52,8 @@ istrucs = np.random.choice(nn,size=3,replace=False)
 for i in istrucs:
     pos, _ = read_xsf(posdir + f'{posprefix[k]}{i}_relaxed.xsf')
     pos = remove_dangling_carbons(pos,rCC)
-
-    sites_dir = rdir + f'sample-{i}/'
+    
+    sites_dir = d + f'var_radii_data/to_local_sites_data/sample-{i}/sites_data_0.00105/'
     all_radii = np.load(sites_dir + 'radii.npy')
     all_ii = np.load(sites_dir + 'ii.npy')
     all_centers = np.load(sites_dir + 'centers.npy')
