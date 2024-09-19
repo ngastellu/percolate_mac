@@ -11,6 +11,7 @@ from qcnico.coords_io import read_xsf
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from qcnico.qcplots import plot_MO, plot_atoms
 from MOs2sites import generate_sites_radii_list, LR_MOs, sites_mass, assign_AOs, get_MO_loc_centers_opt, site_radii, generate_sites_radii_list_naive, all_sites_ipr
+from itertools import cycle
 
 
 
@@ -176,7 +177,7 @@ nn = 9
 # rel_radii = radii[ii == nn]
 fig, ax[0] = plot_MO(pos, M, nn, dotsize=atomsize,show_rgyr=True, c_rel_size=300.0,scale_up=15.0,c_labels='$\langle\psi|\\bm{r}|\psi \\rangle$',usetex=False,show=False,plt_objs=(fig, ax[0]),show_cbar=False,show_title=False)
 
-cc, *_ = get_MO_loc_centers_opt(pos, M, nn, 100, threshold_ratio=0.30)
+cc, *_ = get_MO_loc_centers_opt(pos, M, nn, 100, threshold_ratio=0.05,min_distance=8.0)
 # plot_MO(pos,M, nn, dotsize=1.0,loc_centers=cc,c_rel_size=150.0,c_markers='^',c_clrs='r',scale_up=15.0,c_labels='a priori sites',usetex=False)
 print('A priori centers = ', cc)
 psi = M[:,nn]
@@ -198,7 +199,8 @@ print('Masses = ', masses)
 # clrs = [d['color'] for d in list(cyc[2:len(clust_cc)])]
 # clrs = ['#008744', '#0057e7', '#d62d20', '#be29ec']
 # clrs = ['#ff0097', '#a200ff', '#1ba1e2', '#f09609','#00aba9']
-clrs = ['#00aedb', '#a200ff', '#f47835', '#d41243', '#8ec127']
+clrs_cycle = cycle(['#00aedb', '#a200ff', '#f47835', '#d41243', '#8ec127'])
+clrs = [next(clrs_cycle) for l in set(ll)]
 
 atom_clrs = [clrs[k] for k in ll]
 
@@ -245,3 +247,5 @@ plt.show()
 #     print(rr)
 #     fig, ax = plot_MO(pos,M, n, dotsize=1.0, loc_centers=cc, loc_radii=rr,c_rel_size=2,plt_objs=(fig,ax), show=False, c_clrs='limegreen')
 #     plt.show()
+
+plot_MO(pos,M, nn, dotsize=1.0, loc_centers=fs, loc_radii=fr,c_rel_size=40.0,scale_up=10.0,usetex=False,c_markers='.',show_cbar=False,show_title=False)

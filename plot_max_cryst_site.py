@@ -12,7 +12,7 @@ from glob import glob
 def get_struc_labels(ddir, prefix='sample',connector_char='-'):
     return np.array([int(x.split(connector_char)[-1]) for x in glob(f'{ddir}/{prefix}{connector_char}*')])
 
-def zero_cryst_radii(nn, temps, ddir, rmax, dir_prefix='sample-', npy_prefix='clust_cryst-',return_isites=False):
+def full_cryst_radii(nn, temps, ddir, rmax, dir_prefix='sample-', npy_prefix='clust_cryst-',return_isites=False):
     zero_cryst_radii = np.array([-1]) #initialise output arr for easier concatenation
     if return_isites: # !!!! ONLY use of working with a single structure !!!!
         all_izero_cryst = np.zeros(1,dtype='int')
@@ -55,52 +55,27 @@ setup_tex()
 nbins = 101
 bins = np.linspace(0,100,nbins)
 
-# for ax, st, r, lbl, c in zip(axs,structypes, rmaxs, lbls,clrs):
-
-#     datadir = percdir + f'{st}' #electronic_crystallinity/cluster_crystallinities_rmax_{r}_renormd_by_ncryst_atoms/'
-#     nn = get_struc_labels(datadir + f'/electronic_crystallinity/cluster_crystallinities_rmax_{r}')
-#     print(nn)
-#     # data = np.hstack([[np.load(f'sample-{n}/clust_cryst-{T}K.npy') for T in temps] for n in nn])
-#     radii = zero_cryst_radii(nn, temps, datadir, r)
-#     print(f'Max radius in {st} = {np.max(radii)}')
-#     hist, bins = np.histogram(radii,bins=bins)
-#     centers = (bins[1:] + bins[:-1]) * 0.5
-#     dx = centers[1] - centers[0]
-
-#     ax.bar(centers, hist,align='center',width=dx,color=c,label=lbl)
-#     ax.legend()
-#     ax.set_ylabel('Counts')
-#     # ax.set_yscale('log')
-#     # print(f'{st} ensemble has {ntiny} radii <= 1')
-
-# ax.set_xlabel('Radii of zero-crystallinity conducting sites [\AA]')
-
-# # plt.suptitle('Adjusted for number of crystalline atoms in structure')
-
-# plt.show()
 
 
 # np.random.seed(0)
 structype = 'tempdot5'
 nn = [11]
+T = 180
 rmax = 198.69
 datadir = percdir + '/' + structype
-radii, isites = zero_cryst_radii(nn, temps, datadir, rmax, return_isites=True)
-print(isites)
+
+crysts = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/electronic_crystallinity/cluster_crystallinities_rmax_{rmax}/sample-11/clust_cryst-{T}K.npy')
+
+imaxcryst = np.argmax(crysts)
+max_cryst = crysts[imaxcryst]
+print(f'Site {imaxcryst} has the max crystallinity = {max_cryst}')
+
 S = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structype}_rmax_{rmax}/site_kets_psipow2-{nn[0]}.npy')
 Sbinary = np.zeros(S.shape,dtype=int)
 Sbinary[S.nonzero()] = 1
-all_radii = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/var_radii_data/to_local_sites_data/sample-{nn[0]}/sites_data_0.00105/radii.npy')
-centres =  np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/var_radii_data/to_local_sites_data/sample-{nn[0]}/sites_data_0.00105/centers.npy') 
 pos = read_xyz(f'/Users/nico/Desktop/simulation_outputs/MAC_structures/relaxed_no_dangle/sAMC-300/sAMC300-{nn[0]}.xyz')
 
-iii = np.argsort(radii)
-ii = np.unique(isites[iii])
-print(len(radii))
-print(len(temps))
-# print(np.all(radii[iii] == all_radii[ii]))
 
-for i in ii[-4:]:
-    r = radii[i]
-    c = centres[i]
-    plot_MO(pos, Sbinary, i, dotsize=0.5,scale_up=20.0,cmap='bwr')#,loc_centers=np.array([centres[i]]), loc_radii=[all_radii[i]])
+for ii in np.argsort(crysts)[-2:]:
+    print(f'{ii} ---> {crysts[ii]}')
+    plot_MO(pos, Sbinary, ii, dotsize=0.5,scale_up=20.0,cmap='bwr')#,loc_centers=np.array([centres[i]]), loc_radii=[all_radii[i]])

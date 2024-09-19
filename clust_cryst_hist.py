@@ -22,7 +22,9 @@ if __name__ == '__main__':
         
             
     structypes = ['40x40', 'tempdot6', 'tempdot5']
-    lbls= ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
+    # lbls= ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
+    lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300']
+
     rmaxs = [18.03, 121.2, 198.69]
     # temps = np.arange(180,440,10)
     temps = [180]
@@ -35,8 +37,8 @@ if __name__ == '__main__':
     setup_tex()
     fig, axs = plt.subplots(3,1,sharex=True)
     nbins = 100
+    # bins = np.linspace(0,1,nbins)
     bins = np.linspace(0,1.2e-4,nbins)
-    # bins = np.linspace(0,1.2e-4,nbins)
 
     for ax, st, r, lbl, c in zip(axs,structypes, rmaxs, lbls,clrs):
 
@@ -51,11 +53,11 @@ if __name__ == '__main__':
 
         ax.bar(centers, hist,align='center',width=dx,color=c,label=lbl)
         ax.legend()
-        ax.set_ylabel('Density')
-        # ax.set_yscale('log')
+        ax.set_ylabel('Density (log)')
+        ax.set_yscale('log')
         # print(f'{st} ensemble has {ntiny} radii <= 1')
 
-    # ax.set_xlabel('Fraction of conducting site on crystalline region of structure / \# crystalline atoms in structure')
+    ax.set_xlabel('Conducting site crystallinity $\chi$')# / \# crystalline atoms in structure')
 
     # plt.suptitle('Adjusted for number of crystalline atoms in structure')
 
