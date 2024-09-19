@@ -18,7 +18,7 @@ mo_type = sys.argv[3]
 psipow = 2
 
 
-pos, energies, M, gamL, gamR = load_data(n, struc_type, mo_type, compute_gammas=True)
+pos, energies, M, gamL, gamR = load_data(n, struc_type, mo_type, gammas_method='compute')
 pos = pos[:,:2]
 tree = KDTree(pos)
 
