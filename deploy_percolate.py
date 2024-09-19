@@ -5,7 +5,7 @@ from time import perf_counter
 from os import path
 import numpy as np
 import qcnico.qchemMAC as qcm
-from qcnico.coords_io import read_xsf
+from qcnico.coords_io import read_xsf, read_xyz
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from .percolate import diff_arrs, percolate,\
         diff_arrs_w_inds, jitted_percolate, diff_arrs_var_a
@@ -13,88 +13,74 @@ from .MOs2sites import generate_site_list_opt
 
 from .utils_arpackMAC import remove_redundant_eigenpairs
 
-def load_data(sample_index, structype, motype='',compute_gammas=True,run_location='narval',save_gammas=False,gamma_dir='.',full_spectrum=False):
+
+def load_data(sample_index, structype, motype,gammas_method='compute'):
     """ Loads atomic positions, energies, MOs, and coupling matrices of a given MAC structure.
     This function aims to be be common to all percolation runs (gridMOs or not, etc.). """
-    
-    valid_run_locs = ['narval', 'local']
-    assert run_location in valid_run_locs, f'Invalid value of argument run_location. Valid values:\n {valid_run_locs}'
 
-    if run_location == 'narval':
-        arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
+    if structype == '40x40':
+        pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relaxed_structures_no_dangle/')
+        posfile = f'bigMAC-{sample_index}_relaxed_no-dangle.xyz'
 
-        if structype == '40x40':
-                pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
-                posfile = f'bigMAC-{sample_index}_relaxed.xsf'
-        elif structype == '20x20':
-                pos_dir = path.expanduser('~/scratch/clean_bigMAC/20x20/relax/relaxed_structures')
-                posfile = f'bigMAC-{sample_index}_relaxed.xsf'
-
-        else:
-                arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
-                pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/relaxed_structures/')
-                posfile = f'{structype}n{sample_index}_relaxed.xsf'
-        
-        if full_spectrum:
-            mo_dir = path.join(arpackdir,'dense_tb_eigvecs')
-            e_dir = path.join(arpackdir,'dense_tb_eigvals')
-        else:
-            mo_dir = path.join(arpackdir,'MOs')
-            e_dir = path.join(arpackdir,'energies')
-
-    
-    else: #running things locally
-        percdir = path.expanduser('~/Desktop/simulation_outputs/percolation/')
-        strucsize = '40x40'
-        if structype == 'pCNN':
-            mo_dir = path.join(percdir, strucsize,'MOs_ARPACK')
-            e_dir = path.join(percdir, strucsize, 'eARPACK')
-            pos_dir = path.join(percdir, strucsize, 'structures')
-            posfile = f'bigMAC-{sample_index}_relaxed.xsf'
-        else:
-            print('not implemented. returning 0. if running locally, structype must be "pCNN".')
-            return 0
-
-    if full_spectrum:
-        mo_file = f'eigvecs-{sample_index}.npy'
-        energy_file = f'eigvals-{sample_index}.npy'
     else:
+        pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/relaxed_structures_no_dangle/')
+        posfile = f'{structype}n{sample_index}_relaxed_no-dangle.xyz'
+    
+    arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
+
+    
+    if motype == 'virtual' or motype == 'occupied':
         mo_file = f'MOs_ARPACK_bigMAC-{sample_index}.npy'
         energy_file = f'eARPACK_bigMAC-{sample_index}.npy'
-    mo_path = path.join(mo_dir,motype,mo_file)
-    energy_path = path.join(e_dir,motype,energy_file)
+    
+    else: #'hi' or 'lo'
+        mo_file = f'MOs_ARPACK_{motype}_{structype}-{sample_index}.npy'
+        energy_file = f'eARPACK_{motype}_{structype}-{sample_index}.npy'
+    
+    mo_path = path.join(arpackdir,'MOs',motype,mo_file)
+    energy_path = path.join(arpackdir,'energies',motype,energy_file)
 
     energies = np.load(energy_path)
     M =  np.load(mo_path)
     
     pos_path = path.join(pos_dir,posfile)
-    pos, _ = read_xsf(pos_path)
-
-    rCC = 1.8
-    pos = remove_dangling_carbons(pos, rCC)
-    
+    pos = read_xyz(pos_path)
+ 
     # ******* 2: Get gammas *******
-    if compute_gammas:
+    if gammas_method == 'compute':
         gamma = 0.1
         agaL, agaR = qcm.AO_gammas(pos, gamma)
         gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-        if save_gammas:
-            np.save(path.join(gamma_dir, f'gamL_40x40-{sample_index}_{motype}.npy', gamL))
-            np.save(path.join(gamma_dir, f'gamR_40x40-{sample_index}_{motype}.npy', gamR))
+        np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
+        np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
+        
+        return pos, energies, M, gamL, gamR
 
-    else:
+    elif gammas_method == 'load':
         try:
-            gamL = np.load(path.join(gamma_dir, f'gamL_40x40-{sample_index}_{motype}.npy'))
-            gamR = np.load(path.join(gamma_dir, f'gamR_40x40-{sample_index}_{motype}.npy'))
+            gamL = np.load(f'gamL_40x40-{sample_index}_{motype}.npy')
+            gamR = np.load(f'gamR_40x40-{sample_index}_{motype}.npy')
         except FileNotFoundError:
             print('Gamma files not found. Re-computing gammas.')
             gamma = 0.1
             agaL, agaR = qcm.AO_gammas(pos, gamma)
             gamL, gamR = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-            np.save(path.join(gamma_dir, f'gamL_40x40-{sample_index}_{motype}.npy'), gamL)
-            np.save(path.join(gamma_dir, f'gamR_40x40-{sample_index}_{motype}.npy'), gamR)
+            np.save(f'gamL_40x40-{sample_index}_{motype}.npy', gamL)
+            np.save(f'gamR_40x40-{sample_index}_{motype}.npy', gamR)
     
-    return pos, energies, M, gamL, gamR
+        return pos, energies, M, gamL, gamR
+    elif gammas_method == 'none':
+        return pos, energies, M
+    else:
+        print(f'''[load_data ERROR] Invalid for entry for `gammas_method`: {gammas_method}.
+              \nValid entries are:\n
+              * "compute" (default): Computes all of the MO-lead couplings from scratch\n
+              * "load": Checks if MO-lead couplings have already been computed in saved in current directory. If yes, load them from NPY files. If no, computes them from scratch (same as "compute")\n
+              * "none": does not retrieve the couplings; returns only pos, energies, and MO matrix.\n
+            Assuming "none" here.
+              ''')
+        return pos, energies, M
+
 
 
 def load_var_a_data(datadir='.'):
