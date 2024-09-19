@@ -18,7 +18,7 @@ mo_type = sys.argv[3]
 psipow = 2
 
 
-pos, energies, M, gamL, gamR = load_data(n, struc_type, mo_type, compute_gammas=False)
+pos, energies, M, gamL, gamR = load_data(n, struc_type, mo_type, compute_gammas=True)
 pos = pos[:,:2]
 tree = KDTree(pos)
 
@@ -28,13 +28,11 @@ L, R = LR_MOs(gamL, gamR)
 eps_rho = 1.05e-3
 flag_empty_clusters = True
 max_r = 50.0
-min_dist = 4.0
-threshold_ratio_peaks = 0.05
 
 print(f'_______________ eps_rho = {eps_rho} _______________')
 print('Generating sites and radii now...')
 start = perf_counter()
-centers, radii, ee, ii,labels, site_matrix = generate_sites_radii_list(pos, M, L, R, energies, radii_rho_threshold=eps_rho,flag_empty_clusters=flag_empty_clusters,max_r=max_r,return_labelled_atoms=True,return_site_matrix=True, amplitude_pow=psipow,min_distance=min_dist,threshold_ratio=threshold_ratio_peaks)
+centers, radii, ee, ii,labels, site_matrix = generate_sites_radii_list(pos, M, L, R, energies, radii_rho_threshold=eps_rho,flag_empty_clusters=flag_empty_clusters,max_r=max_r,return_labelled_atoms=True,return_site_matrix=True, amplitude_pow=psipow)
 end = perf_counter()
 print(f'Done! [{end-start} seconds]')
 
@@ -85,7 +83,7 @@ print(f'Done! [{end-start} seconds]')
     #print(f'new m = {m}\n')
 
 
-npydir = f'sites_data_{eps_rho}_psi_pow{psipow}_many_peaks/' 
+npydir = f'sites_data_{eps_rho}_psi_pow{psipow}_{mo_type}' 
 if not os.path.isdir(npydir):
     os.mkdir(npydir)
 
