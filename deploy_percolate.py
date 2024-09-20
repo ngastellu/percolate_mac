@@ -352,7 +352,14 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
     ftrack.close()
 
 
-def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0, var_a=False):
+def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a=False, run_name=None,pkl_dir='.',dcrits_npy=True):
+
+    if run_name is None:
+        if var_a:
+            run_name = 'locMOs_var_a'
+        else:
+            run_name = 'locMOs'
+
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
 
@@ -363,7 +370,7 @@ def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0, var_a=F
     centres = qcm.MO_com(pos,M)
 
     if np.abs(dV) > 0:
-        dX = np.max(centres[:,0]) - np.min(centres[:,0])
+        dX = np.max(pos[:,0]) - np.min(pos[:,0])
         E = np.array([dV/dX,0])
     else:
         E = np.array([0.0,0.0])
@@ -376,10 +383,28 @@ def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0, var_a=F
         a = np.mean(qcm.MO_rgyr(pos,M)) 
         edArr, rdArr = diff_arrs(energies, centres, a0=a, eF=eF, E=E)
 
+    # Open tracker file which records which temps successfully ran
+    tracker_file = f'finished_temps_{run_name}.txt'
+    ftrack = open(tracker_file,'w')
 
-    for T in all_Ts:
+    if dcrits_npy:
+        dcrits = np.zeros(all_Ts.shape[0])
+
+    # Run percolation at different temperatures
+    for k,T in enumerate(all_Ts):
         # ******* 5: Get spanning cluster *******
         conduction_clusters, dcrit, A = percolate(energies, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr), coupled_MO_sets=(L,R))
 
-        with open(f'out_percolate-{T}K.pkl', 'wb') as fo:
+        if dcrits_npy:
+            dcrits[k] = dcrit
+
+        pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
+
+        with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
+
+        ftrack.write(f'{T}K\n')
+
+    if dcrits_npy:
+        np.save(path.join(pkl_dir, f'dcrits_{run_name}.npy'),np.vstack((all_Ts,dcrits)))
+    ftrack.close()
