@@ -17,5 +17,5 @@ dV = 0.0
 run_name = f'{mo_type}_loc_var_a'
 output_dir = f'{run_name}_pkls'
 
-pos, e, M, gamL, gamR = load_data(n, struc_type, mo_type, compute_gammas='load')
+pos, e, M, gamL, gamR = load_data(n, struc_type, mo_type, gammas_method='load')
 run_locMOs(pos,e,M,gamL,gamR,temps, dV, eF=np.min(e),var_a=True,run_name=run_name,pkl_dir=output_dir)
