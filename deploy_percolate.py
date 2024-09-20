@@ -352,7 +352,7 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
     ftrack.close()
 
 
-def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0):
+def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0, var_a=False):
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
 
@@ -368,9 +368,13 @@ def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0):
     else:
         E = np.array([0.0,0.0])
     
-    a = np.mean(qcm.MO_rgyr(pos,M))
-    
-    edArr, rdArr = diff_arrs(energies, centres, a0=a, eF=eF, E=E)
+    if var_a:
+        radii = qcm.MO_rgyr(pos, M, center_of_mass=centres)
+        edArr, rdArr = diff_arrs_var_a(energies, centres, radii, eF=eF, E=E)
+
+    else:
+        a = np.mean(qcm.MO_rgyr(pos,M)) 
+        edArr, rdArr = diff_arrs(energies, centres, a0=a, eF=eF, E=E)
 
 
     for T in all_Ts:
