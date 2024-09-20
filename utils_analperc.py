@@ -155,7 +155,6 @@ def ablation_Ea(dcrits,sample_sizes,temps=np.arange(40,440,10)):
 
 
 def get_conduction_clusters(datadir, pkl_prefix, T):
-
     try:
         pkl = pkl_prefix + f"-{T}K.pkl"
         fo = open(path.join(datadir,pkl),'rb')
@@ -164,13 +163,31 @@ def get_conduction_clusters(datadir, pkl_prefix, T):
         fo = open(path.join(datadir,pkl),'rb')
     dat = pickle.load(fo)
     fo.close()
-    
-
     clusters = dat[0]
-
     return clusters
 
 def conduction_mask(sites_mask, cluster):
     cluster_mask = sites_mask[list(cluster)]
     conduction_bools = cluster_mask.sum(axis = 0) # sum corresponds to the union of atom sets associated with each site in cluster
     return conduction_bools
+
+def sigma_errorbar(dcrits):
+    """IDEA: Estimate uncertainty in sigma(T) for each T by omitting one structure from the data set
+     before computing sigma, and taking the difference between sigma obtained from this reduced set
+     and sigma the computed from the full data set. We cycle over all samples and keep the highest 
+     difference between the two estimates of sigma as our uncertainty.
+     As always, dcrits is (Ns x Nt) array where Ns = number of structures, and
+     Nt = number of temperatures."""
+    
+    nsamples = dcrits.shape[0]
+    sigmas_full = saddle_pt_sigma(dcrits)
+    err = np.zeros(sigmas_full.shape[0])
+
+    # Get errors in sigma estimates
+    for n in range(nsamples):
+        sigmas_partial = saddle_pt_sigma(np.roll(dcrits, n, axis=0)[:-1])
+        diffs = np.abs(sigmas_full - sigmas_partial)
+        inew = (diffs > err).nonzero()[0] #identify for which T inds we need to keep err 
+        err[inew] = diffs[inew]
+    
+    return sigmas_full, err
