@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
+import sys
+import os
 import numpy as np
-from qcnico.plt_utils import setup_tex
 from qcnico.qcplots import plot_MO
 from qcnico.coords_io import read_xyz
-import os
-import sys
-
 
 
 
@@ -23,14 +21,14 @@ else:
     sys.exit()
 
 istruc = 69
-istate = 20
-
-
+motype = 'lo'
 
 simdir = os.path.expanduser('~/Desktop/simulation_outputs')
 
 posdir = os.path.join(simdir, f'MAC_structures/relaxed_no_dangle/{off_structype}')
 pos  = read_xyz(os.path.join(posdir, f'{('').join(off_structype.split('-'))}-{istruc}.xyz'))
+
+M = np.load(os.path.join(simdir, f'percolation/{structype}/MOs_ARPACK/{motype}/MOs_ARPACK_{motype}_{structype}-{istruc}.npy'))
 
 sitesdir = os.path.join(simdir, f'percolation/{structype}/var_radii_data/to_local_sites_data_0.00105_psipow2_lo/sample-{istruc}')
 
@@ -39,14 +37,8 @@ radii = np.load(os.path.join(sitesdir, 'radii.npy'))
 centers = np.load(os.path.join(sitesdir, 'centers.npy')) 
 ii = np.load(os.path.join(sitesdir, 'ii.npy'))
 
-MO_index = ii[istate]
-print(f'MO index of site {istate} =  {MO_index}')
-print(f'Other sites from the MO # {MO_index}:')
-for nn in (ii == MO_index).nonzero()[0]:
-    print(nn)
 
-isiblings = (ii == MO_index).nonzero()[0]
-print(len(isiblings))
-
-for i in isiblings:
-    plot_MO(pos, S, i, dotsize=0.5,loc_centers=np.array([centers[i]]), loc_radii=[radii[i]])
+np.random.seed(42)
+for iMO in np.random.randint(M.shape[1], size=10):
+    isites = (ii == iMO).nonzero()[0]
+    plot_MO(pos, M, iMO, dotsize=0.5,loc_centers=centers[isites], loc_radii=radii[isites])
