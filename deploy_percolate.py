@@ -3,7 +3,7 @@
 import sys
 import pickle
 from time import perf_counter
-from os import path
+import os
 import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xyz, read_xsf
@@ -15,14 +15,14 @@ def load_data(sample_index, structype, motype,gammas_method='compute'):
     This function aims to be be common to all percolation runs (gridMOs or not, etc.). """
 
     if structype == '40x40':
-        pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relaxed_structures_no_dangle/')
+        pos_dir = os.path.expanduser('~/scratch/clean_bigMAC/40x40/relaxed_structures_no_dangle/')
         posfile = f'bigMAC-{sample_index}_relaxed_no-dangle.xyz'
 
     else:
-        pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/relaxed_structures_no_dangle/')
+        pos_dir = os.path.expanduser(f'~/scratch/clean_bigMAC/{structype}/relaxed_structures_no_dangle/')
         posfile = f'{structype}n{sample_index}_relaxed_no-dangle.xyz'
     
-    arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
+    arpackdir = os.path.expanduser(f'~/scratch/ArpackMAC/{structype}')
 
     
     if motype == 'virtual' or motype == 'occupied':
@@ -33,13 +33,13 @@ def load_data(sample_index, structype, motype,gammas_method='compute'):
         mo_file = f'MOs_ARPACK_{motype}_{structype}-{sample_index}.npy'
         energy_file = f'eARPACK_{motype}_{structype}-{sample_index}.npy'
     
-    mo_path = path.join(arpackdir,'MOs',motype,mo_file)
-    energy_path = path.join(arpackdir,'energies',motype,energy_file)
+    mo_path = os.path.join(arpackdir,'MOs',motype,mo_file)
+    energy_path = os.path.join(arpackdir,'energies',motype,energy_file)
 
     energies = np.load(energy_path)
     M =  np.load(mo_path)
     
-    pos_path = path.join(pos_dir,posfile)
+    pos_path = os.path.join(pos_dir,posfile)
     pos = read_xyz(pos_path)
  
     # ******* 2: Get gammas *******
@@ -54,8 +54,12 @@ def load_data(sample_index, structype, motype,gammas_method='compute'):
 
     elif gammas_method == 'load':
         try:
-            gamL = np.load(f'gamL_40x40-{sample_index}_{motype}.npy')
-            gamR = np.load(f'gamR_40x40-{sample_index}_{motype}.npy')
+            if motype == 'virtual':
+                gamL = np.load(f'gamL_40x40-{sample_index}.npy')
+                gamR = np.load(f'gamR_40x40-{sample_index}.npy')
+            else:
+                gamL = np.load(f'gamL_40x40-{sample_index}_{motype}.npy')
+                gamR = np.load(f'gamR_40x40-{sample_index}_{motype}.npy')
         except FileNotFoundError:
             print('Gamma files not found. Re-computing gammas.')
             gamma = 0.1
@@ -84,13 +88,13 @@ def load_data_multi(sample_index, structype, motypes, e_file_names=None, MO_file
     use more eigenpairs for percolation calculation."""
 
     if structype == 'pCNN' or '40x40':
-            arpackdir = path.expanduser('~/scratch/ArpackMAC/40x40')
-            pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
+            arpackdir = os.path.expanduser('~/scratch/ArpackMAC/40x40')
+            pos_dir = os.path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
 
             posfile = f'bigMAC-{sample_index}_relaxed.xsf'
     else:
-            arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
-            pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
+            arpackdir = os.path.expanduser(f'~/scratch/ArpackMAC/{structype}')
+            pos_dir = os.path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
 
             posfile = f'{structype}n{sample_index}_relaxed.xsf'
 
@@ -105,15 +109,15 @@ def load_data_multi(sample_index, structype, motypes, e_file_names=None, MO_file
         energy_files = [efn + f'-{sample_index}.npy' for efn in e_file_names]
 
 
-    mo_paths = [path.join(arpackdir,'MOs',motype,mo_file) for (motype, mo_file) in zip(motypes, mo_files)]
-    energy_paths = [path.join(arpackdir,'energies',motype, energy_file) for (motype, energy_file) in zip(motypes, energy_files)]
+    mo_paths = [os.path.join(arpackdir,'MOs',motype,mo_file) for (motype, mo_file) in zip(motypes, mo_files)]
+    energy_paths = [os.path.join(arpackdir,'energies',motype, energy_file) for (motype, energy_file) in zip(motypes, energy_files)]
 
     energies = np.hstack([np.load(energy_path) for energy_path in energy_paths])
     M =  np.hstack([np.load(mo_path) for mo_path in mo_paths])
 
     energies, M = remove_redundant_eigenpairs(energies, M)
     
-    pos_path = path.join(pos_dir,posfile)
+    pos_path = os.path.join(pos_dir,posfile)
     pos, _ = read_xsf(pos_path)  
     
     rCC = 1.8
@@ -198,22 +202,22 @@ def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=Fals
 
     # ******* Pre-compute distances *******
     if hyperlocal:
-        centres = np.load(path.join(npydir,'centers_hl.npy'))
-        ee = np.load(path.join(npydir,'ee_hl.npy'))
-        ii = np.load(path.join(npydir, 'ii_hl.npy'))
-        radii = np.load(path.join(npydir, 'radii_hl.npy'))
-        dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee_hl.npy'))
+        centres = np.load(os.path.join(npydir,'centers_hl.npy'))
+        ee = np.load(os.path.join(npydir,'ee_hl.npy'))
+        ii = np.load(os.path.join(npydir, 'ii_hl.npy'))
+        radii = np.load(os.path.join(npydir, 'radii_hl.npy'))
+        dat = np.load(os.path.join(npydir, 'rr_v_masses_v_iprs_v_ee_hl.npy'))
         radii, masses, _, ee = dat
     else:
-        centres = np.load(path.join(npydir,'centers.npy'))
-        ee = np.load(path.join(npydir,'ee.npy'))
-        ii = np.load(path.join(npydir, 'ii.npy'))
-        radii = np.load(path.join(npydir, 'radii.npy'))
-        dat = np.load(path.join(npydir, 'rr_v_masses_v_iprs_v_ee.npy'))
+        centres = np.load(os.path.join(npydir,'centers.npy'))
+        ee = np.load(os.path.join(npydir,'ee.npy'))
+        ii = np.load(os.path.join(npydir, 'ii.npy'))
+        radii = np.load(os.path.join(npydir, 'radii.npy'))
+        dat = np.load(os.path.join(npydir, 'rr_v_masses_v_iprs_v_ee.npy'))
         radii, masses, _, ee = dat
     
     if check_sites: #making sure that the pre-computed sites/radii correspond to the site kets stored in site_state_matrix
-        S = np.load(path.join(npydir, 'site_state_matrix.npy'))
+        S = np.load(os.path.join(npydir, 'site_state_matrix.npy'))
         nradii = radii.shape[0]
         nsites = centres.shape[0]
         print('centers.shape[0] == radii.shape[0]: ', nsites == nradii, flush=True)
@@ -277,7 +281,7 @@ def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=Fals
         else:
             pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
 
-        with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
+        with open(os.path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
         ftrack.write(f'{T}K\n')
     ftrack.close()
@@ -292,14 +296,14 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
 
     # ******* Pre-compute distances *******
     if hyperlocal:
-        centres = np.load(path.join(npydir,'centers_hl.npy'))
-        ee = np.load(path.join(npydir,'ee_hl.npy'))
-        radii = np.load(path.join(npydir, 'radii_hl.npy'))
+        centres = np.load(os.path.join(npydir,'centers_hl.npy'))
+        ee = np.load(os.path.join(npydir,'ee_hl.npy'))
+        radii = np.load(os.path.join(npydir, 'radii_hl.npy'))
 
     else:
-        centres = np.load(path.join(npydir,'centers.npy'))
-        ee = np.load(path.join(npydir,'ee.npy'))
-        radii = np.load(path.join(npydir, 'radii.npy'))
+        centres = np.load(os.path.join(npydir,'centers.npy'))
+        ee = np.load(os.path.join(npydir,'ee.npy'))
+        radii = np.load(os.path.join(npydir, 'radii.npy'))
     
     if np.abs(dV) > 0:
         dX = np.max(pos[:,0]) - np.min(pos[:,0])
@@ -346,19 +350,25 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
         else:
             pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
 
-        with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
+        with open(os.path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
         ftrack.write(f'{T}K\n')
     ftrack.close()
 
 
-def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a=False, run_name=None,pkl_dir='.',dcrits_npy=True):
+def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a=False, run_name=None,pkl_dir=None,dcrits_npy=True):
 
     if run_name is None:
         if var_a:
             run_name = 'locMOs_var_a'
         else:
             run_name = 'locMOs'
+    
+    if pkl_dir is None:
+        pkl_dir = '.'
+    else:
+        if not os.path.exists(pkl_dir):
+            os.mkdir(pkl_dir)
 
     gamL_tol = np.mean(gamL) + tolscal*np.std(gamL)
     gamR_tol = np.mean(gamR) + tolscal*np.std(gamR)
@@ -400,11 +410,11 @@ def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a
 
         pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
 
-        with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
+        with open(os.path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
 
         ftrack.write(f'{T}K\n')
 
     if dcrits_npy:
-        np.save(path.join(pkl_dir, f'dcrits_{run_name}.npy'),np.vstack((all_Ts,dcrits)))
+        np.save(os.path.join(pkl_dir, f'dcrits_{run_name}.npy'),np.vstack((all_Ts,dcrits)))
     ftrack.close()
