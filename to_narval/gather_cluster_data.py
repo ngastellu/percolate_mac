@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 
 # @njit
-def network_data(nsample, T, rmax, run_name):
+def network_data(nsample, T, rmax, run_name,gated=False):
     '''Obtains the radii of the sites in a given structure's percolating cluster, at a given temperature'''
 
     sites_dir = f'sample-{nsample}/sites_data_0.00105_psi_pow2'
@@ -34,13 +34,19 @@ def network_data(nsample, T, rmax, run_name):
     print(icluster.dtype)
     
     radii = np.load(path.join(sites_dir, 'radii.npy'))
+    energies = np.load(path.join(sites_dir, 'ee.npy'))
+
+    if gated:
+        energies -= np.min(energies)
 
     # Percolation code runs on pre-filtered sites; therefore we must also filter the sites
     # to ensure that the indices in the cluster correspond to the correct radii
     filter = radii < rmax
     radii = radii[filter]
+    energies = energies[filter]
     
     radii = radii[icluster]
+    energies = energies[icluster]
     d = pkl[1]
     A = pkl[2]
     print(f'[{nsample}] Adjmat is symmetric: ', np.all((A == A.T)))
@@ -48,44 +54,56 @@ def network_data(nsample, T, rmax, run_name):
     nb_neighbours = A[icluster].sum(axis=1)
     #print(radii)
 
-    return radii, d , nb_neighbours
+    return radii, energies, d , nb_neighbours
 
 
 # @njit
-def gather_radii(nn, T, rmax, run_name):
+def gather_data(nn, T, rmax, run_name):
     nMACs = len(nn)
     ntot = 250*nMACs # expect about 250 sites per cluster for each structure
 
     all_radii = np.zeros(ntot)
+    all_energies = np.zeros(ntot)
     dcrits = np.zeros(nMACs)
     nb_neighbours = np.zeros(ntot,dtype='int')
 
-    nradii = 0
+    nsites = 0
     for k, n in enumerate(nn):
-        radii, d, degs = network_data(n,T,rmax,run_name)
+        radii, energies, d, degs = network_data(n,T,rmax,run_name)
         #print(radii)
         n_new = radii.shape[0]
         dcrits[k] = d
 
-        if nradii+n_new < ntot:
-            all_radii[nradii:nradii+n_new] = radii
-            nb_neighbours[nradii:nradii+n_new] = degs
+        if nsites+n_new < ntot:
+            all_radii[nsites:nsites+n_new] = radii
+            all_energies[nsites:nsites+n_new] = energies
+            nb_neighbours[nsites:nsites+n_new] = degs
         
         else:
             ntot += 50*nMACs
+
             tmp = np.zeros(ntot)
-            tmp[:nradii] = all_radii[:nradii]
-            tmp[nradii:nradii+n_new] = radii
+            tmp[:nsites] = all_radii[:nsites]
+            tmp[nsites:nsites+n_new] = radii
             all_radii = tmp
             
+            tmp = np.zeros(ntot)
+            tmp[:nsites] = all_energies[:nsites]
+            tmp[nsites:nsites+n_new] = energies
+            all_energies = tmp
+            
             tmp = np.zeros(ntot,dtype='int')
-            tmp[:nradii] = nb_neighbours[:nradii]
-            tmp[nradii:nradii+n_new] = degs
+            tmp[:nsites] = nb_neighbours[:nsites]
+            tmp[nsites:nsites+n_new] = degs
             nb_neighbours = tmp
         
-        nradii += n_new
+        nsites += n_new
     
-    return all_radii[:nradii], dcrits, nb_neighbours[:nradii]
+    return all_radii[:nsites], all_energies[:nsites],dcrits, nb_neighbours[:nsites]
+
+def gather_radii(nn, T, rmax, run_name):
+    return gather_data(nn, T, rmax, run_name)[0,2,3,4]
+
 
 
 
