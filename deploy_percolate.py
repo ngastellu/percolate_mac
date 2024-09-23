@@ -378,6 +378,7 @@ def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a
 
     # ******* Pre-compute distances *******
     centres = qcm.MO_com(pos,M)
+    centres = centres[:,:2]
 
     if np.abs(dV) > 0:
         dX = np.max(pos[:,0]) - np.min(pos[:,0])
@@ -403,7 +404,7 @@ def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a
     # Run percolation at different temperatures
     for k,T in enumerate(all_Ts):
         # ******* 5: Get spanning cluster *******
-        conduction_clusters, dcrit, A = percolate(energies, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr), coupled_MO_sets=(L,R))
+        conduction_clusters, dcrit, A, _ = percolate(energies, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(gamL, gamR), dArrs=(edArr,rdArr), coupled_MO_sets=(L,R))
 
         if dcrits_npy:
             dcrits[k] = dcrit

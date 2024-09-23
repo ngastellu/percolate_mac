@@ -362,7 +362,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
     if return_adjmat:
         return spanning_clusters, d, adj_mat, d_ind-1
     else:
-        return spanning_clusters, d
+        return spanning_clusters, d, d_ind-1
 
     
 def plot_cluster(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, show=True, centers=None, rel_center_size=2.0, inds=None, plt_objs=None):
