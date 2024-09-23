@@ -4,7 +4,7 @@ from os import path
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from qcnico.plt_utils import setup_tex, histogram, multiple_histograms, get_cm
+from qcnico.plt_utils import setup_tex, histogram, multiple_histograms, get_cm, MAC_ensemble_colours
 
 # @njit
 def network_data(sites_dir, percdir, nsample, T, pkl_prefix):
@@ -93,73 +93,42 @@ def gather_radii(percdir, nn, T, pkl_prefix,structype):
     return all_radii[:nradii], dcrits, nb_neighbours[:nradii]
 
       
-simdir = '/Users/nico/Desktop/simulation_outputs/percolation/'
-run_type = 'virt_100x100_gridMOs_eps_rho_1.05e-3'
-pkl_prefix = 'out_percolate_eps_rho_1.05e-3' 
-T = 180
+percdir = '/Users/nico/Desktop/simulation_outputs/percolation/'
+T = 300
 
 structypes = ['40x40', 'tempdot6', 'tempdot5']
-outer_dirs = [simdir + st + '/' for st in structypes]
+rmaxs = [18.03, 121.2, 198.69]
 
-dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
+clrs = MAC_ensemble_colours()
 
-ring_data_tempdot5 = np.load(dd_rings + 'avg_ring_counts_tempdot5_new_model_relaxed.npy')
-ring_data_pCNN = np.load(dd_rings + 'avg_ring_counts_normalised.npy')
-ring_data_tempdot6 = np.load(dd_rings + 'avg_ring_counts_tempdot6_new_model_relaxed.npy')
-
-p6c_tempdot6 = ring_data_tempdot6[4] / ring_data_tempdot6.sum()
-p6c_tempdot5 = ring_data_tempdot5[4] / ring_data_tempdot5.sum()
-p6c_pCNN = ring_data_pCNN[4]
-# p6c = np.array([p6c_tdot25, p6c_pCNN,p6c_t1,p6c_tempdot6])
-p6c = np.array([p6c_pCNN,p6c_tempdot6,p6c_tempdot5])
-
-clrs = get_cm(p6c, 'inferno',min_val=0.25,max_val=0.7)
-# lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
-lbls = ['sAMC-500', 'sAMC-400', 'sAMC-300']
-
-all_radii_ens = []
-dcrit_ens = []
-degs_ens = []
+lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300']
 
 setup_tex()
 
 fig, axs = plt.subplots(3,1,sharex=True)
 
-fig.suptitle(f'Site radii in percolating clusters at $T = {T}$K')
+bins = np.linspace(0,200,400)
 
-for k, outer_dir in enumerate(outer_dirs):
-    print(f'---------- {outer_dir.split("/")[-2]} ----------')
-    # sites_dir = outer_dir + f'var_radii_data/{run_type}/'
-    percdir = outer_dir + f'percolate_output/zero_field/{run_type}/'
-    good_runs_file = percdir + 'good_runs_eps_rho_1.05e-3.txt'
-    pkl_prefix = 'out_percolate_eps_rho_1.05e-3'
-    structype = outer_dir.split('/')[-2]
+fig.suptitle(f'Site radii in percolating clusters at $T = {T}$K (lowest MOs)')
 
-    fo = open(good_runs_file)
-    lines = fo.readlines()
-    fo.close()
-    nn = [int(l.strip()) for l in lines]
-    all_radii, dcrits, nb_neighbours = gather_radii(percdir,nn,T,pkl_prefix,structype)
+for st, rmax, ax, c, lbl in zip(structypes,rmaxs,axs,clrs,lbls):
+    print(f'---------- {st} ----------')
 
-    all_radii_ens.append(all_radii)
-    dcrit_ens.append(dcrits)
-    degs_ens.append(nb_neighbours)
-    fig, axs[k] = histogram(all_radii,nbins=100,plt_kwargs={'color':clrs[k],'label':lbls[k]},plt_objs=(fig,axs[k]),show=False,log_counts=False)
-    axs[k].legend()
+    cr_dir = path.join(percdir, st, 'percolate_output/zero_field/cluster_radii/') 
+    run_name = f'rmax_{rmax}_psipow2_sites_gammas_lo'
+    cluster_radii = np.load(path.join(cr_dir, f'clust_radii_{run_name}-{T}K.npy'))
+    rmax_ind = np.argmax(cluster_radii)
+    rmax = cluster_radii[rmax_ind]
+    hist, bin_edges = np.histogram(cluster_radii,bins=bins)
+    centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    dx = centers[1] - centers[0]
+    print(f'****** MAX RADII INFO FOR {st} ******')
+    print('\trmax = ', rmax)
+    print('\tState index = ', rmax_ind)
+    ax.bar(centers, hist,align='center',width=dx,color=c,label=lbl)
+    ax.legend()
+    ax.set_yscale('log')
+    ax.legend()
 
-axs[-1].set_xlabel('Site radii [\AA]')
+axs[-1].set_xlabel('Conducting site radii [\AA]')
 plt.show()
-
-
-for k in range(3):
-    rr = all_radii_ens[k]
-    dd = degs_ens[k]
-
-    fig, ax = plt.subplots()
-
-    ax.set_title(f'{lbls[k]} ensemble, $T = {T}K$')
-    ax.scatter(rr,dd,c=clrs[k],s=2.0)
-    ax.set_xlabel('Site radii [\AA]')
-    ax.set_ylabel('\# of neighbours')
-
-    plt.show()
