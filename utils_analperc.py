@@ -153,8 +153,7 @@ def ablation_Ea(dcrits,sample_sizes,temps=np.arange(40,440,10)):
         Eas[k], _ = arrhenius_fit(temps, sigmas, inv_T_scale=1000.0)
     return Eas
 
-
-def get_conduction_clusters(datadir, pkl_prefix, T):
+def get_conduction_data(datadir, pkl_prefix, T):
     try:
         pkl = pkl_prefix + f"-{T}K.pkl"
         fo = open(path.join(datadir,pkl),'rb')
@@ -163,6 +162,10 @@ def get_conduction_clusters(datadir, pkl_prefix, T):
         fo = open(path.join(datadir,pkl),'rb')
     dat = pickle.load(fo)
     fo.close()
+    return dat
+
+def get_conduction_clusters(datadir, pkl_prefix, T):
+    dat = get_conduction_data(datadir, pkl_prefix, T)
     clusters = dat[0]
     return clusters
 
