@@ -34,16 +34,15 @@ def filter_LR(gamL, gamR,tolscal=3.0):
 
 
 nn = int(sys.argv[1])
-runtype = 'mixed'
-motype = 'virtual'
+runtype = 'MOs_pure'
+motype = sys.argv[2]
 
 
 if runtype not in ['MOs_pure', 'sites_pure', 'mixed']:
     print(f'Invalid `runtype` {runtype}. Valid entries are:\n* "mixed": sites created by k-clustering, MO gammas;\n*"MOs_pure": MOs directly as sites;\n*"sites_pure": sites created by k-clustering, gammas obtained from site kets.\nExiting angrily.')
     sys.exit()
 
-gammas_dir = f'sample-{nn}/gammas/'
-gamma_npy_suffix = f'{runtype}_{motype}'
+subdir = runtype
 
 structype = os.path.basename(os.getcwd())
 strucdir = os.path.expanduser(f"~/scratch/clean_bigMAC/{structype}/relaxed_structures_no_dangle/")
@@ -65,7 +64,7 @@ pos = read_xyz(strucfile)
 
 if runtype == 'sites_pure' or runtype == 'mixed':
 
-    gamma_npy_suffix = f'rmax_{rmax}_' + gamma_npy_suffix
+    gammas_dir = f'sample-{nn}/gammas/{runtype}_rmax_{rmax}'
 
     if motype == 'virtual':
         sitesdir = f'sample-{nn}/sites_data_0.00105_psi_pow2/'
@@ -82,23 +81,26 @@ if runtype == 'sites_pure':
     nsites = M.shape[1]
     
     
-    if not os.path.exists(os.path.join(gammas_dir, f'gamL_{gamma_npy_suffix}')): # if gamL file does not exist; assume gamR doesn't either; compute both
+    if not os.path.exists(os.path.join(gammas_dir, f'gamL_{motype}')): # if gamL file does not exist; assume gamR doesn't either; compute both
         gamL, gamR = compute_gammas(pos, M)
-        save_npy(gamL, f'gamL_{gamma_npy_suffix}', gammas_dir)
-        save_npy(gamR, f'gamR_{gamma_npy_suffix}', gammas_dir)
+        save_npy(gamL, f'gamL_{motype}', gammas_dir)
+        save_npy(gamR, f'gamR_{motype}', gammas_dir)
     L, R = filter_LR(gamL, gamR)
 
 
 else: #kets_type == 'MOs':
+
+    gammas_dir = f'sample-{nn}/gammas/{runtype}' 
+
     if motype == 'virtual':
         M = np.load(os.path.expanduser(f"~/scratch/ArpackMAC/{structype}/MOs/{motype}/MOs_ARPACK_bigMAC-{nn}.npy"))
     else:
         M = np.load(os.path.expanduser(f"~/scratch/ArpackMAC/{structype}/MOs/{motype}/MOs_ARPACK_{motype}_{structype}-{nn}.npy"))
 
-    if not os.path.exists(os.path.join(gammas_dir, f'gamL_{gamma_npy_suffix}')): # if gamL file does not exist; assume gamR doesn't either; compute both
+    if not os.path.exists(os.path.join(gammas_dir, f'gamL_{motype}')): # if gamL file does not exist; assume gamR doesn't either; compute both
         gamL, gamR = compute_gammas(pos, M)
-        save_npy(gamL, f'gamL_{gamma_npy_suffix}', gammas_dir)
-        save_npy(gamR, f'gamR_{gamma_npy_suffix}', gammas_dir)
+        save_npy(gamL, f'gamL_{motype}', gammas_dir)
+        save_npy(gamR, f'gamR_{motype}', gammas_dir)
     L, R = filter_LR(gamL, gamR)
 
     if runtype == 'mixed':
