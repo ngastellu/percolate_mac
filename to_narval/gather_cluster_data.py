@@ -58,7 +58,7 @@ def network_data(nsample, T, rmax, run_name,gated=False):
 
 
 # @njit
-def gather_data(nn, T, rmax, run_name):
+def gather_data(nn, T, rmax, run_name, gated=False):
     nMACs = len(nn)
     ntot = 250*nMACs # expect about 250 sites per cluster for each structure
 
@@ -69,7 +69,7 @@ def gather_data(nn, T, rmax, run_name):
 
     nsites = 0
     for k, n in enumerate(nn):
-        radii, energies, d, degs = network_data(n,T,rmax,run_name)
+        radii, energies, d, degs = network_data(n,T,rmax,run_name, gated=gated)
         #print(radii)
         n_new = radii.shape[0]
         dcrits[k] = d
@@ -101,9 +101,11 @@ def gather_data(nn, T, rmax, run_name):
     
     return all_radii[:nsites], all_energies[:nsites],dcrits, nb_neighbours[:nsites]
 
-def gather_radii(nn, T, rmax, run_name):
-    return gather_data(nn, T, rmax, run_name)[0,2,3,4]
+def gather_radii(nn, T, rmax, run_name, gated=False):
+    return gather_data(nn, T, rmax, run_name, gated=gated)[0] 
 
+def gather_energies(nn, T, rmax, run_name, gated=False):
+    return gather_data(nn, T, rmax, run_name, gated=gated)[1] 
 
 
 
@@ -115,6 +117,7 @@ if __name__ == "__main__":
     structype=sys.argv[1]
     motype=sys.argv[2]
     T = int(sys.argv[3])
+    gated=True
 
     if structype == '40x40':
         rmax = 18.03
@@ -127,21 +130,21 @@ if __name__ == "__main__":
         sys.exit()
     
 
-    run_name = f'rmax_{rmax}_psipow2_sites_gammas_{motype}'
+    run_name = f'rmax_{rmax}_psipow2_sites_gammas'#_{motype}'
     
     with open(f'{run_name}_symlinks/good_runs_{run_name}.txt') as fo:
     #with open(f'to_local_{run_name}/good_runs_{run_name}.txt') as fo:
         nn = [int(l.strip()) for l in fo.readlines()]
     
-    cluster_radii, *_ = gather_radii(nn, T, rmax, run_name)
+    cluster_energies = gather_energies(nn, T, rmax, run_name,gated=gated)
 
-    outdir = f'cluster_radii/'
+    outdir = f'cluster_energies/'
 
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     
-    print(cluster_radii)
-    print(cluster_radii.shape)
-    np.save(os.path.join(outdir, f'clust_radii_{run_name}-{T}K.npy'), cluster_radii)
+    print(cluster_energies)
+    print(cluster_energies.shape)
+    np.save(os.path.join(outdir, f'clust_energies_{run_name}-{T}K.npy'), cluster_energies)
 
     
