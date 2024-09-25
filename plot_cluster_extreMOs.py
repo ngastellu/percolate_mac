@@ -1,21 +1,22 @@
 #!/usr/bin/env python
 
+import sys
 from os import path
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from qcnico import plt_utils
-from percolate import plot_cluster_brute_force, diff_arrs
-from qcnico.coords_io import read_xsf
-from qcnico.qchemMAC import MO_com
-from qcnico.remove_dangling_carbons import remove_dangling_carbons
+from percolate import diff_arrs_var_a
+from percplotting import plot_cluster_brute_force
+from qcnico.coords_io import read_xyz
+from qcnico.qchemMAC import MO_com, MO_rgyr
 
-def read_pkl(run_ind,temp,datadir):
+def read_pkl(run_ind,temp,datadir,pkl_prefix):
     #nsamples = len(run_inds)
     #ntemps = len(temps)
     sampdir = f"sample-{run_ind}"
-    pkl = f"out_percolate-{temp}K.pkl"
+    pkl = f"{pkl_prefix}-{temp}K.pkl"
     fo = open(path.join(datadir,sampdir,pkl),'rb')
     dat = pickle.load(fo)
     fo.close()
@@ -32,40 +33,102 @@ def check_dists(A, centres, energies, dcrit, T, a0=30):
             print(f"!!! YIKES: u({i}, {j}) = {dist} !!!")
 
 
-datadir=path.expanduser("~/Desktop/simulation_outputs/percolation/40x40")
+
+
+# ---------- MAIN ----------
+
+
+structype = 'tempdot6'
+nn = 69
+motype = 'hi'
+T = 300
+
+runtype = 'sites'
+
+if runtype not in ['MOs', 'sites']:
+    print(f'Invalid run type {runtype}. Valid entries are:\n* "sites": for runs using sites created by k-clustering;\n*"MOs": for runs using the MOs directly as sites.\nExiting angrily.')
+    sys.exit()
+
+
+if structype == '40x40':
+    rmax = 18.03
+    synth_temp ='500'
+elif structype == 'tempdot6':
+    rmax=121.2
+    synth_temp ='q400'
+elif structype == 'tempdot5':
+    rmax = 198.69
+    synth_temp = '300'
+else:
+    print(f'Structure type {structype} is invalid. Exiting angrily.')
+    sys.exit()
+
+if runtype == 'sites':
+    sitesdir = f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/var_radii_data/to_local_sites_data_0.00105_psi_pow2_{motype}/sample-{nn}/'
+
+pkl_prefix = f'out_percolate_rmax_{rmax}_psipow2_sites_gammas_{motype}'
+
+
+
+datadir=path.expanduser(f"~/Desktop/simulation_outputs/percolation/{structype}")
 rCC = 1.8
 
-mo_type = 'lo'
 
-posdir = path.join(datadir, 'structures')
-Mdir = path.join(datadir, f'MOs_ARPACK/{mo_type}/')
-edir = path.join(datadir, f'eARPACK/{mo_type}/')
-percdir = path.join(datadir, f'percolate_output/extremal_MOs/{mo_type}50')
+posdir = f'/Users/nico/Desktop/scripts/disorder_analysis_MAC/structures/sAMC-{synth_temp}/'
+Mdir = path.join(datadir, f'MOs_ARPACK/{motype}/')
+Sdir = f"/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structype}_rmax_{rmax}/"
+edir = path.join(datadir, f'eARPACK/{motype}/')
+percdir = path.join(datadir, f'percolate_output/zero_field/to_local_rmax_{rmax}_psipow2_sites_gammas_{motype}/')
+
+
+posfile = path.join(posdir, f'sAMC{synth_temp}-{nn}.xyz')
+
+if motype == 'virtual':
+    Mfile = path.join(Mdir,f'MOs_ARPACK_bigMAC-{nn}.npy')
+    Sfile = path.join(Sdir, f'site_kets_psipow2-{nn}.npy')
+    efile = path.join(edir, f'eARPACK_bigMAC-{nn}.npy')
+else:   
+    Mfile = path.join(Mdir,f'MOs_ARPACK_{motype}_{structype}-{nn}.npy')
+    Sfile = path.join(Sdir, f'site_kets_psipow2_{motype}-{nn}.npy')
+    efile = path.join(edir, f'eARPACK_{motype}_{structype}-{nn}.npy')
+
+energies = np.load(efile)
+pos = read_xyz(posfile)
+
+if runtype == 'MOs':
+    M = np.load(Mfile)
+    centres = MO_com(pos,M)
+    radii = MO_rgyr(pos,M)
+    energies = np.load(efile)
+else: 
+    M = np.load(Sfile)
+    M /= np.linalg.norm(M,axis=0)
+    centers = np.load(path.join(sitesdir, 'centers.npy'))
+    radii = np.load(path.join(sitesdir, 'radii.npy'))
+    energies = np.load(path.join(sitesdir, 'ee.npy'))
+
+
+
+filter = radii < rmax
+M = M[:,filter]
+radii = radii[filter]
+centers = centers[filter,:]
+energies = energies[filter]
+
+dat = read_pkl(nn,T,percdir,pkl_prefix)
+clusters = dat[0]
+print('Number of clusters = ', len(clusters))
+c = np.array(list(clusters[0]))
+dcrit = dat[1]
+print(c)
+A = dat[2]
+print('dcrit = ', dcrit)
 
 plt_utils.setup_tex()
 rcParams['font.size'] = 20
 
-for nn in [16]:
-    for T in [100,200,300,400]:
-        print(f'***** {T} *****')
-        posfile = path.join(posdir,f'bigMAC-{nn}_relaxed.xsf')
-        Mfile = path.join(Mdir,f'MOs_ARPACK_{mo_type}_bigMAC-{nn}.npy')
-        efile = path.join(edir, f'eARPACK_{mo_type}_bigMAC-{nn}.npy')
-        M = np.load(Mfile)
-        energies = np.load(efile)
-        pos = remove_dangling_carbons(read_xsf(posfile)[0],rCC)
-        dat = read_pkl(nn,T,percdir)
-        clusters = dat[0]
-        print('Number of clusters = ', len(clusters))
-        c = np.array(list(clusters[0]))
-        centres = MO_com(pos,M)
-        dcrit = dat[1]
-        print(c)
-        A = dat[2]
-        print('dcrit = ', dcrit)
-        check_dists(A,centres,energies,dcrit,T)
-        fig, ax = plt.subplots()
-        plot_cluster_brute_force(c,pos,M,A,show_densities=True, dotsize=2.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax))
-        ax.set_title(f'MAC sample {nn}, $T = {T}$K')
-        plt.show()
+fig, ax = plt.subplots()
+plot_cluster_brute_force(c,pos,M,A,show_densities=True, dotsize=2.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),centers=centers)
+ax.set_title(f'MAC sample {nn}, $T = {T}$K')
+plt.show()
 
