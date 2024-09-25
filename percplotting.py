@@ -67,13 +67,14 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, 
 
 def plot_cluster_brute_force(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, show=True, centers=None, rel_center_size=2.0, inds=None, plt_objs=None):
     pos = pos[:,:2]
+    N = pos.shape[0]
 
     c = np.sort(list(c))
     if centers is None:
         centers = qcm.MO_com(pos,M,c)
         inds = c
     else:
-        assert inds is not None, "[percolate.plot_cluster] If `centers` is passed, so must `inds`!"
+        # assert inds is not None, "[percolate.plot_cluster] If `centers` is passed, so must `inds`!"
         centers = centers[c,:]
         print(centers)
         
@@ -87,7 +88,9 @@ def plot_cluster_brute_force(c,pos, M, adjmat,show_densities=False,dotsize=20, u
 
     if show_densities:
         rho = np.sum(M[:,np.unique(inds)]**2,axis=1)
-        ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=dotsize, cmap='plasma',zorder=1)
+        sizes = np.ones(N) * dotsize
+        sizes[rho > 0.001] *= 10
+        ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=sizes, cmap='plasma',zorder=1)
         cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
 
     else:
