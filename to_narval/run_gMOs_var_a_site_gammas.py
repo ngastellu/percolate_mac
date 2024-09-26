@@ -25,9 +25,13 @@ else:
 temps = np.arange(40,440,10)
 dV = 0.0
 
-npydir = f'sites_data_0.00105_psi_pow{psipow}/'
-run_name = f'rmax_{rmax}_psipow{psipow}_sites_gammas'
+if mo_type == 'virtual':
+    npydir = f'sites_data_0.00105_psi_pow{psipow}/'
+    run_name = f'rmax_{rmax}_psipow{psipow}_sites_gammas_rotated'
+else:
+    npydir = f'sites_data_0.00105_psi_pow{psipow}_{mo_type}/'
+    run_name = f'rmax_{rmax}_psipow{psipow}_sites_gammas_{mo_type}_rotated'
 
 pos, e, M = load_data(n, struc_type, mo_type, gammas_method='none')
 S = np.load(npydir + 'site_state_matrix.npy')
-run_var_a_from_sites(pos,M,S,temps, dV, eF=0,hyperlocal=False,npydir=npydir,run_name=run_name,rmax=rmax)
+run_var_a_from_sites(pos,M,S,temps, dV, eF=0,hyperlocal=False,npydir=npydir,run_name=run_name,rmax=rmax,rotate=True)

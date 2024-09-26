@@ -7,6 +7,9 @@ import os
 import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xyz, read_xsf
+from qcnico.data_utils import save_npy
+from qcnico.rotate_pos import rotate_pos
+from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from .percolate import diff_arrs, percolate, generate_site_list, diff_arrs_var_a
 from utils_arpackMAC import remove_redundant_eigenpairs
 
@@ -287,7 +290,7 @@ def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=Fals
     ftrack.close()
 
 
-def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, sGammas=None,gamma=0.1,pkl_dir='.'):
+def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, sGammas=None,gamma=0.1,pkl_dir='.',rotate=False):
     
     # Ensure site kets are properly normalised
     S /= np.linalg.norm(S,axis=0)
@@ -317,6 +320,10 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
         ee = ee[igood]
         radii = radii[igood]
         S = S[:,igood]
+    
+    if rotate:
+        pos = rotate_pos(pos)
+        centres = rotate_pos(centres)
 
     if sGammas is None:
         print('Getting AO gamma...', end=' ')
@@ -327,6 +334,9 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
         cgamL, cgamR = qcm.MO_gammas(S, agaL, agaR, return_diag=True)
         end = perf_counter()
         print(f'Done! [{end - ao_end} seconds]')
+        save_npy(cgamL, f'gamL_{run_name}.npy', npydir)
+        save_npy(cgamR, f'gamR_{run_name}.npy', npydir)
+        
     else:
         cgamL, cgamR = sGammas
 
