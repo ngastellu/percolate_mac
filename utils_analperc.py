@@ -28,6 +28,27 @@ def get_dcrits(run_inds,temps,datadir, pkl_prefix='out_percolate'):
 
     return dcrits
 
+def load_dcrits(run_inds,run_name):
+    """Meant to be run on Narval"""
+    nsamples = len(run_inds)
+    data = np.load(f'sample-{run_inds[0]}/{run_name}_pkls/dcrits_{run_name}.npy')
+    temps = data[0,:]
+    dcrits = np.zeros((nsamples,temps.shape[0]))
+    dcrits[0] = data[1,:]
+    success = np.ones(nsamples,dtype='bool')
+    for k, nn in enumerate(run_inds[1:]):
+        print(f'\n{nn}', end =' ')
+        datadir = f"sample-{nn}/{run_name}_pkls/"
+        try:
+            dcrits[k+1,:] = np.load(path.join(datadir,f'dcrits_{run_name}.npy'))[1,:]
+        except:
+            print('NPY missing!')
+            success[k+1] = False
+            continue
+    return temps, dcrits[success,:]
+
+            
+
 
 def saddle_pt_sigma(dcrits,nbins=30):
     """Extracts the sigma(T) curve from a set of critical distances `dcrits`,
@@ -58,7 +79,7 @@ def rough_integral_sigma(dcrits,nbins=30):
     
 
 
-def arrhenius_fit(T, sigma, w0=1.0, inv_T_scale=1.0, return_for_plotting=False, x_start=0,x_end=None,return_err=False):
+def arrhenius_fit(T, sigma, w0=1.0, inv_T_scale=1.0, return_for_plotting=False, x_start=0, x_end=None,return_err=False):
     x = inv_T_scale / T # T is sorted in increasing order --> 1/T is in decreasing order
     y = np.log(w0*sigma/(kB*T))
     
