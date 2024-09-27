@@ -19,6 +19,7 @@ conv_factor = e2C*w0
 
 sigmasdir = '/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/'
 motype = 'lo'
+
 # temps = np.arange(40,440,10)[14:]
 
 r_maxs = ['18.03', '121.2', '198.69']
@@ -50,12 +51,15 @@ sigs = []
 for k, st, rr, cc, cl in zip(range(ndatasets), structypes, r_maxs, clrs, curve_lbls):
 
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    temps, sigmas, sigmas_err = np.load(path.join(sigmasdir, f'sigma_v_T_w_err_{st}_rmax_{rr}_psipow2_sites_gammas_{motype}.npy')).T
 
-    if k == 1:
-        temps = temps[14:]
-        sigmas = sigmas[14:]
-        sigmas_err = sigmas_err[14:]
+    #run_name = f'rmax_{rr}_psipow2_sites_gammas_{motype}''
+    run_name = f'{motype}_loc_var_a'
+    temps, sigmas, sigmas_err = np.load(path.join(sigmasdir, f'sigma_v_T_w_err_{st}_{run_name}.npy')).T
+
+    # if k == 1:
+    temps = temps[14:]
+    sigmas = sigmas[14:]
+    sigmas_err = sigmas_err[14:]
 
  
     slope, intercept, x, y, err_lr, interr_lr  = arrhenius_fit(temps, sigmas, inv_T_scale=1000.0, return_for_plotting=True, return_err=True, w0=conv_factor)
@@ -87,7 +91,7 @@ for k, st, rr, cc, cl in zip(range(ndatasets), structypes, r_maxs, clrs, curve_l
 ax.set_yscale('log')
 ax.set_xlabel('$1000/T$ [K$^{-1}$]')
 ax.set_ylabel('$\sigma$ [S/m]')
-# ax.set_title('Percolation with site size cutoff determined by largest crystallite area')
+ax.set_title('Percolation using low-lying MOs directly (no $k$-clustering)')
 
 plt.legend()
 plt.show()

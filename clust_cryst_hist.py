@@ -42,19 +42,19 @@ if __name__ == '__main__':
 
     for ax, st, r, lbl, c in zip(axs,structypes, rmaxs, lbls,clrs):
 
-        datadir = percdir + f'{st}/electronic_crystallinity/cluster_crystallinities_rmax_{r}_renormd_by_ncryst_atoms/'
+        datadir = percdir + f'{st}/electronic_crystallinity/cluster_crystallinities_rmax_{r}/'
         nn = get_struc_labels(datadir)
         # data = np.hstack([[np.load(f'sample-{n}/clust_cryst-{T}K.npy') for T in temps] for n in nn])
         data = concatenate_data(nn, temps, datadir)
         print(f'Max site crystallinity in {st} = {np.max(data)}')
-        hist, bins = np.histogram(data,bins=bins, density=True)
+        hist, bins = np.histogram(data,bins=bins)
         centers = (bins[1:] + bins[:-1]) * 0.5
         dx = centers[1] - centers[0]
 
         ax.bar(centers, hist,align='center',width=dx,color=c,label=lbl)
         ax.legend()
-        ax.set_ylabel('Density (log)')
-        ax.set_yscale('log')
+        ax.set_ylabel('Counts')
+        # ax.set_yscale('log')
         # print(f'{st} ensemble has {ntiny} radii <= 1')
 
     ax.set_xlabel('Conducting site crystallinity $\chi$')# / \# crystalline atoms in structure')
