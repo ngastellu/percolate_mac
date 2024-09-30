@@ -366,7 +366,7 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
     ftrack.close()
 
 
-def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a=False, run_name=None,pkl_dir=None,dcrits_npy=True):
+def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a=False, run_name=None,pkl_dir=None,dcrits_npy=True, rmax=None):
 
     if run_name is None:
         if var_a:
@@ -398,6 +398,13 @@ def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a
     
     if var_a:
         radii = qcm.MO_rgyr(pos, M, center_of_mass=centres)
+        if rmax is not None:
+            rfilter = radii < rmax
+            radii = radii[rfilter]
+            energies = energies[rfilter]
+            gamL = gamL[rfilter]
+            gamR = gamR[rfilter]
+            M = M[:,rfilter]
         edArr, rdArr = diff_arrs_var_a(energies, centres, radii, eF=eF, E=E)
 
     else:
