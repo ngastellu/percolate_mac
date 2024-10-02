@@ -18,7 +18,7 @@ w0 = 1e10
 conv_factor = e2C*w0
 
 sigmasdir = '/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/'
-motype = 'lo'
+motype = 'hi'
 
 # temps = np.arange(40,440,10)[14:]
 
@@ -53,7 +53,7 @@ for k, st, rr, cc, cl in zip(range(ndatasets), structypes, r_maxs, clrs, curve_l
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
 
     #run_name = f'rmax_{rr}_psipow2_sites_gammas_{motype}''
-    run_name = f'{motype}_loc_var_a'
+    run_name = f'{motype}_loc_var_a_rmax_{rr}'
     temps, sigmas, sigmas_err = np.load(path.join(sigmasdir, f'sigma_v_T_w_err_{st}_{run_name}.npy')).T
 
     # if k == 1:
@@ -91,7 +91,7 @@ for k, st, rr, cc, cl in zip(range(ndatasets), structypes, r_maxs, clrs, curve_l
 ax.set_yscale('log')
 ax.set_xlabel('$1000/T$ [K$^{-1}$]')
 ax.set_ylabel('$\sigma$ [S/m]')
-ax.set_title('Percolation using low-lying MOs directly (no $k$-clustering)')
+ax.set_title('Percolation using highest-energies MOs directly (no $k$-clustering, with $r_{cut}$)')
 
 plt.legend()
 plt.show()

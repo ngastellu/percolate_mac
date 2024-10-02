@@ -27,8 +27,8 @@ def create_struc_crystallinities_array(structype, nn, n_ccs):
     
     This is mean to prepare the crystallinity data for the scatter plot produced in this script."""
 
-    strucdir = os.path.expanduser('~/Desktop/simulation_outputs/structural_characteristics_MAC/fraction_cryst_atoms/')  
-    frac_cryst_atoms = np.load(strucdir + f'frac_cryst_atoms_{structype}.npy')
+    strucdir = os.path.expanduser('~/Desktop/simulation_outputs/structural_characteristics_MAC/nb_cryst_atoms/')  
+    frac_cryst_atoms = np.load(strucdir + f'nb_cryst_atoms_{structype}.npy')
 
     if structype == '40x40':
         nn -= 1 # 40x40 are indexed 1 --> 300
@@ -66,7 +66,7 @@ temps = np.arange(180,440,10)
 T = 280
 
 percdir = os.path.expanduser('~/Desktop/simulation_outputs/percolation/')
-strucdir = os.path.expanduser('~/Desktop/simulation_outputs/structural_characteristics_MAC/fraction_cryst_atoms/') 
+strucdir = os.path.expanduser('~/Desktop/simulation_outputs/structural_characteristics_MAC/nb_cryst_atoms/') 
 
 
 setup_tex()
@@ -93,7 +93,7 @@ for st, rmax, c, lbl in zip(ensembles,max_radii,clrs,official_labels):
     frac_cryst_atoms = frac_cryst_atoms[igood]
 
  
-    ax.scatter(frac_cryst_atoms, clustcryst, s=20.0,c=c,alpha=0.7,zorder=1,label=lbl)
+    ax.scatter(frac_cryst_atoms, clustcryst, s=2.0,c=c,alpha=0.7,zorder=1,label=lbl)
 
 ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=0.9)
 ax.set_xlabel('Fraction of crystalline atoms')
