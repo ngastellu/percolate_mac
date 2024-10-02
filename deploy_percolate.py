@@ -360,6 +360,9 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
         else:
             pkl_name = 'out_percolate_' + run_name + f'-{T}K.pkl'
 
+        if not os.path.isdir(pkl_dir):
+            os.mkdir(pkl_dir)
+
         with open(os.path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
         ftrack.write(f'{T}K\n')
