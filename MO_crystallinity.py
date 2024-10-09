@@ -6,9 +6,9 @@ import os
 from sites_analysis import undistorted_mask
 
 
-def MOs_crystallinity(M,cryst_mask,renormalise=False):
+def MOs_crystallinity(M,cryst_mask,cryst_renormalise=False):
     psi_cryst = M[cryst_mask,:] # only AOs on crystalline sites
-    if renormalise:
+    if cryst_renormalise:
         return (np.abs(psi_cryst)**2).sum(axis=0) / cryst_mask.sum()
     else:
         return (np.abs(psi_cryst)**2).sum(axis=0)
