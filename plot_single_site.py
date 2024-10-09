@@ -22,8 +22,9 @@ else:
     print(f'Structure type {structype} is invalid! Exiting with error.')
     sys.exit()
 
-istruc = 99
-istate = 12
+istruc = 9
+istate = 0
+motype = 'virtual'
 
 
 
@@ -32,7 +33,7 @@ simdir = os.path.expanduser('~/Desktop/simulation_outputs')
 posdir = os.path.join(simdir, f'MAC_structures/relaxed_no_dangle/{off_structype}')
 pos  = read_xyz(os.path.join(posdir, f'{('').join(off_structype.split('-'))}-{istruc}.xyz'))
 
-sitesdir = os.path.join(simdir, f'percolation/{structype}/var_radii_data/to_local_sites_data_0.00105_psi_pow2_hi/sample-{istruc}')
+sitesdir = os.path.join(simdir, f'percolation/{structype}/var_radii_data/sites_data_{motype}/sample-{istruc}')
 
 S = np.load(os.path.join(sitesdir, 'site_state_matrix.npy'))
 radii = np.load(os.path.join(sitesdir, 'radii.npy')) 
