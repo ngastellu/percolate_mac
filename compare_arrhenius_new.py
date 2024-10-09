@@ -18,7 +18,7 @@ w0 = 1e10
 conv_factor = e2C*w0
 
 sigmasdir = '/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/'
-motype = 'hi'
+motype = 'virtual'
 
 # temps = np.arange(40,440,10)[14:]
 
@@ -33,8 +33,8 @@ ndatasets = len(curve_lbls)
 setup_tex()
 
 
-rcParams['font.size'] = 20
-# rcParams['figure.figsize'] = [12.8,9.6]
+rcParams['font.size'] = 25
+# rcParams['figure.figsize'] = [8,7]
 
 fig, ax = plt.subplots()
 
@@ -50,21 +50,23 @@ sigs = []
 # for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
 for k, st, rr, cc, cl in zip(range(ndatasets), structypes, r_maxs, clrs, curve_lbls):
 
-    print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
+
+    # print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
 
     #run_name = f'rmax_{rr}_psipow2_sites_gammas_{motype}''
-    run_name = f'{motype}_loc_var_a_rmax_{rr}'
+    run_name = f'rmax_{rr}_sites_gammas_{motype}'
     temps, sigmas, sigmas_err = np.load(path.join(sigmasdir, f'sigma_v_T_w_err_{st}_{run_name}.npy')).T
 
     # if k == 1:
     temps = temps[14:]
     sigmas = sigmas[14:]
-    sigmas_err = sigmas_err[14:]
+    sigmas_err = sigmas_err[14:] * conv_factor / (kB*temps)
 
+    # sigs.append(sigmas)
  
     slope, intercept, x, y, err_lr, interr_lr  = arrhenius_fit(temps, sigmas, inv_T_scale=1000.0, return_for_plotting=True, return_err=True, w0=conv_factor)
     sigs.append(y)
-    print(sigmas_err.shape)
+    # print(sigmas_err.shape)
     eas[k] = -slope * kB * 1e6 # in meV
     errs_lr[k] = err_lr * kB * 1e6 #error in Ea estimate from `arrhenius_fit`, in meV
 
@@ -74,43 +76,24 @@ for k, st, rr, cc, cl in zip(range(ndatasets), structypes, r_maxs, clrs, curve_l
     # print(np.max(sigmas_err))
 
 
-    if k < 3:
-        ax.plot(x,np.exp(y),'o',label=cl,ms=10.0, c=cc)
-    else:
-        ax.plot(x,np.exp(y),'+',label=cl,ms=10.0, c=cc)
-    # ax.errorbar(1000/temps,sigmas,yerr=sigmas_err,fmt='-o',c=cc,label=cl,ms=5.0)
-    if k < 3:
-        ax.plot(x, np.exp(x*slope+intercept),'-',c=cc,lw=1.6)
-    else:
-        ax.plot(x, np.exp(x*slope+intercept),'--',c=cc,lw=1.6)
+    # ax.plot(x,np.exp(y),'o',label=cl,ms=7.0, c=cc)
+    ax.errorbar(1000/temps,sigmas*conv_factor/(kB*temps),yerr=sigmas_err,fmt='o',c=cc,label=cl,ms=5.0)
+    ax.plot(x, np.exp(x*slope+intercept),'-',c=cc,lw=1.2)
     
-    if k >= 3:
-        print(f'\n--- Avg ratio between conductivities from |psi| and |psi|^2 sites = {np.mean(sigmas / sigs[k-3])}\n ---')
+
 
   
 ax.set_yscale('log')
 ax.set_xlabel('$1000/T$ [K$^{-1}$]')
 ax.set_ylabel('$\sigma$ [S/m]')
-ax.set_title('Percolation using highest-energies MOs directly (no $k$-clustering, with $r_{cut}$)')
+# ax.set_title('Percolation using mid-band virtual MOs (with $k$-clustering and $r_{cut}$)')
 
 plt.legend()
 plt.show()
 
 
-# print(p6c)
+# for k, s in enumerate(sigs):
+#     print(f'\n----------{k}----------')
+#     print(s)
 
-# ii = np.argsort(p6c)
-
-# fig, ax = plt.subplots()
-# # ax.plot(p6c, eas,'ro',ms=5.0)
-# # ax.plot(p6c,eas, 'r-',lw=0.8)
-# ax.errorbar(p6c[ii],eas[ii],yerr=errs_lr[ii],fmt='-o',label='linregress')
-# # ax.errorbar(p6c,eas2,yerr=errs_cf,fmt='-o',label='curve fit')
-
-# ax.set_xlabel('Proprtion of crystalline hexagons $p_{6c}$')
-# ax.set_ylabel('$E_{a}$ [meV]')
-# # plt.legend()
-# plt.show()
-
-# plt.plot(x,sigs[1]/sigs[0],'-o')
-# plt.show()
+# print(np.exp(sigs[1])/np.exp(sigs[2]))
