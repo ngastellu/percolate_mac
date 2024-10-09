@@ -61,7 +61,7 @@ def save_conduction_masks(datadir, sites_mask, temps, perc_run_name):
         
         np.save(path.join(datadir, f'conduction_cluster_masks_{perc_run_name}_psipow2-{T}K.npy'), cluster_mask)
 
-def cluster_crystallinity(datadir,cryst_mask,site_kets,T,perc_run_name,renormalise_by_cryst_size=False):
+def cluster_crystallinity(datadir,cryst_mask,site_kets,T,perc_run_name,renormalise_by_cryst_size=False,return_cluster=False):
     """Does a similar analysis as the `MO_crystallinity`, but this time focusing only on sites from the conduction clusters at a given temperature.
     
     !!! N.B: ASSUME SITE KETS ARE ALREADY NORMALISED !!! """
@@ -78,10 +78,13 @@ def cluster_crystallinity(datadir,cryst_mask,site_kets,T,perc_run_name,renormali
             print('Returning -1.')
             return np.array([-1])
 
-    cluster_sites = site_kets[:,list(cluster)]
+    cluster_list = list(cluster)
+    cluster_sites = site_kets[:,cluster_list]
     cluster_crystallinity = np.sum(cluster_sites[cryst_mask,:]**2,axis=0)
     if renormalise_by_cryst_size:
-        return cluster_crystallinity / cryst_mask.sum()
+        cluster_crystallinity /= cryst_mask.sum()
+    if return_cluster:
+        return cluster_crystallinity, cluster_list
     else:
         return cluster_crystallinity
                 
