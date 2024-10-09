@@ -188,6 +188,22 @@ def get_conduction_data(datadir, pkl_prefix, T):
 def get_conduction_clusters(datadir, pkl_prefix, T):
     dat = get_conduction_data(datadir, pkl_prefix, T)
     clusters = dat[0]
+    # Empty clusters usually arise because the max intersite distance is the percolating
+    # threshold, and the percolation code stops right before looking at the last pair.
+    # If clusters is empty, check that the number of connected sites = N*(N-1)/2 - 1.
+    # If yes, the cluster is the set of all sites.
+    # If not, there's something VERY weird going on.
+    if len(clusters[0]) == 0:
+        print(f'Empty cluster found for T = {T}K!')
+        A = dat[2]
+        N = A.shape
+        nbonded_pairs = A.sum() / 2
+        npairs_tot = N*(N-1) / 2
+        print(f'# of connected pairs = ', nbonded_pairs)
+        print(f'Total # of pairs = ', npairs_tot)
+        if nbonded_pairs == npairs_tot - 1: # -1 bc last pair is missing
+            print('Retruning all sites as cluster.')
+            clusters = [np.arange(N)]
     return clusters
 
 def conduction_mask(sites_mask, cluster):
