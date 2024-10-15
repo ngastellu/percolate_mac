@@ -102,7 +102,7 @@ T = 300
 motype = 'virtual'
 
 
-setup_tex(fontsize=25)
+setup_tex(fontsize=70)
 rcParams['figure.figsize'] = [8,7]
 fig, ax = plt.subplots()
 
@@ -114,12 +114,16 @@ for st, c, lbl in zip(ensembles,clrs,official_labels):
 
     print('% of 0 cryst condistes = ', (clustcryst < 1e-10).sum()*100/clustcryst.shape[0])
  
-    ax.scatter(frac_cryst_atoms, clustcryst, s=2.0,c=c,alpha=0.7,zorder=1,label=lbl)
+    ax.scatter(frac_cryst_atoms, clustcryst, s=30.0,c=c,alpha=0.7,zorder=1,label=lbl)
 
-ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=0.9)
-ax.set_xlabel('Fraction of crystalline atoms')
-ax.set_ylabel('Conducting site crystallinity')
-ax.legend()
+# ax.plot(np.linspace(1/6,1,1000),1.0/np.linspace(1/6,1,1000),'k--',lw=0.9)
+ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=3.0)
+ax.set_xlabel('Fraction of crystalline atoms $\phi_c$')
+ax.set_ylabel('Conducting site crystallinity $\chi$\n')
+ax.tick_params('x',which='major',length=10,width=1.6)
+ax.tick_params('y',which='major',length=10,width=1.6)
+ax.set_aspect('equal')
+# ax.legend()
 
 # ax.set_title(f'Conducting clusters of sites from {motype} MOs at $T = {T}$K')
 
