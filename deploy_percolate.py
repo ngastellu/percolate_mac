@@ -290,7 +290,7 @@ def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=Fals
     ftrack.close()
 
 
-def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, sGammas=None,gamma=0.1,pkl_dir='.',rotate=False):
+def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, sGammas=None,gamma=0.1,pkl_dir='.',rotate=False,dcrits_npy=True):
     
     # Ensure site kets are properly normalised
     S /= np.linalg.norm(S,axis=0)
@@ -348,9 +348,16 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
     tracker_file = f'finished_temps_{run_name}_sites_var_a.txt'
     ftrack = open(tracker_file,'w')
 
-    for T in all_Ts:
+    if dcrits_npy:
+        dcrits = np.zeros(all_Ts.shape[0])
+
+    for k, T in enumerate(all_Ts):
         # ******* 5: Get spanning cluster *******
         conduction_clusters, dcrit, A, iidprev = percolate(ee, pos, M, T, gamL_tol=gamL_tol,gamR_tol=gamR_tol, return_adjmat=True, distance='logMA',MOgams=(cgamL, cgamR), dArrs=(edArr,rdArr))
+
+        if dcrits_npy:
+            dcrits[k] = dcrit
+
         
         if run_name is None:
             if hyperlocal:
@@ -367,6 +374,9 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
             pickle.dump((conduction_clusters,dcrit,A), fo)
         ftrack.write(f'{T}K\n')
     ftrack.close()
+
+    if dcrits_npy:
+        np.save(os.path.join(pkl_dir, f'dcrits.npy'),np.vstack((all_Ts,dcrits)))
 
 
 def run_locMOs(pos, energies, M,gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, var_a=False, run_name=None,pkl_dir=None,dcrits_npy=True, rmax=None):
