@@ -193,10 +193,10 @@ def get_conduction_clusters(datadir, pkl_prefix, T):
     # If clusters is empty, check that the number of connected sites = N*(N-1)/2 - 1.
     # If yes, the cluster is the set of all sites.
     # If not, there's something VERY weird going on.
-    if len(clusters[0]) == 0:
+    if len(clusters) == 0:
         print(f'Empty cluster found for T = {T}K!')
         A = dat[2]
-        N = A.shape
+        N = A.shape[0]
         nbonded_pairs = A.sum() / 2
         npairs_tot = N*(N-1) / 2
         print(f'# of connected pairs = ', nbonded_pairs)

@@ -75,7 +75,6 @@ for k, st, rr, cc, cl in zip(range(ndatasets), structypes, r_maxs, clrs, curve_l
     # print(np.sort(dcrits)[[0,-1]])
     # print(np.max(sigmas_err))
 
-
     # ax.plot(x,np.exp(y),'o',label=cl,ms=7.0, c=cc)
     ax.errorbar(1000/temps,sigmas*conv_factor/(kB*temps),yerr=sigmas_err,fmt='o',c=cc,label=cl,ms=5.0)
     ax.plot(x, np.exp(x*slope+intercept),'-',c=cc,lw=1.2)
