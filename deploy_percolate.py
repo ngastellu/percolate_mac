@@ -290,7 +290,7 @@ def run_var_a(pos, M, gamL, gamR, all_Ts, dV, tolscal=3.0, eF=0, hyperlocal=Fals
     ftrack.close()
 
 
-def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, sGammas=None,gamma=0.1,pkl_dir='.',rotate=False,dcrits_npy=True):
+def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=False,npydir='./var_a_npys',run_name=None,rmax=None, dE_max=None, sGammas=None,gamma=0.1,pkl_dir='.',rotate=False,dcrits_npy=True):
     
     # Ensure site kets are properly normalised
     S /= np.linalg.norm(S,axis=0)
@@ -313,13 +313,25 @@ def run_var_a_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperlocal=F
         E = np.array([dV/dX,0])
     else:
         E = np.array([0.0,0.0])
+    
+    nsites = ee.shape[0]
 
     if rmax is not None:
-        igood = (radii < rmax).nonzero()[0]
-        centres = centres[igood]
-        ee = ee[igood]
-        radii = radii[igood]
-        S = S[:,igood]
+        rfilter = radii < rmax
+    else:
+        rfilter = np.ones(nsites,dtype='bool')
+
+    if dE_max is not None:
+        efilter = np.abs(ee - eF) <= dE_max # max allowed distance from Fermi energy
+    else:
+        efilter = np.ones(nsites, dtype='bool')
+    
+    igood = (rfilter * efilter).nonzero()[0] # apply both filters, get remaining valid indices
+
+    centres = centres[igood]
+    ee = ee[igood]
+    radii = radii[igood]
+    S = S[:,igood]
     
     if rotate:
         pos = rotate_pos(pos)
