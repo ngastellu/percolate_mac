@@ -80,7 +80,7 @@ def make_plot_array(structype, motype, T):
 def average_cluster_crystallinity(datadir, temps):
     """For each structure of a given ensemble (specified by `datadir`), returns the average crystallinity of all sites contained in 
     a conducting cluster.
-    The avergae is performed over all sites in clusters from all temperatures."""
+    The average is performed over all sites in clusters from all temperatures."""
     nn = np.sort([int(d.split('-')[1]) for d in os.listdir(datadir)])
     avg_crysts = np.zeros(len(nn))
     for k, n in enumerate(nn):
@@ -99,10 +99,10 @@ clrs = MAC_ensemble_colours()
 temps = np.arange(180,440,10)
 T = 300
 
-motype = 'virtual'
+motype = 'kBTlo'
 
 
-setup_tex(fontsize=70)
+setup_tex(fontsize=95)
 rcParams['figure.figsize'] = [8,7]
 fig, ax = plt.subplots()
 
