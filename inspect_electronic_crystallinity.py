@@ -99,7 +99,7 @@ clrs = MAC_ensemble_colours()
 temps = np.arange(180,440,10)
 T = 300
 
-motype = 'kBTlo'
+motype = 'virtual'
 
 
 setup_tex(fontsize=95)
