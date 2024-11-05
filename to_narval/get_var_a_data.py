@@ -21,7 +21,7 @@ pos, energies, M, gamL, gamR = load_data(n, struc_type, mo_type, gammas_method='
 N = pos.shape[0]
 
 # Get rid of HOMO when generating sites; we only include it in the MOs and energies to readily compute eF
-if mo_type == 'virtual' and (N%2==0):
+if mo_type == 'virtual_w_HOMO' and (N%2==0):
     energies = energies[1:]
     M = M[:,1:]
     gamL = gamL[1:]

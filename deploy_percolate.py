@@ -14,7 +14,7 @@ from .MOs2sites import generate_site_list_opt
 from .utils_arpackMAC import remove_redundant_eigenpairs
 
 
-def load_data(sample_index, structype, motype,gammas_method='compute'):
+def load_data(sample_index, structype, motype,gammas_method='compute',sort_energies=False):
     """ Loads atomic positions, energies, MOs, and coupling matrices of a given MAC structure.
     This function aims to be be common to all percolation runs (gridMOs or not, etc.). """
 
@@ -44,9 +44,10 @@ def load_data(sample_index, structype, motype,gammas_method='compute'):
     M =  np.load(mo_path)
 
     # Sort energies/MOs
-    eii = np.argsort(energies)
-    energies = energies[eii]
-    M = M[:,eii]
+    if sort_energies:
+        eii = np.argsort(energies)
+        energies = energies[eii]
+        M = M[:,eii]
     
     pos_path = path.join(pos_dir,posfile)
     pos = read_xyz(pos_path)

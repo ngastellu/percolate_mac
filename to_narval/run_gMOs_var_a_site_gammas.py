@@ -39,11 +39,11 @@ pkl_dir = f'{run_name}_pkls/'
 pos, e, M = load_data(n, struc_type, mo_type, gammas_method='none',sort_energies=True)
 S = np.load(npydir + 'site_state_matrix.npy')
 
-if mo_type == 'lo':
+if mo_type == 'lo' or mo_type == 'virtual':
    efermi = np.min(e)
 elif mo_type == 'hi': 
     efermi = np.max(e)
-else: # mo_type is 'virtual': using mid-band states (we assume `e` is sorted here)
+else: # mo_type is 'virtual_w_HOMO': using mid-band states (we assume `e` is sorted here)
     N = pos.shape[0]
     if N % 2 == 0:
         eHOMO = e[0]
