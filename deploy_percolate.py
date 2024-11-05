@@ -42,6 +42,11 @@ def load_data(sample_index, structype, motype,gammas_method='compute'):
 
     energies = np.load(energy_path)
     M =  np.load(mo_path)
+
+    # Sort energies/MOs
+    eii = np.argsort(energies)
+    energies = energies[eii]
+    M = M[:,eii]
     
     pos_path = path.join(pos_dir,posfile)
     pos = read_xyz(pos_path)

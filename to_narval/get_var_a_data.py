@@ -15,10 +15,18 @@ from var_a_percolate_mac.deploy_percolate import load_data
 n = int(sys.argv[1])
 struc_type = sys.argv[2]
 mo_type = sys.argv[3]
-psipow = 2
+psipow=2
 
+pos, energies, M, gamL, gamR = load_data(n, struc_type, mo_type, gammas_method='compute', sort_energies=True)
+N = pos.shape[0]
 
-pos, energies, M, gamL, gamR = load_data(n, struc_type, mo_type, gammas_method='compute')
+# Get rid of HOMO when generating sites; we only include it in the MOs and energies to readily compute eF
+if mo_type == 'virtual' and (N%2==0):
+    energies = energies[1:]
+    M = M[:,1:]
+    gamL = gamL[1:]
+    gamR = gamR[1:]
+
 pos = pos[:,:2]
 tree = KDTree(pos)
 
@@ -36,68 +44,13 @@ centers, radii, ee, ii,labels, site_matrix = generate_sites_radii_list(pos, M, L
 end = perf_counter()
 print(f'Done! [{end-start} seconds]')
 
-#
-#    print('Generating HYPERLOCAL sites and radii now...')
-#    start = perf_counter()
-#    centers_hl, radii_hl, ee_hl, ii_hl, labels_hl site_matrix_hl = generate_sites_radii_list(pos, M, L, R, energies,hyperlocal='all', radii_rho_threshold=eps_rho,flag_empty_clusters=flag_empty_clusters,max_r=max_r,return_labelled_atoms=True,return_site_matrix=True, amplitude_pow=1)
-#    end = perf_counter()
-#    print(f'Done! [{end-start} seconds]')
-#
-#    masses = np.zeros(radii.shape[0])
-#    r_sorted = np.zeros(radii.shape[0])
-#    e_sorted = np.zeros(radii.shape[0])
-#    site_iprs = np.zeros(radii.shape[0])
-#    k = 0
-#
-#    masses_hl = np.zeros(radii_hl.shape[0])
-#    r_sorted_hl = np.zeros(radii_hl.shape[0])
-#    e_sorted_hl = np.zeros(radii_hl.shape[0])
-#    site_iprs_hl = np.zeros(radii_hl.shape[0])
-#    m = 0
-#    print('Total # of sites = ', radii.shape[0])
-#    for n in range(M.shape[1]):
-#        jj = (ii == n)
-#        nsites = jj.sum()
-#        print(f'{n} ---> nsites = {nsites}')
-#        cc = centers[jj,:]
-#        rr = radii[jj]
-#        e_sorted[k:k+nsites] = ee[jj]
-#        psi = M[:,n]
-#        r_sorted[k:k+nsites] = rr
-#        masses[k:k+nsites] = sites_mass(psi,tree,cc,rr)
-#        site_iprs[k:k+nsites] = sites_ipr(psi,labels[n],eps_rho=eps_rho)
-#        k += nsites
-#        print(f'new k = {k}\n')
-#
-#        jj = (ii_hl == n)
-#        nsites = jj.sum()
-#        print(f'{n} ---> nsites = {nsites}')
-#        cc = centers_hl[jj,:]
-#        rr = radii_hl[jj]
-#        e_sorted_hl[m:m+nsites] = ee_hl[jj]
-#        psi = M[:,n]
-#        r_sorted_hl[m:m+nsites] = rr
-#        masses_hl[m:m+nsites] = sites_mass(psi,tree,cc,rr)
-#        site_iprs_hl[m:m+nsites] = sites_ipr(psi,labels_hl[n],eps_rho=eps_rho)
-#        m += nsites
-    #print(f'new m = {m}\n')
-
-
-npydir = f'sites_data_{eps_rho}_psi_pow{psipow}_{mo_type}' 
+npydir = f'sites_data_{mo_type}' 
 if not os.path.isdir(npydir):
     os.mkdir(npydir)
 
-np.save(npydir + 'ee.npy', ee)
-np.save(npydir + 'radii.npy', radii)
-np.save(npydir + 'centers.npy', centers)
-np.save(npydir + 'ii.npy', ii)
+np.save(os.path.join(npydir,'ee.npy'), ee)
+np.save(os.path.join(npydir, 'radii.npy'), radii)
+np.save(os.path.join(npydir, 'centers.npy'), centers)
+np.save(os.path.join(npydir, 'ii.npy'), ii)
 #    np.save(npydir + 'rr_v_masses_v_iprs_v_ee.npy',np.vstack((r_sorted,masses,site_iprs,e_sorted)))
-np.save(npydir + 'site_state_matrix.npy',site_matrix)
-
-
-#np.save(npydir + 'ee_hl.npy', ee_hl)
-#np.save(npydir + 'radii_hl.npy', radii_hl)
-#np.save(npydir + 'centers_hl.npy', centers_hl)
-#np.save(npydir + 'ii_hl.npy', ii_hl)
-#np.save(npydir + 'rr_v_masses_v_iprs_v_ee_hl.npy',np.vstack((r_sorted_hl,masses_hl,site_iprs_hl,e_sorted_hl)))
-#np.save(npydir + 'site_state_matrix_hl.npy',site_matrix)
+np.save(os.path.join(npydir, 'site_state_matrix.npy'),site_matrix)
