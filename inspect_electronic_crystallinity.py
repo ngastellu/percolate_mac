@@ -114,7 +114,7 @@ for st, c, lbl in zip(ensembles,clrs,official_labels):
 
     print('% of 0 cryst condistes = ', (clustcryst < 1e-10).sum()*100/clustcryst.shape[0])
  
-    ax.scatter(frac_cryst_atoms, clustcryst, s=30.0,c=c,alpha=0.7,zorder=1,label=lbl)
+    ax.scatter(frac_cryst_atoms, clustcryst, s=60.0,c=c,alpha=0.7,zorder=1,label=lbl)
 
 # ax.plot(np.linspace(1/6,1,1000),1.0/np.linspace(1/6,1,1000),'k--',lw=0.9)
 ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=3.0)

@@ -33,7 +33,7 @@ clrs = MAC_ensemble_colours()
 setup_tex()
 
 
-rcParams['font.size'] = 95
+rcParams['font.size'] = 120
 # rcParams['figure.figsize'] = [8,7]
 
 fig, ax = plt.subplots()
@@ -64,6 +64,7 @@ fig, ax = plt.subplots()
 
 for st, rmax, lbl, c, zz in zip(structypes,r_maxs,ensemble_lbls,clrs,zorders):
     print(f'\n---------- {st} ----------')
+    plot_sigmas = np.zeros(3)
     for x, mt in zip(range(1,4),motypes):
         if mt == 'kBTlo_dcut500' and st == '40x40':
             temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_sites_gammas_kBTlo.npy').T
@@ -71,18 +72,16 @@ for st, rmax, lbl, c, zz in zip(structypes,r_maxs,ensemble_lbls,clrs,zorders):
             temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_sites_gammas_{mt}.npy').T
         kselect = (temps==T).nonzero()[0]
         sigma = sigmas[kselect] * conv_factor / (kB*T)
+        plot_sigmas[x-1] = sigma
         sig_err = sig_errs[kselect] * conv_factor / (kB*T)
-        if x == 1:
-            ax.plot(x, sigma, 'o', ms=30.0, c=c,label=lbl)
-        else:
-            ax.plot(x, sigma, 'o', ms=30.0, c=c)
+        print(f'{mt} ---> {sigma} ± {sig_err}')
+    ax.plot(range(1,4), plot_sigmas, 'o-', ms=30.0, c=c,label=lbl,lw=2.5)
 
         #     ax.errorbar(x,sigma,yerr=sig_err,fmt='o',label=lbl,ms=10.0,lw=2.0,c=c,zorder=zz)
         # else:
         #     ax.errorbar(x,sigma,yerr=sig_err,fmt='o',ms=10.0,lw=2.0,c=c,zorder=zz)
         # axins.errorbar(x,sigma,yerr=sig_err,fmt='o',ms=30.0,lw=15.0,c=c)
         
-        print(f'{mt} ---> {sigma} ± {sig_err}')
 
 # ax.indicate_inset_zoom(axins,edgecolor='k')
 
@@ -91,7 +90,7 @@ ax.set_ylabel('$\sigma$ [S/m]')
 ax.set_xlabel('Chemical potential $\mu$')
 ax.set_xticks(range(1,4),gate_names)
 ax.tick_params('both',which='major',length=10,width=1.6)
-ax.set_box_aspect(1)
+# ax.set_box_aspect(1)
 plt.legend()
 plt.show()
 
