@@ -99,14 +99,16 @@ clrs = MAC_ensemble_colours()
 temps = np.arange(180,440,10)
 T = 300
 
-motype = 'kBThi'
+motype = 'virtual'
 
 
-setup_tex(fontsize=50)
-fontsize_axes = 70
+rcParams['font.size']= 45
+rcParams['mathtext.fontset'] = 'cm'
+rcParams['font.family'] = 'sans-serif'
+fontsize_axes = 45
 rcParams['figure.figsize'] = [8,7]
 fig, ax = plt.subplots()
-fig.subplots_adjust(bottom=0.201,top=0.99)
+fig.subplots_adjust(bottom=0.177,top=0.98)
 
 
 for st, c, lbl in zip(ensembles,clrs,official_labels):
@@ -121,7 +123,7 @@ for st, c, lbl in zip(ensembles,clrs,official_labels):
 # ax.plot(np.linspace(1/6,1,1000),1.0/np.linspace(1/6,1,1000),'k--',lw=0.9)
 ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=2.0)
 ax.set_xlabel('Fraction of crystalline atoms $\phi_c$',fontsize=fontsize_axes)
-ax.set_ylabel('Conducting site\ncrystallinity $\chi$',fontsize=fontsize_axes)
+ax.set_ylabel('Conducting site\ncrystallinity $\chi$',fontsize=fontsize_axes,labelpad=20.0)
 ax.tick_params('x',which='major',length=3,width=0.9)
 ax.tick_params('y',which='major',length=3,width=0.9)
 ax.set_aspect('equal')

@@ -24,20 +24,25 @@ motypes = ['kBTlo_dcut500','virtual','kBThi']
 
 r_maxs = ['18.03', '121.2', '198.69']
 ensemble_lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300']
-gate_names = ['$\epsilon_0$', '$\epsilon_{\\text{F}}$', '$\epsilon_N - 4 k_{\\text{B}}T$']
+gate_names = [r'$\epsilon_0$', r'$\epsilon_{\mathsf{F}}$', r'$\epsilon_N - \mathsf{4} k_{\mathsf{B}}T$']
 structypes=['40x40', 'tempdot6', 'tempdot5']
 zorders=[3,2,1]
 
 clrs = MAC_ensemble_colours()
 
-setup_tex()
+# setup_tex()
+rcParams['mathtext.fontset'] = 'cm'
+rcParams['font.family'] = 'sans-serif'
+# rcParams['font.weight'] = 'light'
+# rcParams['font.sans-serif'] = 'sans-serif'
 
 
-rcParams['font.size'] = 50
+rcParams['font.size'] = 45
 # rcParams['figure.figsize'] = [8,7]
 
 fig, ax = plt.subplots()
-fig.subplots_adjust(bottom=0.201,top=0.99)
+fig.subplots_adjust(bottom=0.177,top=0.98)
+# tick_font_ppties = {'font':'Computer Modern Sans Serif'}
 
 #------ Inset code ------
 # inset_xlims = [1.9,2.1]
@@ -86,11 +91,16 @@ for st, rmax, lbl, c, zz in zip(structypes,r_maxs,ensemble_lbls,clrs,zorders):
 
 # ax.indicate_inset_zoom(axins,edgecolor='k')
 
-fontsize_axes = 70
+fontsize_axes = 45
+
+# for label in ax.get_xticklabels():
+#     label.set_fontproperties(tick_font_ppties)
+# for label in ax.get_yticklabels():
+#     label.set_fontproperties(tick_font_ppties)
 
 ax.set_yscale('log')
-ax.set_ylabel('$\sigma$ [S/m]',fontsize=fontsize_axes)
-ax.set_xlabel('Chemical potential $\mu$',fontsize=fontsize_axes)
+ax.set_ylabel(r'$\sigma$ [S/m]',fontsize=fontsize_axes)
+ax.set_xlabel(r'Chemical potential $\mu$',fontsize=fontsize_axes)
 ax.set_xticks(range(1,4),gate_names)
 ax.tick_params('both',which='major',length=10,width=1.6)
 ax.set_box_aspect(1)
