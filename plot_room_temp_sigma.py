@@ -33,10 +33,11 @@ clrs = MAC_ensemble_colours()
 setup_tex()
 
 
-rcParams['font.size'] = 120
+rcParams['font.size'] = 50
 # rcParams['figure.figsize'] = [8,7]
 
 fig, ax = plt.subplots()
+fig.subplots_adjust(bottom=0.201,top=0.99)
 
 #------ Inset code ------
 # inset_xlims = [1.9,2.1]
@@ -75,7 +76,7 @@ for st, rmax, lbl, c, zz in zip(structypes,r_maxs,ensemble_lbls,clrs,zorders):
         plot_sigmas[x-1] = sigma
         sig_err = sig_errs[kselect] * conv_factor / (kB*T)
         print(f'{mt} ---> {sigma} ± {sig_err}')
-    ax.plot(range(1,4), plot_sigmas, 'o-', ms=30.0, c=c,label=lbl,lw=2.5)
+    ax.plot(range(1,4), plot_sigmas, 'o-', ms=20.0, c=c,label=lbl,lw=1.5)
 
         #     ax.errorbar(x,sigma,yerr=sig_err,fmt='o',label=lbl,ms=10.0,lw=2.0,c=c,zorder=zz)
         # else:
@@ -85,13 +86,15 @@ for st, rmax, lbl, c, zz in zip(structypes,r_maxs,ensemble_lbls,clrs,zorders):
 
 # ax.indicate_inset_zoom(axins,edgecolor='k')
 
+fontsize_axes = 70
+
 ax.set_yscale('log')
-ax.set_ylabel('$\sigma$ [S/m]')
-ax.set_xlabel('Chemical potential $\mu$')
+ax.set_ylabel('$\sigma$ [S/m]',fontsize=fontsize_axes)
+ax.set_xlabel('Chemical potential $\mu$',fontsize=fontsize_axes)
 ax.set_xticks(range(1,4),gate_names)
 ax.tick_params('both',which='major',length=10,width=1.6)
-# ax.set_box_aspect(1)
-plt.legend()
+ax.set_box_aspect(1)
+# plt.legend()
 plt.show()
 
 

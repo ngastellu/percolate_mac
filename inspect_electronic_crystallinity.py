@@ -99,12 +99,14 @@ clrs = MAC_ensemble_colours()
 temps = np.arange(180,440,10)
 T = 300
 
-motype = 'virtual'
+motype = 'kBThi'
 
 
-setup_tex(fontsize=95)
+setup_tex(fontsize=50)
+fontsize_axes = 70
 rcParams['figure.figsize'] = [8,7]
 fig, ax = plt.subplots()
+fig.subplots_adjust(bottom=0.201,top=0.99)
 
 
 for st, c, lbl in zip(ensembles,clrs,official_labels):
@@ -114,14 +116,14 @@ for st, c, lbl in zip(ensembles,clrs,official_labels):
 
     print('% of 0 cryst condistes = ', (clustcryst < 1e-10).sum()*100/clustcryst.shape[0])
  
-    ax.scatter(frac_cryst_atoms, clustcryst, s=60.0,c=c,alpha=0.7,zorder=1,label=lbl)
+    ax.scatter(frac_cryst_atoms, clustcryst, s=30.0,c=c,alpha=0.7,zorder=1,label=lbl)
 
 # ax.plot(np.linspace(1/6,1,1000),1.0/np.linspace(1/6,1,1000),'k--',lw=0.9)
-ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=3.0)
-ax.set_xlabel('Fraction of crystalline atoms $\phi_c$')
-ax.set_ylabel('Conducting site crystallinity $\chi$\n')
-ax.tick_params('x',which='major',length=10,width=1.6)
-ax.tick_params('y',which='major',length=10,width=1.6)
+ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=2.0)
+ax.set_xlabel('Fraction of crystalline atoms $\phi_c$',fontsize=fontsize_axes)
+ax.set_ylabel('Conducting site\ncrystallinity $\chi$',fontsize=fontsize_axes)
+ax.tick_params('x',which='major',length=3,width=0.9)
+ax.tick_params('y',which='major',length=3,width=0.9)
 ax.set_aspect('equal')
 # ax.legend()
 
