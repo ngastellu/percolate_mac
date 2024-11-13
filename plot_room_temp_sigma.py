@@ -18,11 +18,12 @@ T = 300
 conv_factor = e2C*w0
 
 sigmasdir = '/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/'
-motypes = ['kBTlo_dcut500','virtual','kBThi']
+# motypes = ['kBTlo_dcut500','virtual','kBThi']
+motypes = ['lo','virtual','hi']
 
 # temps = np.arange(40,440,10)[14:]
 
-r_maxs = ['18.03', '121.2', '198.69']
+r_maxs = ['18.03', '136.47', '199.33']
 ensemble_lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300']
 gate_names = [r'$\epsilon_0$', r'$\epsilon_{\mathsf{F}}$', r'$\epsilon_N - \mathsf{4} k_{\mathsf{B}}T$']
 structypes=['40x40', 'tempdot6', 'tempdot5']

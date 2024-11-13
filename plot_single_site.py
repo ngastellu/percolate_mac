@@ -13,25 +13,25 @@ import sys
 structype = 'tempdot5'
 
 if structype == 'tempdot5':
-    off_structype = 'sAMC-300'
+    synth_temp = '300'
 elif structype == 'tempdot6':
-    off_structype = 'sAMC-q400'
+    synth_temp = 'q400'
 elif structype == '40x40':
-    off_structype = 'sAMC-500'
+    synth_temp = '500'
 else:
     print(f'Structure type {structype} is invalid! Exiting with error.')
     sys.exit()
 
-istruc = 9
-istate = 0
-motype = 'virtual'
+istruc = 1
+# istate = 123
+motype = 'lo'
 
 
 
 simdir = os.path.expanduser('~/Desktop/simulation_outputs')
 
-posdir = os.path.join(simdir, f'MAC_structures/relaxed_no_dangle/{off_structype}')
-pos  = read_xyz(os.path.join(posdir, f'{('').join(off_structype.split('-'))}-{istruc}.xyz'))
+posdir = os.path.join(simdir, f'MAC_structures/relaxed_no_dangle/sAMC-{synth_temp}')
+pos  = read_xyz(os.path.join(posdir, f'sAMC{synth_temp}-{istruc}.xyz'))
 
 sitesdir = os.path.join(simdir, f'percolation/{structype}/var_radii_data/sites_data_{motype}/sample-{istruc}')
 
@@ -39,6 +39,8 @@ S = np.load(os.path.join(sitesdir, 'site_state_matrix.npy'))
 radii = np.load(os.path.join(sitesdir, 'radii.npy')) 
 centers = np.load(os.path.join(sitesdir, 'centers.npy')) 
 ii = np.load(os.path.join(sitesdir, 'ii.npy'))
+
+istate = np.argmax(radii)
 
 MO_index = ii[istate]
 print(f'MO index of site {istate} =  {MO_index}')
