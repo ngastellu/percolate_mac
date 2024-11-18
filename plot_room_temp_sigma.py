@@ -19,7 +19,7 @@ conv_factor = e2C*w0
 
 sigmasdir = '/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/'
 # motypes = ['kBTlo_dcut500','virtual','kBThi']
-motypes = ['lo','virtual','hi']
+motypes = ['lo','virtual_w_HOMO','hi']
 
 # temps = np.arange(40,440,10)[14:]
 
@@ -38,11 +38,12 @@ rcParams['font.family'] = 'sans-serif'
 # rcParams['font.sans-serif'] = 'sans-serif'
 
 
-rcParams['font.size'] = 45
+fontsize = 60
+rcParams['font.size'] = fontsize
 # rcParams['figure.figsize'] = [8,7]
 
 fig, ax = plt.subplots()
-fig.subplots_adjust(bottom=0.177,top=0.98)
+fig.subplots_adjust(bottom=0.202,top=0.99)
 # tick_font_ppties = {'font':'Computer Modern Sans Serif'}
 
 #------ Inset code ------
@@ -73,10 +74,10 @@ for st, rmax, lbl, c, zz in zip(structypes,r_maxs,ensemble_lbls,clrs,zorders):
     print(f'\n---------- {st} ----------')
     plot_sigmas = np.zeros(3)
     for x, mt in zip(range(1,4),motypes):
-        if mt == 'kBTlo_dcut500' and st == '40x40':
-            temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_sites_gammas_kBTlo.npy').T
+        if st == '40x40' and mt != 'virtual_w_HOMO':
+            temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_sites_gammas_kBT{mt}.npy').T
         else:
-            temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_sites_gammas_{mt}.npy').T
+            temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_{mt}.npy').T
         kselect = (temps==T).nonzero()[0]
         sigma = sigmas[kselect] * conv_factor / (kB*T)
         plot_sigmas[x-1] = sigma
@@ -100,10 +101,10 @@ fontsize_axes = 45
 #     label.set_fontproperties(tick_font_ppties)
 
 ax.set_yscale('log')
-ax.set_ylabel(r'$\sigma$ [S/m]',fontsize=fontsize_axes)
-ax.set_xlabel(r'Chemical potential $\mu$',fontsize=fontsize_axes)
-ax.set_xticks(range(1,4),gate_names)
-ax.tick_params('both',which='major',length=10,width=1.6)
+ax.set_ylabel(r'$\sigma$ [S/m]',fontsize=fontsize)
+ax.set_xlabel(r'Chemical potential $\mu$',fontsize=fontsize)
+ax.tick_params('both',which='major',length=10,width=1.6,labelsize=fontsize_axes)
+ax.set_xticks(range(1,4),gate_names,fontsize=fontsize_axes+5)
 ax.set_box_aspect(1)
 # plt.legend()
 plt.show()

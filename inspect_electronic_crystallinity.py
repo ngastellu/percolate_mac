@@ -12,18 +12,17 @@ from qcnico.plt_utils import MAC_ensemble_colours, setup_tex
 def get_successful_istruc(cc_datadir):
     """Obtain list of structure indices for which a specific percolation calculation ran successfully (and for which we therefore have cluster crystallinity data)."""
     
-    return np.sort([int(d.split('-')[1]) for d in os.listdir(cc_datadir)])
+    return np.sort([int(npy.split('-')[1].split('.')[0]) for npy in os.listdir(cc_datadir)])
 
 
 def get_cluster_crystallinities(cc_datadir, n, T):
     return np.load(os.path.join(cc_datadir, f'sample-{n}/clust_cryst-{T}K.npy'))
 
 
-def get_cluster_crystallinities_ensemble(datadir, T):
+def get_cluster_crystallinities_ensemble(nn, datadir, T):
     "For a given ensemble, load the crystallinities of all the sites in the percolating cluster of all structures, at temperature T."
-    nn = get_successful_istruc(datadir)
     lens = np.zeros(nn.shape[0],dtype='int')
-    npys = [datadir + f'sample-{n}/clust_cryst-{T}K.npy' for n in nn]
+    npys = [datadir + f'clust_cryst-{n}.npy' for n in nn]
     clust_crysts = np.load(npys[0])
     lens[0] = clust_crysts.shape[0]
     for k, f in enumerate(npys[1:]):
@@ -31,7 +30,7 @@ def get_cluster_crystallinities_ensemble(datadir, T):
         clust_crysts = np.hstack([clust_crysts, new_cc])
         lens[k+1] = new_cc.shape[0] 
 
-    return nn, clust_crysts, lens
+    return clust_crysts, lens
 
 def get_struc_crystallinities(structype, nn, n_ccs):
     strucdir = os.path.expanduser('~/Desktop/simulation_outputs/structural_characteristics_MAC/fraction_cryst_atoms/')  
@@ -54,18 +53,21 @@ def make_plot_array(structype, motype, T):
 
     if structype == '40x40':
         rmax = 18.03
+        nn = get_successful_istruc(os.path.expanduser(f'~/Desktop/simulation_outputs/percolation/40x40/electronic_crystallinity/cluster_crystallinities_sites_gammas/cluster_crystallinities_rmax_{rmax}_{motype}_300K/'))
     elif structype == 'tempdot6':
-        rmax = 121.2
+        rmax = 136.47
+        nn = np.load('/Users/nico/Desktop/simulation_outputs/structural_characteristics_MAC/ifiltered_MRO_tempdot6.npy')    
     elif structype == 'tempdot5':
-        rmax = 198.69
+        rmax = 199.33
+        nn = np.load('/Users/nico/Desktop/simulation_outputs/structural_characteristics_MAC/ifiltered_MRO_tempdot5.npy')    
     else:
         print(f'Invalid structure type {structype}. Returning 0 awkwardly.')
     
     percdir = os.path.expanduser('~/Desktop/simulation_outputs/percolation/')
-    strucdir = os.path.expanduser('~/Desktop/simulation_outputs/structural_characteristics_MAC/nb_cryst_atoms/') 
 
-    cc_datadir = percdir + f'{st}/electronic_crystallinity/cluster_crystallinities_sites_gammas/cluster_crystallinities_rmax_{rmax}_sites_gammas_{motype}/'
-    nn, clust_crysts, n_cond_sites = get_cluster_crystallinities_ensemble(cc_datadir,T)
+    cc_datadir = percdir + f'{st}/electronic_crystallinity/cluster_crystallinities_sites_gammas/cluster_crystallinities_rmax_{rmax}_{motype}_300K/'
+
+    clust_crysts, n_cond_sites = get_cluster_crystallinities_ensemble(nn,cc_datadir,T)
 
     if structype == '40x40':
         nn -= 1 # indices from PixelCNN are 1-indexed
@@ -99,16 +101,16 @@ clrs = MAC_ensemble_colours()
 temps = np.arange(180,440,10)
 T = 300
 
-motype = 'virtual'
+motype = 'hi'
 
 
 rcParams['font.size']= 45
 rcParams['mathtext.fontset'] = 'cm'
 rcParams['font.family'] = 'sans-serif'
-fontsize_axes = 45
+fontsize_axes = 60
 rcParams['figure.figsize'] = [8,7]
 fig, ax = plt.subplots()
-fig.subplots_adjust(bottom=0.177,top=0.98)
+fig.subplots_adjust(bottom=0.198,top=0.99)
 
 
 for st, c, lbl in zip(ensembles,clrs,official_labels):
@@ -122,7 +124,8 @@ for st, c, lbl in zip(ensembles,clrs,official_labels):
 
 # ax.plot(np.linspace(1/6,1,1000),1.0/np.linspace(1/6,1,1000),'k--',lw=0.9)
 ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=2.0)
-ax.set_xlabel('Fraction of crystalline atoms $\phi_c$',fontsize=fontsize_axes)
+# ax.set_xlabel('Fraction of crystalline atoms $\phi_c$',fontsize=fontsize_axes)
+ax.set_xlabel('$\phi_c$',fontsize=fontsize_axes+10)
 ax.set_ylabel('Conducting site\ncrystallinity $\chi$',fontsize=fontsize_axes,labelpad=20.0)
 ax.tick_params('x',which='major',length=3,width=0.9)
 ax.tick_params('y',which='major',length=3,width=0.9)
