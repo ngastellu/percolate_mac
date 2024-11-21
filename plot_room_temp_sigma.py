@@ -11,11 +11,12 @@ from qcnico.plt_utils import MAC_ensemble_colours, setup_tex
 kB = 8.617e-5
 e2C = 1.602177e-19 # elementary charge to Coulomb
 w0 = 1e12
+fudge_factor= 1e3
 T = 300
 
 # This factor combines the hop frequency with the unit conversion (to yield conductivity in siemens)
 # w0 is chosen such that the final result matches the results from the AMC paper.
-conv_factor = e2C*w0
+conv_factor = e2C*w0*fudge_factor
 
 sigmasdir = '/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/'
 # motypes = ['kBTlo_dcut500','virtual','kBThi']
