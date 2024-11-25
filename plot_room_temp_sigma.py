@@ -10,13 +10,12 @@ from qcnico.plt_utils import MAC_ensemble_colours, setup_tex
 
 kB = 8.617e-5
 e2C = 1.602177e-19 # elementary charge to Coulomb
-w0 = 1e12
-fudge_factor= 1e3
+w0 = 1e15
 T = 300
 
 # This factor combines the hop frequency with the unit conversion (to yield conductivity in siemens)
 # w0 is chosen such that the final result matches the results from the AMC paper.
-conv_factor = e2C*w0*fudge_factor
+conv_factor = e2C*w0
 
 sigmasdir = '/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/'
 # motypes = ['kBTlo_dcut500','virtual','kBThi']
@@ -102,7 +101,7 @@ fontsize_axes = 45
 #     label.set_fontproperties(tick_font_ppties)
 
 ax.set_yscale('log')
-ax.set_ylabel(r'$\sigma$ [S/m]',fontsize=fontsize)
+ax.set_ylabel(r'$G$ [S]',fontsize=fontsize)
 ax.set_xlabel(r'Chemical potential $\mu$',fontsize=fontsize)
 ax.tick_params('both',which='major',length=10,width=1.6,labelsize=fontsize_axes)
 ax.set_xticks(range(1,4),gate_names,fontsize=fontsize_axes+5)
