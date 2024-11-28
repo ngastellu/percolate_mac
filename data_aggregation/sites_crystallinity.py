@@ -13,7 +13,7 @@ cryst_mask_type = sys.argv[2]
 psipow=2
 eps_rho = 0.00105
 motype = 'virtual'
-renormalise = False
+renormalise = 'fraction'
 
 if ensemble == '40x40':
     lbls = np.arange(1,300)
@@ -32,7 +32,9 @@ sites_datadir = f'sites_data_{eps_rho}_psi_pow{psipow}/'
 
 
 for n in lbls:  
-    if renormalise:
+    if renormalise == 'fraction'
+        outdir = f'sample-{n}/sites_crystallinities_{cryst_mask_type}_{ensemble}_renormd_by_frac_cryst_atoms/'
+    elif renormalise == 'ntotal'
         outdir = f'sample-{n}/sites_crystallinities_{cryst_mask_type}_{ensemble}_renormd_by_nb_cryst_atoms/'
     else:
         outdir = f'sample-{n}/sites_crystallinities_{cryst_mask_type}_{ensemble}/'
