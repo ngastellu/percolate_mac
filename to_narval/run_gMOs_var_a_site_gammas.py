@@ -4,24 +4,24 @@ import sys
 from os import path
 import numpy as np
 from var_a_percolate_mac.deploy_percolate import load_data
-from rollback_percolate_mac.deploy_percolate import run_var_a_from_sites
+from var_a_percolate_mac.deploy_percolate import run_var_a_from_sites
 
 
 n = int(sys.argv[1])
 struc_type = sys.argv[2]
 mo_type = sys.argv[3]
 
-rmax = np.inf
+# rmax = np.inf
 
 if struc_type == '40x40':
-   rmax = 18.03
-elif struc_type == 'tempdot6':
-   rmax = 121.2
-elif struc_type == 'tempdot5':
-   rmax = 198.69
+  rmax = 18.03
+elif struc_type == 'tempdot6' or struc_type == 'equil_tempdot6':
+  rmax = 136.47
+elif struc_type == 'tempdot5' or struc_type == 'equil_tempdot5':
+  rmax = 199.33
 else:
-   print(f'Structure type {struc_type} is not a valid  entry. Exiting now.')
-   sys.exit()
+  print(f'Structure type {struc_type} is not a valid  entry. Exiting now.')
+  sys.exit()
 
 #temps = np.arange(40,440,10)
 temps=np.array([300])
@@ -32,8 +32,8 @@ e_thermal = 4 * kB *Tref
 
 
 npydir = f'sites_data_{mo_type}/'
-# run_name = f'no_rmax_sites_gammas_kBT{mo_type}'
-run_name = f'rmax_{rmax}_{mo_type}'
+# run_name = f'no_rmax_{mo_type}'
+run_name = f'rerun_rmax_{rmax}_{mo_type}'
 pkl_dir = f'{run_name}_pkls/'
 
 pos, e, M = load_data(n, struc_type, mo_type, gammas_method='none',sort_energies=True)
