@@ -277,7 +277,7 @@ def run_percolate_from_sites(pos, M, S, all_Ts, dV, tol_scal=3.0 ,eF=0, hyperloc
     gamL_tol = np.mean(cgamL) + tol_scal * np.std(cgamL)
     gamR_tol = np.mean(cgamR) + tol_scal * np.std(cgamR)
     
-    edArr, rdArr = diff_arrs_var_a(ee, centres, radii, eF=eF, E=E)
+    edArr, rdArr, _ = diff_arrs_var_a(ee, centres, radii, eF=eF, E=E)
     
     tracker_file = f'finished_temps_{run_name}_sites_var_a.txt'
     ftrack = open(tracker_file,'w')
