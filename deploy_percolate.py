@@ -32,8 +32,8 @@ def load_data(sample_index, structype, motype='',compute_gammas=True,run_locatio
             mo_dir = path.join(arpackdir,'dense_tb_eigvecs')
             e_dir = path.join(arpackdir,'dense_tb_eigvals')
         else:
-            mo_dir = path.join(arpackdir,'MOs')
-            e_dir = path.join(arpackdir,'energies')
+            mo_dir = path.join(arpackdir,'MOs/virtual_w_HOMO')
+            e_dir = path.join(arpackdir,'energies/virtual_w_HOMO')
 
     
     else: #running things locally
