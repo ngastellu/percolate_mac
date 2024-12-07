@@ -5,7 +5,7 @@ from time import perf_counter
 from os import path
 import numpy as np
 import qcnico.qchemMAC as qcm
-from qcnico.coords_io import read_xsf
+from qcnico.coords_io import read_xsf, read_xyz
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
 from percolate import diff_arrs, percolate, generate_site_list_opt,\
         diff_arrs_w_inds, jitted_percolate
@@ -21,18 +21,12 @@ def load_data(sample_index, structype, motype='',compute_gammas=True,run_locatio
 
     if run_location == 'narval':
         arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
+        pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/relaxed_structures_no_dangle/')
 
-        if structype == '40x40':
-                pos_dir = path.expanduser('~/scratch/clean_bigMAC/40x40/relax/no_PBC/relaxed_structures')
-                posfile = f'bigMAC-{sample_index}_relaxed.xsf'
-        elif structype == '20x20':
-                pos_dir = path.expanduser('~/scratch/clean_bigMAC/20x20/relax/relaxed_structures')
-                posfile = f'bigMAC-{sample_index}_relaxed.xsf'
-
+        if structype == '40x40' or structype == '20x20':
+            posfile = f'bigMAC-{sample_index}_relaxed_no-dangle.xyz'
         else:
-                arpackdir = path.expanduser(f'~/scratch/ArpackMAC/{structype}')
-                pos_dir = path.expanduser(f'~/scratch/clean_bigMAC/{structype}/sample-{sample_index}/')
-                posfile = f'{structype}n{sample_index}_relaxed.xsf'
+            posfile = f'{structype}n{sample_index}_relaxed_no-dangle.xyz'
         
         if full_spectrum:
             mo_dir = path.join(arpackdir,'dense_tb_eigvecs')
@@ -67,11 +61,12 @@ def load_data(sample_index, structype, motype='',compute_gammas=True,run_locatio
     M =  np.load(mo_path)
     
     pos_path = path.join(pos_dir,posfile)
-    pos, _ = read_xsf(pos_path)
-
-    rCC = 1.8
-    pos = remove_dangling_carbons(pos, rCC)
     
+    if posfile.split('.')[-1] == 'xsf':
+        pos, _ = read_xsf(pos_path)
+    else:
+        pos = read_xyz(pos_path)
+ 
     # ******* 2: Get gammas *******
     if compute_gammas:
         gamma = 0.1
@@ -213,8 +208,9 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
     
     edArr, rdArr, ij = diff_arrs_w_inds(sites_energies, sites_pos, a0=a0, eF=eF, E=E)
     
-    k=0
-    for T in all_Ts:
+    dcrits = np.zeros(all_Ts.shape[0])
+
+    for k,T in enumerate(all_Ts):
         print(f'******* T = {T} K *******')
         darr = rdArr + (edArr / (kB * T))
         start = perf_counter()
@@ -233,7 +229,9 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
         with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
             pickle.dump((conduction_clusters,dcrit,A), fo)
         print('Saved successfully.\n', flush=True)
-        k+=1
+        dcrits[k] = dcrit
+    
+    np.save('dcrits.npy',np.vstack((all_Ts,dcrits)))
 
 
 def run_percolate_locMOs(pos, energies, M,gamL, gamR, all_Ts, eF, dV, tolscal=3.0, pkl_dir='.'):
