@@ -6,7 +6,7 @@ import numpy as np
 from numba import njit
 import qcnico.qchemMAC as qcm
 from qcnico.graph_tools import components
-from MOs2sites import *
+from .MOs2sites import *
 from scipy import sparse
 
 @njit

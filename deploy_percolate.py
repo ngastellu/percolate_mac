@@ -7,7 +7,7 @@ import numpy as np
 import qcnico.qchemMAC as qcm
 from qcnico.coords_io import read_xsf, read_xyz
 from qcnico.remove_dangling_carbons import remove_dangling_carbons
-from percolate import diff_arrs, percolate, generate_site_list_opt,\
+from .percolate import diff_arrs, percolate, generate_site_list_opt,\
         diff_arrs_w_inds, jitted_percolate
 
 from utils_arpackMAC import remove_redundant_eigenpairs
@@ -32,8 +32,8 @@ def load_data(sample_index, structype, motype='',compute_gammas=True,run_locatio
             mo_dir = path.join(arpackdir,'dense_tb_eigvecs')
             e_dir = path.join(arpackdir,'dense_tb_eigvals')
         else:
-            mo_dir = path.join(arpackdir,'MOs/virtual_w_HOMO')
-            e_dir = path.join(arpackdir,'energies/virtual_w_HOMO')
+            mo_dir = path.join(arpackdir,'MOs')
+            e_dir = path.join(arpackdir,'energies')
 
     
     else: #running things locally
@@ -226,9 +226,9 @@ def run_percolate(sites_pos, sites_energies, L, R, all_Ts, dV, eF=0, a0=30, pkl_
             pkl_name = f'out_jitted_percolate-{T}K.pkl'
         else:
             pkl_name = f'out_percolate-{T}K.pkl'
-        with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
-            pickle.dump((conduction_clusters,dcrit,A), fo)
-        print('Saved successfully.\n', flush=True)
+        #with open(path.join(pkl_dir, pkl_name), 'wb') as fo:
+        #    pickle.dump((conduction_clusters,dcrit,A), fo)
+        #print('Saved successfully.\n', flush=True)
         dcrits[k] = dcrit
     
     np.save('dcrits.npy',np.vstack((all_Ts,dcrits)))

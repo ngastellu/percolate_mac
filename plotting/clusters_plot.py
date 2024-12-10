@@ -6,7 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from qcnico import plt_utils
-from percolate import plot_cluster_brute_force, diff_arrs
+from percolate import  diff_arrs
+from percplotting import plot_cluster_brute_force
 from qcnico.coords_io import read_xsf
 
 def get_data(run_ind,temp,datadir):
@@ -31,14 +32,14 @@ def check_dists(A, centres, energies, dcrit, T, a0=30):
 datadir=path.expanduser("~/Desktop/simulation_outputs/percolation/40x40/percolate_output")
 
 posdir = path.join(path.dirname(datadir), 'structures')
-Mdir = path.join(path.dirname(datadir), 'MOs_ARPACK')
-edir = path.join(path.dirname(datadir), 'eARPACK')
+Mdir = path.join(path.dirname(datadir), 'MOs_ARPACK/virtual')
+edir = path.join(path.dirname(datadir), 'eARPACK/virtual')
 
 plt_utils.setup_tex()
-rcParams['font.size'] = 20
+rcParams['font.size'] = 40
 
 nn = 99
-for T in [100,200,300,400]:
+for T in [300]:
     posfile = path.join(posdir,f'bigMAC-{nn}_relaxed.xsf')
     Mfile = path.join(Mdir,f'MOs_ARPACK_bigMAC-{nn}.npy')
     efile = path.join(edir, f'eARPACK_bigMAC-{nn}.npy')
