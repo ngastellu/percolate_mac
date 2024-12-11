@@ -4,8 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from scipy.optimize import curve_fit
-from qcnico.plt_utils import setup_tex, get_cm
+from qcnico.plt_utils import setup_tex, MAC_ensemble_colours
 from utils_analperc import get_dcrits, saddle_pt_sigma, arrhenius_fit
+
 
 def sigma_errorbar(dcrits):
     """IDEA: Estimate uncertainty in sigma(T) for each T by omitting one structure from the data set
@@ -37,61 +38,16 @@ w0 = 1e10
 # w0 is chosen such that the final result matches the results from the AMC paper.
 conv_factor = e2C*w0
 
-temps = np.arange(40,440,10)[14:]
-# temps = np.arange(200,435,5)
+temps_start_ind = 0
 
-tdot25dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tdot25/percolate_output/zero_field/virt_100x100_gridMOs/'
-pCNNdir = '/Users/nico/Desktop/simulation_outputs/percolation/40x40/percolate_output/zero_field/100x100_gridMOs/'
-t1dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/t1/percolate_output/zero_field/virt_100x100_gridMOs/'
-tempdot6_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot6/percolate_output/zero_field/virt_100x100_gridMOs/'
-tempdot5_dir = '/Users/nico/Desktop/simulation_outputs/percolation/Ata_structures/tempdot5/percolate_output/zero_field/virt_100x100_gridMOs/'
+sigmas_dir = '/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/'
 
+structypes = ['40x40', 'tempdot6', 'tempdot5']
+curve_lbls = ['sAMC-500', 'sAMC-q400', 'sAMC-300']
+clrs = MAC_ensemble_colours()
 
 
-tdot25_lbls = list(set(range(30)) - {0, 5, 8, 18, 20, 21, 25, 26})
-
-with open(pCNNdir + 'good_runs.txt') as fo:
-    pCNN_lbls = [int(l.strip()) for l in fo.readlines()]
-
-with open(t1dir + 'good_runs.txt') as fo:
-    t1_lbls = [int(l.strip()) for l in fo.readlines()]
-
-with open(tempdot6_dir + 'good_runs.txt') as fo:
-    tdot6_lbls = [int(l.strip()) for l in fo.readlines()]
-
-tdot5_lbls = range(32)
-
-dd_rings = '/Users/nico/Desktop/simulation_outputs/ring_stats_40x40_pCNN_MAC/'
-
-ring_data_tdot25 = np.load(dd_rings + 'avg_ring_counts_tdot25_relaxed.npy')
-ring_data_t1 = np.load(dd_rings + 'avg_ring_counts_t1_relaxed.npy')
-ring_data_pCNN = np.load(dd_rings + 'avg_ring_counts_normalised.npy')
-ring_data_tempdot6 = np.load(dd_rings + 'avg_ring_counts_tempdot6_new_model_relaxed.npy')
-
-p6c_tdot25 = ring_data_tdot25[4] / ring_data_tdot25.sum()
-p6c_t1 = ring_data_t1[3] / ring_data_t1.sum()
-p6c_tempdot6 = ring_data_tempdot6[4] / ring_data_tempdot6.sum()
-p6c_pCNN = ring_data_pCNN[3]
-# p6c = np.array([p6c_tdot25, p6c_pCNN,p6c_t1,p6c_tempdot6])
-p6c = np.array([p6c_pCNN,p6c_tempdot6])
-
-# clrs = get_cm(p6c, 'inferno',min_val=0.25,max_val=0.7)
-
-
-cyc = rcParams['axes.prop_cycle'] #default plot colours are stored in this `cycler` type object
-clrs = [d['color'] for d in list(cyc[0:3])]
-
-# ddirs = [tdot25dir, pCNNdir, t1dir, tempdot6_dir]
-ddirs = [pCNNdir, tempdot6_dir, tempdot5_dir]
-# run_lbls = [tdot25_lbls,pCNN_lbls,t1_lbls,tdot6_lbls]
-run_lbls = [pCNN_lbls,tdot6_lbls,tdot5_lbls]
-# curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 1$', '$\\tilde{T} = 0.6$']
-# curve_lbls = ['$\\tilde{T} = 0.25$', 'PixelCNN', '$\\tilde{T} = 0.6$']
-# curve_lbls = [f'$p_{{6c}} = {p*100:.2f}\,\%$' for p in p6c]
-# curve_lbls = ['sAMC-500', 'sAMC-300', 'tdot5']
-curve_lbls = ['PixelCNN', '$\\tilde{T} = 0.6$', '$\\tilde{T} = 0.5$']
-
-ndatasets = len(ddirs)
+ndatasets = len(structypes)
 
 setup_tex()
 fig, ax = plt.subplots()
@@ -105,13 +61,19 @@ errs_cf = np.zeros(ndatasets)
 sigs = []
 
 # for k, dd, ll, cc, cl in zip(range(2), ddirs, run_lbls, clrs, curve_lbls):
-for k, dd, ll, cc, cl in zip(range(3), ddirs, run_lbls, clrs, curve_lbls):
+for k, st, cc, cl in zip(range(3), structypes, clrs, curve_lbls):
     # if k == 1: continue
     print(f'~~~~~~~~ Color = {cc} ~~~~~~~~~')
-    dcrits = get_dcrits(ll, temps, dd)
 
     # sigmas = saddle_pt_sigma(dcrits)
-    sigmas, sigmas_err = sigma_errorbar(dcrits)
+    temps, sigmas, sigmas_err = np.load(sigmas_dir + f'sigma_v_T_w_err_{st}_oldschool_virtual_w_HOMO.npy').T    
+    # temps = temps[temps_start_ind:]
+    # sigmas = sigmas[temps_start_ind:]
+    # sigmas_err = sigmas_err[temps_start_ind:]
+
+    # sigmas = 1.0/sigmas
+
+
 
  
     slope, intercept, x, y, err_lr, interr_lr  = arrhenius_fit(temps, sigmas, inv_T_scale=1000.0, return_for_plotting=True, return_err=True, w0=conv_factor)
@@ -136,23 +98,4 @@ ax.set_ylabel('$\sigma$ [S/m]')
 #ax.set_title('Virtual near-$E_F$ MOs')
 
 plt.legend()
-plt.show()
-
-
-print(p6c)
-
-ii = np.argsort(p6c)
-
-fig, ax = plt.subplots()
-# ax.plot(p6c, eas,'ro',ms=5.0)
-# ax.plot(p6c,eas, 'r-',lw=0.8)
-ax.errorbar(p6c[ii],eas[ii],yerr=errs_lr[ii],fmt='-o',label='linregress')
-# ax.errorbar(p6c,eas2,yerr=errs_cf,fmt='-o',label='curve fit')
-
-ax.set_xlabel('Proprtion of crystalline hexagons $p_{6c}$')
-ax.set_ylabel('$E_{a}$ [meV]')
-# plt.legend()
-plt.show()
-
-plt.plot(x,sigs[1]/sigs[0],'-o')
 plt.show()
