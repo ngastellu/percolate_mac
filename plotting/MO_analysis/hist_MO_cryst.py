@@ -14,12 +14,12 @@ structypes = ['40x40', 'tempdot6', 'tempdot5']
 lbls= ['sAMC-500', 'sAMC-q400', 'sAMC-300']
 clrs = MAC_ensemble_colours()
 
-renormd = False
+renormd = True
 
 simdir = '/Users/nico/Desktop/simulation_outputs/'
 percdir = simdir + 'percolation/'
 
-setup_tex(fontsize=25)
+setup_tex(fontsize=32)
 fig, axs = plt.subplots(3,1,sharex=True)
 nbins = 200
 if renormd:
@@ -28,7 +28,7 @@ else:
     bins = np.linspace(0,1,nbins)
 
 
-motypes = ['lo','hi','virtual']
+motypes = ['virtual','lo','hi']
 
 # rcParams['figure.figsize'] = [14,12]
 
@@ -76,8 +76,12 @@ for ax, mt, in zip(axs,motypes):
     # print(f'Bounds for {st} = ', [np.min(data),np.max(data)])
     # print((data > 1).sum() / data.shape[0])
 
-ax.set_xlabel('MO crystallinity $\chi$')
-ax.legend()
+if renormd:
+    ax.set_xlabel('Normalised MO crystallinity $\chi/\phi_c$')
+else:
+    ax.set_xlabel('MO crystallinity $\chi$')
+
+axs[0].legend(fontsize=25)
 
 # plt.suptitle('100 lowest- and highest-lying MOs')
 
