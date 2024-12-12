@@ -87,9 +87,10 @@ def plot_cluster_brute_force(c,pos, M, adjmat,show_densities=False,dotsize=20, u
         plt_utils.setup_tex()
 
     if show_densities:
+        print(np.unique(inds))
         rho = np.sum(M[:,np.unique(inds)]**2,axis=1)
         sizes = np.ones(N) * dotsize
-        sizes[rho > 0.001] *= 10
+        sizes[rho > 0.002] *= 10
         ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=sizes, cmap='plasma',zorder=1)
         cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
 
