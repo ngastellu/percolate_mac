@@ -101,16 +101,17 @@ clrs = MAC_ensemble_colours()
 temps = np.arange(180,440,10)
 T = 300
 
-motype = 'hi'
+motype = 'lo'
 
+setup_tex()
 
-rcParams['font.size']= 45
-rcParams['mathtext.fontset'] = 'cm'
-rcParams['font.family'] = 'sans-serif'
-fontsize_axes = 60
-rcParams['figure.figsize'] = [8,7]
+rcParams['font.size']= 30
+# rcParams['mathtext.fontset'] = 'cm'
+# rcParams['font.family'] = 'sans-serif'
+fontsize_axes = 35
+# rcParams['figure.figsize'] = [8,7]
 fig, ax = plt.subplots()
-fig.subplots_adjust(bottom=0.198,top=0.99)
+fig.subplots_adjust(bottom=0.14,top=0.976)
 
 
 for st, c, lbl in zip(ensembles,clrs,official_labels):
@@ -120,17 +121,20 @@ for st, c, lbl in zip(ensembles,clrs,official_labels):
 
     print('% of 0 cryst condistes = ', (clustcryst < 1e-10).sum()*100/clustcryst.shape[0])
  
-    ax.scatter(frac_cryst_atoms, clustcryst, s=30.0,c=c,alpha=0.7,zorder=1,label=lbl)
+    ax.scatter(frac_cryst_atoms, clustcryst, s=50.0,c=c,alpha=0.7,zorder=1,label=lbl)
+    # ax.scatter(frac_cryst_atoms, clustcryst, s=10.0,c=c,alpha=0.7,zorder=1,label=lbl)
 
 # ax.plot(np.linspace(1/6,1,1000),1.0/np.linspace(1/6,1,1000),'k--',lw=0.9)
 ax.plot(np.linspace(0,1,100),np.linspace(0,1,100),'k--',lw=2.0)
 # ax.set_xlabel('Fraction of crystalline atoms $\phi_c$',fontsize=fontsize_axes)
-ax.set_xlabel('$\phi_c$',fontsize=fontsize_axes+10)
-ax.set_ylabel('Conducting site\ncrystallinity $\chi$',fontsize=fontsize_axes,labelpad=20.0)
+# ax.set_xlabel('$\phi_c$',fontsize=fontsize_axes+10)
+ax.set_xlabel('Fraction of crystalline atoms $\phi_c$',fontsize=fontsize_axes)
+# ax.set_ylabel('Conducting site\ncrystallinity $\chi$',fontsize=fontsize_axes,labelpad=20.0)
+ax.set_ylabel('Conducting site crystallinity $\chi$',fontsize=fontsize_axes, labelpad=20.0)
 ax.tick_params('x',which='major',length=3,width=0.9)
 ax.tick_params('y',which='major',length=3,width=0.9)
 ax.set_aspect('equal')
-# ax.legend()
+ax.legend(framealpha=1)
 
 # ax.set_title(f'Conducting clusters of sites from {motype} MOs at $T = {T}$K')
 
