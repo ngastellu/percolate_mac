@@ -1,150 +1,135 @@
 #!/usr/bin/env python
 
+import sys
 from os import path
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from qcnico import plt_utils
-from percolate import diff_arrs_var_a, pair_inds
+from percolate import diff_arrs_var_a
+from percplotting import plot_cluster_brute_force
 from qcnico.coords_io import read_xyz
+from qcnico.qchemMAC import MO_com, MO_rgyr
 
-def get_data(run_ind,temp,datadir,rmax):
+def read_pkl(run_ind,temp,datadir,pkl_prefix):
     #nsamples = len(run_inds)
     #ntemps = len(temps)
     sampdir = f"sample-{run_ind}"
-    pkl = f"out_percolate_rmax_{rmax}-{temp}K.pkl"
-    fo = open(path.join(datadir,pkl),'rb')
+    pkl = f"{pkl_prefix}-{temp}K.pkl"
+    fo = open(path.join(datadir,sampdir,pkl),'rb')
     dat = pickle.load(fo)
     fo.close()
     return dat
 
-# def get_center_pairs(darr, centres, d):
-#     """Generator function that gets the hopping centers and the hopping center pairs to be plotted/connected
-#     at each frame."""
-#     N = centres.shape[0]
-#     # while True:
-#     connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
-#     ii, jj = pair_inds(connected_inds,N)
-#     relevant_pairs = np.array([(centres[i], centres[j]) for i,j in zip(ii,jj)])
-#     return relevant_pairs
+def check_dists(A, centres, energies, dcrit, T, a0=30):
+    print("Checking distances... dcrit = ", dcrit)
+    kB = 8.617e-5
+    ii, jj = A.nonzero()
+    print(A.shape)
+    for i, j in zip(ii,jj):
+        dist = (np.abs(energies[i]) + np.abs(energies[j]) + np.abs(energies[i]-energies[j]))/(kB*T) + 2*np.linalg.norm(centres[i]-centres[j])/a0
+        if dist > dcrit:
+            print(f"!!! YIKES: u({i}, {j}) = {dist} !!!")
 
 
-# def update(frame):
-#     """In this animation the frame is defined by which hopping site pairs are connected for a certain threshold 
-#     distance d; those sites are then plotted, along with the edges connecting them."""
-#     rel_pairs = frame
-#     npairs = frame.shape[0]
-#     rel_centers = np.unique(rel_pairs.reshape(2*npairs,2),axis=0)
-#     ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=1.0, cmap='plasma',zorder=1)
-
-#     ax.scatter(*rel_centers.T, marker='*', c='r', s=20.0, zorder=2)
-
-#     for r1, r2 in rel_pairs:
-#         pts = np.vstack((r1,r2)).T
-#         ax.plot(*pts, 'r-', lw=1.0)
-    
-#     return ye
 
 
-# Get data
-nn = 64
+# ---------- MAIN ----------
+
+
 structype = 'tempdot5'
+nn = 10
+motype = 'virtual_w_HOMO'
+T = 300
+
+runtype = 'sites'
+
+if runtype not in ['MOs', 'sites']:
+    print(f'Invalid run type {runtype}. Valid entries are:\n* "sites": for runs using sites created by k-clustering;\n*"MOs": for runs using the MOs directly as sites.\nExiting angrily.')
+    sys.exit()
+
 
 if structype == '40x40':
     rmax = 18.03
-    sT = '500'
+    synth_temp ='500'
 elif structype == 'tempdot6':
-    rmax = 121.2
-    sT = 'q400'
+    rmax=121.2
+    synth_temp ='q400'
+elif structype == 'tempdot5':
+    rmax = 199.33
+    synth_temp = '300'
 else:
-    rmax = 198.69
-    sT = '300'
+    print(f'Structure type {structype} is invalid. Exiting angrily.')
+    sys.exit()
 
-percdir=path.expanduser(f"~/Desktop/simulation_outputs/percolation/{structype}/percolate_output/zero_field/virt_100x100_gridMOs_rmax_{rmax}/sample-{nn}/")
-sitesdir = f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/var_radii_data/to_local_sites_data/sample-{nn}/sites_data_0.00105/'
+if runtype == 'sites':
+    # sitesdir = f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/var_radii_data/to_local_sites_data_0.00105_psi_pow2_{motype}/sample-{nn}/'
+    sitesdir = f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/var_radii_data/sites_data_rmax_{rmax}_{motype}/sample-{nn}/'
 
-
-
-T = 200
-kB = 8.617e-5
-# posfile = path.join(f'/Users/nico/Desktop/simulation_outputs/MAC_structures/relaxed_no_dangle/{structype}/{structype}n{nn}_relaxed_no-dangle.xyz')
-posfile = f"/Users/nico/Desktop/scripts/disorder_analysis_MAC/structures/sAMC-{sT}/sAMC{sT}-{nn}.xyz"
-
-Mfile = path.join(f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/MOs_ARPACK/virtual/MOs_ARPACK_bigMAC-{nn}.npy')
-efile = path.join(f'/Users/nico/Desktop/simulation_outputs/percolation/{structype}/eARPACK/virtual/eARPACK_bigMAC-{nn}.npy')
-ccfile = path.join(sitesdir,'centers.npy')
-rfile = path.join(sitesdir, f'radii.npy')
-iifile = path.join(sitesdir,'ii.npy')
-eefile = path.join(sitesdir,'ee.npy')
+# pkl_prefix = f'out_percolate_rmax_{rmax}_psipow2_sites_gammas_{motype}'
+pkl_prefix = f'out_percolate_rmax_{rmax}_{motype}'
 
 
-M = np.load(Mfile)
-centres = np.load(ccfile)
-MOinds = np.load(iifile)
-energies = np.load(eefile)
-radii = np.load(rfile)
+
+datadir=path.expanduser(f"~/Desktop/simulation_outputs/percolation/{structype}")
+rCC = 1.8
+
+
+posdir = f'/Users/nico/Desktop/scripts/disorder_analysis_MAC/structures/sAMC-{synth_temp}/'
+Mdir = path.join(datadir, f'MOs_ARPACK/{motype}/')
+Sdir = f"/Users/nico/Desktop/simulation_outputs/percolation/site_ket_matrices/{structype}_rmax_{rmax}/"
+edir = path.join(datadir, f'eARPACK/{motype}/')
+# percdir = path.join(datadir, f'percolate_output/zero_field/to_local_rmax_{rmax}_psipow2_sites_gammas_{motype}/')
+percdir = path.join(datadir, f'percolate_output/zero_field/rmax_{rmax}_{motype}/')
+
+
+posfile = path.join(posdir, f'sAMC{synth_temp}-{nn}.xyz')
+
+if motype == 'virtual':
+    Mfile = path.join(Mdir,f'MOs_ARPACK_bigMAC-{nn}.npy')
+    Sfile = path.join(Sdir, f'site_kets_psipow2-{nn}.npy')
+    efile = path.join(edir, f'eARPACK_bigMAC-{nn}.npy')
+else:   
+    Sfile = path.join(Sdir, f'site_kets_{motype}-{nn}.npy')
+    efile = path.join(edir, f'eARPACK_bigMAC-{nn}.npy')
+    # efile = path.join(edir, f'eARPACK_{motype}_{structype}-{nn}.npy')
+
 pos = read_xyz(posfile)
-dat = get_data(nn,T,percdir,rmax)
-print(len(dat[0]))
-c = dat[0][0] #sort cluster inds
-rel_centers = centres[np.sort(list(c))]
-# cluster_centres_inds = np.array([np.sum(i > c) for i in c])
-# cluster_centres = centres[cluster_centres_inds]
+
+if runtype == 'MOs':
+    M = np.load(Mfile)
+    centres = MO_com(pos,M)
+    radii = MO_rgyr(pos,M)
+    energies = np.load(efile)
+else: 
+    M = np.load(Sfile)
+    M /= np.linalg.norm(M,axis=0)
+    centers = np.load(path.join(sitesdir, 'centers.npy'))
+    radii = np.load(path.join(sitesdir, 'radii.npy'))
+    energies = np.load(path.join(sitesdir, 'ee.npy'))
+
+
+
+filter = radii < rmax
+M = M[:,filter]
+radii = radii[filter]
+centers = centers[filter,:]
+energies = energies[filter]
+
+dat = read_pkl(nn,T,percdir,pkl_prefix)
+clusters = dat[0]
+print('Number of clusters = ', len(clusters))
+c = np.array(list(clusters[0]))
 dcrit = dat[1]
-print(dcrit)
-
-# Precompute necessary qties
-
-edArr, rdArr,ij = diff_arrs_var_a(energies, centres, radii, eF=0)
-darr = rdArr + (edArr/(kB*T))
-print(darr)
-#darr = dArray_logMA(energies, centres, T, a0=30,eF=0)
-print(darr[darr<=dcrit].shape)
-dmask = darr <= dcrit
-rel_ds = darr[dmask]
-rel_ij = ij[dmask]
-
-rel_pairs = np.array([(centres[i], centres[j]) for i,j in rel_ij])
-isites_unique = np.unique(rel_ij)
-# rel_centers = centres[isites_unique]
-
-
-rho = np.sum(M[:,np.unique(MOinds)]**2,axis=1)
-scale_up = rho > 0.01
-sizes = np.ones(rho.shape[0])
-sizes[scale_up] *= 12
-
+A = dat[2]
+print('dcrit = ', dcrit)
 
 plt_utils.setup_tex()
-rcParams['font.size'] = 40
-# rcParams['figure.figsize'] = [19,9.5]
+rcParams['font.size'] = 20
 
 fig, ax = plt.subplots()
-
-ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=sizes, cmap='plasma',zorder=1)
-
-
-ax.scatter(*rel_centers.T, marker='*', c='r', s=20.0, zorder=2)
-
-for r1r2, iijj in zip(rel_pairs, rel_ij):
-    r1, r2 = r1r2
-    i,j = iijj
-    if i in c and j in c:
-        pts = np.vstack((r1,r2)).T
-        ax.plot(*pts, 'r-', lw=1.0)
-    
-
-
-# rcParams['figure.dpi'] = 200.0
-# rcParams['figure.constrained_layout.use'] = True
-ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=1.0, cmap='plasma',zorder=1)
-
-
-
-cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
-ax.set_aspect('equal')
-ax.set_xlabel("$x$ [\AA]")
-ax.set_ylabel("$y$ [\AA]")
+plot_cluster_brute_force(c,pos,M,A,show_densities=True, dotsize=0.9, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),centers=centers, inds = c)
+# ax.set_title(f'MAC sample {nn}, $T = {T}$K')
 plt.show()
 
