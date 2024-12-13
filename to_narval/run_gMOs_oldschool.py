@@ -22,11 +22,10 @@ pos = pos[:,:2]
 gamL = gamL[1:]
 gamR = gamR[1:]
 
-tolscal = 3.0
-L = set((gamL > (np.mean(gamL) + tolscal*np.std(gamL))).nonzero()[0])
-R = set((gamR > (np.mean(gamR) + tolscal*np.std(gamR))).nonzero()[0])
 
 pkl_dir = f'oldschool_{mo_type}'
 if not os.path.isdir(pkl_dir):
     os.mkdir(pkl_dir)
-run_percolate(pos,e[1:],L,R,temps, dV, eF=efermi)
+
+cc, ee, L, R = setup_hopping_sites_gridMOs(pos,e[1:],M[:,1:],gamL,gamR,nbins=100,datapath='pkl_dir')
+run_percolate(cc,ee,L,R,temps, dV, eF=efermi)
