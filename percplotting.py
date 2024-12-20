@@ -2,9 +2,11 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
+import matplotlib.cm as cm
+import matplotlib as mpl 
 from qcnico import plt_utils
 import qcnico.qchemMAC as qcm
+from qcnico.graph_tools import adjacency_matrix_sparse
 
 
 
@@ -65,7 +67,7 @@ def plot_cluster(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, 
         plt.show()
 
 
-def plot_cluster_brute_force(c,pos, M, adjmat,show_densities=False,dotsize=20, usetex=True, show=True, centers=None, rel_center_size=2.0, inds=None, plt_objs=None):
+def plot_cluster_brute_force(c,pos, M, adjmat,show_edges=True, show_densities=False,dotsize=20, usetex=True, show=True, centers=None, rel_center_size=2.0, inds=None, plt_objs=None):
     pos = pos[:,:2]
     N = pos.shape[0]
 
@@ -88,7 +90,7 @@ def plot_cluster_brute_force(c,pos, M, adjmat,show_densities=False,dotsize=20, u
 
     if show_densities:
         print(np.unique(inds))
-        rho = np.sum(M[:,np.unique(inds)]**2,axis=1)
+        rho = np.log(np.sum(M[:,np.unique(inds)]**2,axis=1))
         sizes = np.ones(N) * dotsize
         sizes[rho > 0.002] *= 10
         ye = ax.scatter(pos.T[0], pos.T[1], c=rho, s=sizes, cmap='plasma',zorder=1)
@@ -98,23 +100,98 @@ def plot_cluster_brute_force(c,pos, M, adjmat,show_densities=False,dotsize=20, u
         ax.scatter(pos.T[0], pos.T[1], c='k', s=dotsize)
 
     # Draw sites
-    ax.scatter(*centers.T, marker='*', c='r', s = rel_center_size*dotsize,zorder=2)
+    # ax.scatter(*centers.T, marker='*', c='r', s = rel_center_size*dotsize,zorder=2)
     ax.set_aspect('equal')
     ax.set_xlabel("$x$ [\AA]")
     ax.set_ylabel("$y$ [\AA]")
 
     # Draw edges between each site and its neighbours
-    for i in c:
-        n = np.sum(i > c) #gets relative index of i (i=global MO index; n=index of MO i in centers array)
-        r1 = centers[n]
-        neighbours = adjmat[i,:].nonzero()[0] 
-        for j in neighbours:
-            m = np.sum(j>c)
-            r2 = centers[m]
-            pts = np.vstack((r1,r2)).T
-            # ax.plot(*pts, 'r-', lw=0.7)
-            ax.plot(*pts, 'r-', lw=1.0)
+    if show_edges:
+        for i in c:
+            n = np.sum(i > c) #gets relative index of i (i=global MO index; n=index of MO i in centers array)
+            r1 = centers[n]
+            neighbours = adjmat[i,:].nonzero()[0] 
+            for j in neighbours:
+                m = np.sum(j>c)
+                r2 = centers[m]
+                pts = np.vstack((r1,r2)).T
+                # ax.plot(*pts, 'r-', lw=0.7)
+                ax.plot(*pts, 'r-', lw=1.0)
     
+    if show:
+        plt.show()
+
+def plot_cluster_density(c,pos, M,dotsize=20, big_rho_threshold=0.002, rel_center_size=10.0, show_bonds=False, xbounds=None, ybounds=None, vmin=None, vmax=None, usetex=True, show=True, plt_objs=None):
+    pos = pos[:,:2]
+    N = pos.shape[0]
+
+    inds = np.sort(list(c))
+        
+    if plt_objs is None:
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = plt_objs
+
+    if usetex:
+        plt_utils.setup_tex()
+
+    rho = np.sum(M[:,np.unique(inds)]**2,axis=1)
+    sizes = np.ones(N) * dotsize
+    big_rho = rho > big_rho_threshold
+    sizes[big_rho] *= rel_center_size
+    colors=rho
+    # colors[big_rho] = np.log(1.5+rho[big_rho])
+    ye = ax.scatter(pos.T[0], pos.T[1], c=colors, s=sizes, cmap='plasma',zorder=2,vmin=vmin,vmax=vmax)
+    cbar = fig.colorbar(ye,ax=ax,orientation='vertical')
+
+    # This should really be its own function(s)... :p
+    if show_bonds:
+        # Filter positions to avoid plotting unnecessary bonds (can be a lot)
+        if xbounds is not None:
+            xmin, xmax = xbounds
+            xfilter = (pos[:,0] >= xmin) * (pos[:,0] <= xmax)
+        else:
+            yfilter = np.ones(pos.shape[0],dtype=bool)
+        if ybounds is not None:
+            ymin, ymax = ybounds
+            yfilter = (pos[:,1] >= ymin) * (pos[:,1] <= ymax)
+        else:
+            yfilter = np.ones(pos.shape[0],dtype=bool)
+        pos_filter = xfilter * yfilter
+        filtered_pos = pos[pos_filter]
+        filtered_rho = rho[pos_filter]
+ 
+        # Build adjmat
+        rCC = 1.8
+        A = adjacency_matrix_sparse(filtered_pos,rCC)
+        pairs = np.vstack(A.nonzero()).T
+        
+        # Define colormap for bonds
+        if vmin is not None or vmax is not None:
+            norm = mpl.colors.Normalize(vmin=vmin,vmax=vmax) 
+            cmap = cm.plasma
+            float2clr_map = cm.ScalarMappable(norm=norm,cmap=cmap)
+
+        # Plot bonds
+        for ij in pairs:
+            i,j = ij
+            rhoi = filtered_rho[i]
+            rhoj = filtered_rho[j]
+            ax.plot([filtered_pos[i,0],filtered_pos[j,0]],[filtered_pos[i,1],filtered_pos[j,1]],color=float2clr_map.to_rgba(np.max([rhoi,rhoj])),ls='-',lw=3.0,zorder=1)
+
+
+    if xbounds is not None:
+        ax.set_xlim(xbounds)
+
+    if ybounds is not None:
+        ax.set_ylim(ybounds)
+
+    ax.set_aspect('equal')
+    ax.set_xlabel("$x$ [\AA]")
+    ax.set_ylabel("$y$ [\AA]")
+
+    
+
     if show:
         plt.show()
 

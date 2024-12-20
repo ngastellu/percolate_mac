@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from qcnico import plt_utils
 from percolate import diff_arrs_var_a
-from percplotting import plot_cluster_brute_force
+from percplotting import plot_cluster_brute_force, plot_cluster_density
 from qcnico.coords_io import read_xyz
 from qcnico.qchemMAC import MO_com, MO_rgyr
 
@@ -40,7 +40,7 @@ def check_dists(A, centres, energies, dcrit, T, a0=30):
 
 structype = 'tempdot5'
 nn = 10
-motype = 'virtual_w_HOMO'
+motype = 'hi'
 T = 300
 
 runtype = 'sites'
@@ -129,7 +129,16 @@ plt_utils.setup_tex()
 rcParams['font.size'] = 20
 
 fig, ax = plt.subplots()
-plot_cluster_brute_force(c,pos,M,A,show_densities=True, dotsize=0.9, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),centers=centers, inds = c)
+# plot_cluster_brute_force(c,pos,M,A,show_edges=False,show_densities=True, dotsize=0.9, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),centers=centers, inds = c)
+
+
+# plot_cluster_density(c,pos,M, dotsize=0.9, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),vmin=0,vmax=0.045)
+
+# Zoom for virtual_w_HOMO
+# plot_cluster_density(c,pos,M, dotsize=20.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),vmin=0,vmax=0.045,xbounds=[205,225],ybounds=[205,225],show_bonds=True)
+
+# Zoom for hi
+plot_cluster_density(c,pos,M, dotsize=20.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),vmin=0,vmax=0.045,xbounds=[353,373],ybounds=[178,198],show_bonds=True)
 # ax.set_title(f'MAC sample {nn}, $T = {T}$K')
 plt.show()
 
