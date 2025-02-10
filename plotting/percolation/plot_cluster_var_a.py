@@ -40,7 +40,7 @@ def check_dists(A, centres, energies, dcrit, T, a0=30):
 
 structype = 'tempdot5'
 nn = 10
-motype = 'hi'
+motype = 'virtual_w_HOMO'
 T = 300
 
 runtype = 'sites'
@@ -135,10 +135,10 @@ fig, ax = plt.subplots()
 # plot_cluster_density(c,pos,M, dotsize=0.9, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),vmin=0,vmax=0.045)
 
 # Zoom for virtual_w_HOMO
-# plot_cluster_density(c,pos,M, dotsize=20.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),vmin=0,vmax=0.045,xbounds=[205,225],ybounds=[205,225],show_bonds=True)
+plot_cluster_density(c,pos,M, dotsize=20.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),vmin=0,vmax=0.065,xbounds=[200,230],ybounds=[200,230],show_bonds=True)
 
 # Zoom for hi
-plot_cluster_density(c,pos,M, dotsize=20.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),vmin=0,vmax=0.045,xbounds=[353,373],ybounds=[178,198],show_bonds=True)
+# plot_cluster_density(c,pos,M, dotsize=20.0, usetex=True, show=False,rel_center_size=10.0,plt_objs=(fig,ax),vmin=0,vmax=0.045,xbounds=[353,373],ybounds=[178,198],show_bonds=True)
 # ax.set_title(f'MAC sample {nn}, $T = {T}$K')
 plt.show()
 
