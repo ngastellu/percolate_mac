@@ -74,11 +74,11 @@ for st, rmax, lbl, c, zz in zip(structypes,r_maxs,ensemble_lbls,clrs,zorders):
     print(f'\n---------- {st} ----------')
     plot_sigmas = np.zeros(3)
     for x, mt in zip(range(1,4),motypes):
-        # if st == '40x40' and mt != 'virtual_w_HOMO':
-        #     temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_sites_gammas_kBT{mt}.npy').T
-        # else:
-            # temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_{mt}.npy').T
-        temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_no_rmax_{mt}.npy').T
+        if st == '40x40' and mt != 'virtual_w_HOMO':
+            temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_sites_gammas_kBT{mt}.npy').T
+        else:
+            temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_rmax_{rmax}_{mt}.npy').T
+        # temps, sigmas, sig_errs = np.load(f'/Users/nico/Desktop/simulation_outputs/percolation/sigmas_v_T/sigma_v_T_w_err_{st}_no_rmax_{mt}.npy').T
         kselect = (temps==T).nonzero()[0]
         sigma = sigmas[kselect] * conv_factor / (kB*T)
         plot_sigmas[x-1] = sigma
