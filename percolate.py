@@ -143,44 +143,27 @@ def pair_inds(n,N):
 def k_ind(i,j): return int(i*(i-1)/2 + j)
 
 
-def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None, 
-                gamL_tol=0.07,gamR_tol=0.07,gamma=0.1, MOgams=None, coupled_MO_sets=None,
-                distance='miller_abrahams', 
-                return_adjmat=False, prev_d_ind=0):
+def percolate(energy_darr, spatial_darr, T, gamLs, gamRs, gamL_tol=0.07,gamR_tol=0.07, return_adjmat=False, prev_d_ind=0):
     
-    assert distance in ['energy', 'miller_abrahams', 'logMA'], 'Invalid distance argument. Must be either "miller-abrahams" (default) or "energy".'
-    if distance == 'energy':
-        darr = dArray_energy(e,T, eF)
-    elif distance == 'miller_abrahams':
-        MO_coms = qcm.MO_com(pos, M)
-        darr = dArray_MA(e, MO_coms, T, a0, eF)
-    elif distance == 'logMA' and dArrs is None:
-        MO_coms = qcm.MO_com(pos,M)
-        darr = dArray_logMA(e, MO_coms, T, a0, eF)
-    else:
-        kB = 8.617e-5
-        edarr, ddarr = dArrs
-        darr = ddarr  + (edarr / (kB*T))
-    # np.save('darr.npy', darr)
-    if MOgams is None:
-        agaL, agaR = qcm.AO_gammas(pos,gamma)
-        gamLs, gamRs = qcm.MO_gammas(M, agaL, agaR, return_diag=True)
-    else:
-        gamLs, gamRs = MOgams
-    if coupled_MO_sets is None:
-        L = set((gamLs > gamL_tol).nonzero()[0])
-        R = set((gamRs > gamR_tol).nonzero()[0])
-    else:
-        L, R = coupled_MO_sets
-    N = e.size
+    kB = 8.617e-5
+    darr = spatial_darr  + (energy_darr / (kB*T))
+    ndists = darr.shape[0]
 
+    N = int((1 + np.sqrt(1+8*ndists))/2)
+    print('[percolate] Nsites = ', N)
+
+    # np.save('darr.npy', darr)
+    
+    L = set((gamLs > gamL_tol).nonzero()[0])
+    R = set((gamRs > gamR_tol).nonzero()[0])
+   
     percolated = False
     darr_sorted = np.sort(darr)
     adj_mat = np.zeros((N,N),dtype=bool)
     spanning_clusters = []
     d_ind = prev_d_ind
-    while (not percolated) and (d_ind < N*(N-1)//2):
-        d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
+    while (not percolated) and (d_ind < ndists):
+        d = darr_sorted[d_ind] #start with smallest distance and move    up                                                                                                                                              
         print('d = ', d)       
         connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
         print('Nb. of connected pairs = ', len(connected_inds))
@@ -212,7 +195,7 @@ def percolate(e, pos, M, T=300, a0=1, eF=None, dArrs=None,
         # d = darr_sorted[d_ind]
         # first_try = False
     
-    if d_ind == (N*(N-1)//2)-1:
+    if d_ind == ndists-1:
         print(f'No spanning clusters found at T = {T}K.')
         return clusters, d, adj_mat
     
