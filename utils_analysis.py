@@ -7,7 +7,14 @@ from numpy.random import default_rng
 from scipy.stats import linregress
 
 
+# Global consts usefful to calculate conductivity
+
 kB = 8.617333262e-5 #eV/K
+e2C = 1.602177e-19 # elementary charge to Coulomb
+w0 = 1e15
+# This factor combines the hop frequency with the unit conversion (to yield conductivity in siemens)
+# w0 is chosen such that the final result matches the results from the AMC paper.
+conv_factor = e2C*w0
 
 def get_dcrits(run_inds,temps,datadir, pkl_prefix='out_percolate'):
     nsamples = len(run_inds)
@@ -50,20 +57,21 @@ def load_dcrits(run_inds,run_name):
             
 
 
-def saddle_pt_sigma(dcrits,nbins=30):
+def saddle_pt_sigma(dcrits,temps,nbins=30):
     """Extracts the sigma(T) curve from a set of critical distances `dcrits`,
     a (Ns x Nt) array (Ns = nb. of samples, Nt = nb. of temperatures).
     The estimate is done using the saddle-point approximation to carry out the integral which
     yields sigma (c.f. Rodin, Fogler, PHYSICAL REVIEW B 84, 125447 (2011))"""
+
     sigmas = np.zeros(dcrits.shape[1])
     for k,ds in enumerate(dcrits.T):
         hist, bin_edges = np.histogram(ds,bins=nbins,density=True)
         bin_inds = np.sum(ds[:,None] > bin_edges,axis=1) - 1
         f = hist[bin_inds] * np.exp(-ds)
-        sigmas[k] = np.max(f)
+        sigmas[k] = np.max(f) * conv_factor / (kB*temps[k])
     return sigmas
 
-def rough_integral_sigma(dcrits,nbins=30):
+def rough_integral_sigma(dcrits,temps,nbins=30):
     """Extracts the sigma(T) curve from a set of critical distances `dcrits`,
     a (Ns x Nt) array (Ns = nb. of samples, Nt = nb. of temperatures), using a very
     rough integration scheme: bin the dcrits into a histogram of `nbins` bins, and
@@ -74,7 +82,7 @@ def rough_integral_sigma(dcrits,nbins=30):
         hist, bin_edges = np.histogram(ds,bins=nbins,density=True)
         bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
         dx = bin_edges[1:] - bin_edges[:-1]
-        sigmas[k] = np.sum(hist*np.exp(-bin_centers)*dx)
+        sigmas[k] = np.sum(hist*np.exp(-bin_centers)*dx) * conv_factor/(kB*temps[k])
     return sigmas
     
 
