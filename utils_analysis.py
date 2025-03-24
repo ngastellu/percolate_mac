@@ -7,38 +7,71 @@ from numpy.random import default_rng
 from scipy.stats import linregress
 
 
-kB = 8.617333262e-5 #eV/K
+# Global consts usefful to calculate conductivity
 
-def get_dcrits(run_inds,temps,datadir):
+kB = 8.617333262e-5 #eV/K
+e2C = 1.602177e-19 # elementary charge to Coulomb
+w0 = 1e15
+# This factor combines the hop frequency with the unit conversion (to yield conductivity in siemens)
+# w0 is chosen such that the final result matches the results from the AMC paper.
+conv_factor = e2C*w0
+
+def get_dcrits(run_inds,temps,datadir, pkl_prefix='out_percolate'):
     nsamples = len(run_inds)
     ntemps = len(temps)
     dcrits = np.zeros((nsamples,ntemps))
     for k in range(nsamples):
         for l in range(ntemps):
             sampdir = f"sample-{run_inds[k]}"
-            pkl = f"out_percolate-{temps[l]}K.pkl"
-            fo = open(path.join(datadir,sampdir,pkl),'rb')
+            try:
+                pkl = pkl_prefix + f"-{temps[l]}K.pkl"
+                fo = open(path.join(datadir,sampdir,pkl),'rb')
+            except FileNotFoundError:
+                pkl = pkl_prefix + f"-{temps[l]}.pkl"
+                fo = open(path.join(datadir,sampdir,pkl),'rb')
             dat = pickle.load(fo)
             dcrits[k,l] = dat[1]
             fo.close()
 
     return dcrits
 
+def load_dcrits(run_inds,run_name):
+    """Meant to be run on Narval"""
+    nsamples = len(run_inds)
+    data = np.load(f'sample-{run_inds[0]}/{run_name}_pkls/dcrits.npy')
+    temps = data[0,:]
+    dcrits = np.zeros((nsamples,temps.shape[0]))
+    dcrits[0] = data[1,:]
+    success = np.ones(nsamples,dtype='bool')
+    for k, nn in enumerate(run_inds[1:]):
+        print(f'\n{nn}', end =' ')
+        datadir = f"sample-{nn}/{run_name}_pkls/"
+        try:
+            dcrits[k+1,:] = np.load(path.join(datadir,f'dcrits.npy'))[1,:]
+        except:
+            print('NPY missing!')
+            success[k+1] = False
+            continue
+    return temps, dcrits[success,:]
 
-def saddle_pt_sigma(dcrits,nbins=30):
+            
+
+
+def saddle_pt_sigma(dcrits,temps,nbins=30):
     """Extracts the sigma(T) curve from a set of critical distances `dcrits`,
     a (Ns x Nt) array (Ns = nb. of samples, Nt = nb. of temperatures).
     The estimate is done using the saddle-point approximation to carry out the integral which
     yields sigma (c.f. Rodin, Fogler, PHYSICAL REVIEW B 84, 125447 (2011))"""
+
     sigmas = np.zeros(dcrits.shape[1])
     for k,ds in enumerate(dcrits.T):
         hist, bin_edges = np.histogram(ds,bins=nbins,density=True)
         bin_inds = np.sum(ds[:,None] > bin_edges,axis=1) - 1
         f = hist[bin_inds] * np.exp(-ds)
-        sigmas[k] = np.max(f)
+        sigmas[k] = np.max(f) * conv_factor / (kB*temps[k])
     return sigmas
 
-def rough_integral_sigma(dcrits,nbins=30):
+def rough_integral_sigma(dcrits,temps,nbins=30):
     """Extracts the sigma(T) curve from a set of critical distances `dcrits`,
     a (Ns x Nt) array (Ns = nb. of samples, Nt = nb. of temperatures), using a very
     rough integration scheme: bin the dcrits into a histogram of `nbins` bins, and
@@ -49,12 +82,12 @@ def rough_integral_sigma(dcrits,nbins=30):
         hist, bin_edges = np.histogram(ds,bins=nbins,density=True)
         bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
         dx = bin_edges[1:] - bin_edges[:-1]
-        sigmas[k] = np.sum(hist*np.exp(-bin_centers)*dx)
+        sigmas[k] = np.sum(hist*np.exp(-bin_centers)*dx) * conv_factor/(kB*temps[k])
     return sigmas
     
 
 
-def arrhenius_fit(T, sigma, w0=1.0, inv_T_scale=1.0, return_for_plotting=False, x_start=0,x_end=None,return_err=False):
+def arrhenius_fit(T, sigma, w0=1.0, inv_T_scale=1.0, return_for_plotting=False, x_start=0, x_end=None,return_err=False):
     x = inv_T_scale / T # T is sorted in increasing order --> 1/T is in decreasing order
     y = np.log(w0*sigma/(kB*T))
     
@@ -148,3 +181,66 @@ def ablation_Ea(dcrits,sample_sizes,temps=np.arange(40,440,10)):
         sigmas = saddle_pt_sigma(dc)
         Eas[k], _ = arrhenius_fit(temps, sigmas, inv_T_scale=1000.0)
     return Eas
+
+def get_conduction_data(datadir, pkl_prefix, T):
+    try:
+        pkl = pkl_prefix + f"-{T}K.pkl"
+        fo = open(path.join(datadir,pkl),'rb')
+    except FileNotFoundError:
+        pkl = pkl_prefix + f"-{T}.pkl"
+        fo = open(path.join(datadir,pkl),'rb')
+    dat = pickle.load(fo)
+    fo.close()
+    return dat
+
+def get_conduction_clusters(datadir, pkl_prefix, T):
+    dat = get_conduction_data(datadir, pkl_prefix, T)
+    clusters = dat[0]
+    # Empty clusters usually arise because the max intersite distance is the percolating
+    # threshold, and the percolation code stops right before looking at the last pair.
+    # If clusters is empty, check that the number of connected sites = N*(N-1)/2 - 1.
+    # If yes, the cluster is the set of all sites.
+    # If not, there's something VERY weird going on.
+    if len(clusters) == 0:
+        print(f'Empty cluster found for T = {T}K!')
+        A = dat[2]
+        N = A.shape[0]
+        nbonded_pairs = A.sum() / 2
+        npairs_tot = N*(N-1) / 2
+        print(f'# of connected pairs = ', nbonded_pairs)
+        print(f'Total # of pairs = ', npairs_tot)
+        if nbonded_pairs == npairs_tot - 1: # -1 bc last pair is missing
+            print('Retruning all sites as cluster.')
+            clusters = [np.arange(N)]
+    return clusters
+
+def conduction_mask(sites_mask, cluster):
+    cluster_mask = sites_mask[list(cluster)]
+    conduction_bools = cluster_mask.sum(axis = 0) # sum corresponds to the union of atom sets associated with each site in cluster
+    return conduction_bools
+
+def sigma_errorbar(dcrits,temps,sigma_func=rough_integral_sigma):
+    """IDEA: Estimate uncertainty in sigma(T) for each T by omitting one structure from the data set
+     before computing sigma, and taking the difference between sigma obtained from this reduced set
+     and sigma the computed from the full data set. We cycle over all samples and keep the highest 
+     difference between the two estimates of sigma as our uncertainty.
+     As always, dcrits is (Ns x Nt) array where Ns = number of structures, and
+     Nt = number of temperatures.
+     
+     `sigma_func` is the function that actually computes the conductance. For now, the only two valid 
+     values are `rough_integral_sigma` (default) and `saddle_pt_sigma` (see above). New functions can be added, but be 
+     careful with the arguments: as things stand this `sigma_func` must accept two positional args: `dcrits`
+     and `temps`."""
+    
+    nsamples = dcrits.shape[0]
+    sigmas_full = sigma_func(dcrits,temps)
+    err = np.zeros(sigmas_full.shape[0])
+
+    # Get errors in sigma estimates
+    for n in range(nsamples):
+        sigmas_partial = sigma_func(np.roll(dcrits, n, axis=0)[:-1], temps)
+        diffs = np.abs(sigmas_full - sigmas_partial)
+        inew = (diffs > err).nonzero()[0] #identify for which T inds we need to keep err 
+        err[inew] = diffs[inew]
+    
+    return sigmas_full, err

@@ -6,7 +6,6 @@ import numpy as np
 from numba import njit
 import qcnico.qchemMAC as qcm
 from qcnico.graph_tools import components
-from .MOs2sites import *
 from scipy import sparse
 
 @njit
@@ -57,6 +56,28 @@ def diff_arrs_w_inds(e, coms, a0, eF=0, E=np.array([0.0,0.0])):
             k += 1
     return edarr, ddarr, inds
 
+@njit 
+def diff_arrs_var_a(e,coms,radii,eF=0,E=np.array([0.0,0.0]),include_r_prefactor=True):
+    N = e.shape[0]
+    ddarr = np.zeros(int(N*(N-1)/2))
+    edarr = np.zeros(int(N*(N-1)/2))
+    inds = np.zeros((int(N*(N-1)/2),2), dtype='int')
+    k = 0
+    for i in range(N):
+        ei = e[i] - coms[i].dot(E)
+        for j in range(i):
+            ej = e[j] - coms[j].dot(E)
+            edarr[k] = (np.abs(ei-eF) + np.abs(ej-eF) + np.abs(ei - ej)) * 0.5
+            sig_i = radii[i]
+            sig_j = radii[j]
+            radial_ij = (np.sum((coms[i,:] - coms[j,:])**2)) / (sig_i**2 + sig_j**2)
+            if include_r_prefactor:
+                radial_ij -= 2*np.log(sig_i*sig_j/(2*np.pi*(sig_i**2 + sig_j**2)))
+            ddarr[k] = radial_ij
+            inds[k,0] = i
+            inds[k,1] = j
+            k += 1
+    return edarr, ddarr, inds
 
 
 
@@ -121,53 +142,34 @@ def pair_inds(n,N):
 
 def k_ind(i,j): return int(i*(i-1)/2 + j)
 
-# @njit
-def percolate(darr, dpair_inds, L, R, return_adjmat=False): 
-    """
-    This function actually runs the percolation theory calculation.
-    
-    !!! *** VERY IMPORTANT *** !!!
-    Only properties relative to the hopping sites (i.e. not the MOs,if we're gridifying the MOs to get sites out
-    of them) should enter this function.
 
-    Parameters
-    ----------
-    darr: `np.ndarray`, shape = (N*(N-1)/2,), dtype = `float`
-        Flattened array of of pairwise 'distances' (usually log Miller-Abrahams rates) between sites
-    L: `set` of `ints`
-        Set of indices of sites strongly coupled to the left lead
-    R: `set` of `int`s
-        Set of indices of sites strongly coupled to the left lead
-    return_adjmat: `bool` default=False
-        If `True`, this function will return the adjacency matrix of the hopping sites once percolation is achieved 
-        (useful for plotting the final clusters after the run).
+def percolate(energy_darr, spatial_darr, T, gamLs, gamRs, gamL_tol=0.07,gamR_tol=0.07, return_adjmat=False, prev_d_ind=0):
     
-    Returns
-    -------
-        spanning_clusters: `list` of `set`s of `int`s
-            List of sets of indices of sites which form the spanning clusters. 1 set <--> 1 cluster
-        d: `float`
-            Percolation threshold distance
-        adjmat: `np.ndarray`, shape = (N,N), dtype=`bool`
-            Adjacency matrix of the sites at the percolation threshold. Returned only if `return_adjmat = True`.
-    """
+    kB = 8.617e-5
+    darr = spatial_darr  + (energy_darr / (kB*T))
+    ndists = darr.shape[0]
+
+    N = int((1 + np.sqrt(1+8*ndists))/2)
+    print('[percolate] Nsites = ', N)
+
+    # np.save('darr.npy', darr)
     
+    L = set((gamLs > gamL_tol).nonzero()[0])
+    R = set((gamRs > gamR_tol).nonzero()[0])
+   
     percolated = False
     darr_sorted = np.sort(darr)
-    ndists = darr.shape[0]
-    n = int( (1+np.sqrt(1 + 8*ndists))/2 )
-    adj_mat = np.zeros((n,n),dtype=bool)
+    adj_mat = np.zeros((N,N),dtype=bool)
     spanning_clusters = []
-    d_ind = 0
+    d_ind = prev_d_ind
     while (not percolated) and (d_ind < ndists):
-        d = darr_sorted[d_ind] #start with smallest distance and move up                                                                                                                                              
+        d = darr_sorted[d_ind] #start with smallest distance and move    up                                                                                                                                              
         print('d = ', d)       
         connected_inds = (darr < d).nonzero()[0] #darr is 1D array     
         print('Nb. of connected pairs = ', len(connected_inds))
-        # ij = pair_inds(connected_inds,n)
-        # print(ij)
-        ij = dpair_inds[connected_inds,:]
-        adj_mat[ij[:,0],ij[:,1]] = True
+        ij = pair_inds(connected_inds,N)
+        print(ij)
+        adj_mat[ij] = True
         adj_mat  += adj_mat.T
         print(adj_mat.astype(int))
         print('\n')
@@ -176,8 +178,7 @@ def percolate(darr, dpair_inds, L, R, return_adjmat=False):
         coupledR = not R.isdisjoint(relevant_MOs)
         if coupledL and coupledR:
             print('Getting clusters...')
-            LR_connected_inds = (L|R) & relevant_MOs 
-            clusters = components(adj_mat, seed_nodes=LR_connected_inds) #seed only at edges of connected cluster
+            clusters = components(adj_mat)
             print('Done! Now looping over clusters...')
             print(f'Nb. of clusters with more than 1 MO = {np.sum(np.array([len(c) for c in clusters])>1)}')
             for c in clusters:
@@ -195,14 +196,13 @@ def percolate(darr, dpair_inds, L, R, return_adjmat=False):
         # first_try = False
     
     if d_ind == ndists-1:
-        print(f'No spanning clusters found!')
+        print(f'No spanning clusters found at T = {T}K.')
         return clusters, d, adj_mat
     
     if return_adjmat:
-        return spanning_clusters, d, adj_mat
+        return spanning_clusters, d, adj_mat, d_ind-1
     else:
         return spanning_clusters, d
-
 
 @njit
 def avg_nb_neighbours(energies, dists, erange, urange):
