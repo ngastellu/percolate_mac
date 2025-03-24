@@ -1,4 +1,7 @@
-# percolate_mac
+# PercolateMAC
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15078861.svg)](https://doi.org/10.5281/zenodo.15078861)
+
 
 This code estimates the electrical conductances of ensembles of amorphous monolayer carbon (AMC) structures using percolation theory.
 
