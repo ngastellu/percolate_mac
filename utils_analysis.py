@@ -38,7 +38,7 @@ def get_dcrits(run_inds,temps,datadir, pkl_prefix='out_percolate'):
 def load_dcrits(run_inds,run_name):
     """Meant to be run on Narval"""
     nsamples = len(run_inds)
-    data = np.load(f'sample-{run_inds[0]}/{run_name}_pkls/dcrits_{run_name}.npy')
+    data = np.load(f'sample-{run_inds[0]}/{run_name}_pkls/dcrits.npy')
     temps = data[0,:]
     dcrits = np.zeros((nsamples,temps.shape[0]))
     dcrits[0] = data[1,:]
@@ -47,7 +47,7 @@ def load_dcrits(run_inds,run_name):
         print(f'\n{nn}', end =' ')
         datadir = f"sample-{nn}/{run_name}_pkls/"
         try:
-            dcrits[k+1,:] = np.load(path.join(datadir,f'dcrits_{run_name}.npy'))[1,:]
+            dcrits[k+1,:] = np.load(path.join(datadir,f'dcrits.npy'))[1,:]
         except:
             print('NPY missing!')
             success[k+1] = False
@@ -219,21 +219,26 @@ def conduction_mask(sites_mask, cluster):
     conduction_bools = cluster_mask.sum(axis = 0) # sum corresponds to the union of atom sets associated with each site in cluster
     return conduction_bools
 
-def sigma_errorbar(dcrits):
+def sigma_errorbar(dcrits,temps,sigma_func=rough_integral_sigma):
     """IDEA: Estimate uncertainty in sigma(T) for each T by omitting one structure from the data set
      before computing sigma, and taking the difference between sigma obtained from this reduced set
      and sigma the computed from the full data set. We cycle over all samples and keep the highest 
      difference between the two estimates of sigma as our uncertainty.
      As always, dcrits is (Ns x Nt) array where Ns = number of structures, and
-     Nt = number of temperatures."""
+     Nt = number of temperatures.
+     
+     `sigma_func` is the function that actually computes the conductance. For now, the only two valid 
+     values are `rough_integral_sigma` (default) and `saddle_pt_sigma` (see above). New functions can be added, but be 
+     careful with the arguments: as things stand this `sigma_func` must accept two positional args: `dcrits`
+     and `temps`."""
     
     nsamples = dcrits.shape[0]
-    sigmas_full = saddle_pt_sigma(dcrits)
+    sigmas_full = sigma_func(dcrits,temps)
     err = np.zeros(sigmas_full.shape[0])
 
     # Get errors in sigma estimates
     for n in range(nsamples):
-        sigmas_partial = saddle_pt_sigma(np.roll(dcrits, n, axis=0)[:-1])
+        sigmas_partial = sigma_func(np.roll(dcrits, n, axis=0)[:-1], temps)
         diffs = np.abs(sigmas_full - sigmas_partial)
         inew = (diffs > err).nonzero()[0] #identify for which T inds we need to keep err 
         err[inew] = diffs[inew]
